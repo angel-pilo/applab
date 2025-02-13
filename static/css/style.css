@@ -14,13 +14,15 @@ body {
 
 /* Contenedor del login */
 .login-container {
-    background: #1c1c1c;
+    background-color: rgba(28, 28, 28, 0.9); /* Fondo semi-transparente */
     padding: 20px;
     border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Sombra suave */
     text-align: center;
-    box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.2);
-    width: 300px;
+    width: 100%;
+    max-width: 400px; /* Ajusta el ancho máximo si es necesario */
 }
+
 
 .login-container h2 {
     margin: 0;

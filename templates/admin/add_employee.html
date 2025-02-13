@@ -1,0 +1,134 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar nuevo empleado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}"> <!-- Usar CSS compartido -->
+    <style>
+        /* Estilos adicionales específicos de esta página, si es necesario */
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen">
+    {% include 'partials/sidebar.html' %} <!-- Incluir sidebar -->
+
+    <div id="main-content" class="flex-1 p-8 transition-all duration-300">
+        <div class="flex items-center space-x-2 mb-6">
+            <i class="fas fa-arrow-left text-2xl"></i>
+            <h1 class="text-3xl font-bold">Agregar nuevo empleado</h1>
+        </div>
+        <div class="space-y-6">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="col-span-2 flex items-center space-x-4">
+                        <span class="font-semibold">Empleado</span>
+                        <label class="flex items-center space-x-2">
+                            <input type="radio" name="empleado" class="form-radio">
+                            <span>Químico</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
+                            <input type="radio" name="empleado" class="form-radio">
+                            <span>Recepcionista</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
+                            <input type="radio" name="empleado" class="form-radio">
+                            <span>Mostrador</span>
+                        </label>
+                    </div>
+                    <div class="col-span-2 flex items-center space-x-4">
+                        <span class="font-semibold">Sexo</span>
+                        <label class="flex items-center space-x-2">
+                            <input type="radio" name="sexo" class="form-radio">
+                            <span>Hombre</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
+                            <input type="radio" name="sexo" class="form-radio">
+                            <span>Mujer</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block font-semibold">Nombre(s)</label>
+                        <input type="text" class="w-full border rounded-lg p-2">
+                    </div>
+                    <div>
+                        <label class="block font-semibold">Apellidos</label>
+                        <input type="text" class="w-full border rounded-lg p-2">
+                    </div>
+                    <div>
+                        <label class="block font-semibold">Telefono</label>
+                        <input type="text" class="w-full border rounded-lg p-2">
+                    </div>
+                    <div>
+                        <label class="block font-semibold">Correo electrónico</label>
+                        <input type="text" class="w-full border rounded-lg p-2">
+                    </div>
+                    <div>
+                        <label class="block font-semibold">Usuario</label>
+                        <span class="block w-full border rounded-lg p-2">usuario1</span>
+                    </div>
+                    <div>
+                        <label class="block font-semibold">Contraseña</label>
+                        <input type="password" class="w-full border rounded-lg p-2">
+                    </div>
+                </div>
+            </div>
+            <div class="flex space-x-4">
+                <div class="bg-white p-6 rounded-lg shadow-md w-1/2">
+                    <h2 class="text-xl font-semibold mb-4">Información de la dirección</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block font-semibold">Calle</label>
+                            <input type="text" class="w-full border rounded-lg p-2">
+                        </div>
+                        <div>
+                            <label class="block font-semibold">No. Ext.</label>
+                            <input type="text" class="w-full border rounded-lg p-2">
+                        </div>
+                        <div>
+                            <label class="block font-semibold">No. Int.</label>
+                            <input type="text" class="w-full border rounded-lg p-2">
+                        </div>
+                        <div>
+                            <label class="block font-semibold">Código postal</label>
+                            <input type="text" class="w-full border rounded-lg p-2">
+                        </div>
+                        <div>
+                            <label class="block font-semibold">Municipio</label>
+                            <input type="text" class="w-full border rounded-lg p-2">
+                        </div>
+                        <div>
+                            <label class="block font-semibold">Estado</label>
+                            <input type="text" class="w-full border rounded-lg p-2">
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md w-1/2">
+                    <h2 class="text-xl font-semibold mb-4">Información del trabajo</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block font-semibold">Horas a la semana</label>
+                            <input type="text" class="w-full border rounded-lg p-2">
+                        </div>
+                        <div>
+                            <label class="block font-semibold">Pago por hora</label>
+                            <input type="text" class="w-full border rounded-lg p-2">
+                        </div>
+                        <div>
+                            <label class="block font-semibold">Horario</label>
+                            <input type="text" class="w-full border rounded-lg p-2">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-4">
+                <button class="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md">Guardar</button>
+                <button class="bg-gray-300 text-black px-4 py-2 rounded-lg shadow-md">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    <footer class="text-center py-4 text-gray-500 w-full">
+        Copyright © 2024 AppLab. All rights reserved.
+    </footer>
+</body>
+</html>
