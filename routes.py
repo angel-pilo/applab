@@ -37,6 +37,7 @@ def login():
 def logout():
     # Lógica para cerrar sesión, como limpiar la sesión del usuario
     session.clear()
+    flash("Sesión cerrada correctamente.", "success")
     return redirect(url_for('app_routes.home'))  # 
 
 @app_routes.route("/admin")
