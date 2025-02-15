@@ -25,8 +25,9 @@
     opacity: 1;
 }
 
+/* Transición fluida del sidebar */
 .sidebar-expanded {
-    width: 200px;
+    width: 250px;
 }
 
 .sidebar-collapsed {
@@ -36,6 +37,48 @@
 .sidebar-transition {
     transition: width 0.5s ease-in-out;
 }
+
+/* Estilos de los ítems del sidebar */
+.sidebar-item {
+    height: 48px; /* Altura fija */
+    display: flex;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    color: white;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.sidebar-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Alineación de los iconos */
+.sidebar-expanded .sidebar-item {
+    justify-content: start;
+}
+
+.sidebar-expanded .sidebar-item i {
+    margin-right: 8px;
+}
+
+.sidebar-collapsed .sidebar-item {
+    justify-content: center;
+}
+
+/* Ocultar texto cuando está colapsado */
+.sidebar-collapsed .sidebar-text {
+    display: none;
+}
+
+/* Asegurar que el texto se mantenga alineado */
+.sidebar-text {
+    white-space: nowrap;
+}
+
 
 .notification-popup, .profile-popup {
     display: none;

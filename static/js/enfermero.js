@@ -1,12 +1,15 @@
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const sidebarTexts = document.querySelectorAll('.sidebar-text');
+
     sidebar.classList.toggle('sidebar-expanded');
     sidebar.classList.toggle('sidebar-collapsed');
+
     sidebarTexts.forEach(text => {
         text.classList.toggle('hidden');
     });
 }
+
 
 function toggleNotifications() {
     const notificationPopup = document.getElementById('notificationPopup');

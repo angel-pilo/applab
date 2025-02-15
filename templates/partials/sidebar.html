@@ -1,8 +1,11 @@
 <div id="sidebar" class="bg-blue-900 text-white sidebar-collapsed flex flex-col items-center py-4 sidebar-transition">
+    <!-- Botón de menú -->
     <div class="mb-8 cursor-pointer" onclick="toggleSidebar()">
         <i class="fas fa-th-large text-xl"></i>
     </div>
-    <div class="flex flex-col space-y-2 items-center w-full"> <!-- Reduced space between items -->
+    
+    <!-- Ítems del sidebar -->
+    <div class="flex flex-col space-y-2 items-center w-full">
         <button class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
             <i class="fas fa-home text-xl"></i>
             <span class="tooltiptext">Inicio</span>
@@ -20,16 +23,16 @@
         </button>
         <button class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
             <i class="fas fa-cog text-xl"></i>
-            <span class="tooltiptext">Configuracion</span>
-            <span class="ml-2 hidden sidebar-text">Configuracion</span>
+            <span class="tooltiptext">Configuración</span>
+            <span class="ml-2 hidden sidebar-text">Configuración</span>
         </button>
     </div>
-    <button class="mt-auto mb-4 tooltip flex items-center focus:outline-none sidebar-item w-full px-4" 
-    onclick="window.location.href='{{ url_for('app_routes.logout') }}'">
-    <i class="fas fa-sign-out-alt text-xl"></i>
-    <span class="tooltiptext">Cerrar Sesión</span>
-    <span class="ml-2 hidden sidebar-text">Cerrar Sesión</span>
-</button>
+
+    <!-- Botón de Cerrar Sesión -->
+    <button class="mt-auto mb-4 tooltip flex items-center focus:outline-none sidebar-item w-full px-4"
+        onclick="window.location.href='{{ url_for('app_routes.logout') }}'">
+        <i class="fas fa-sign-out-alt text-xl"></i>
+        <span class="tooltiptext">Cerrar Sesión</span>
+        <span class="ml-2 hidden sidebar-text">Cerrar Sesión</span>
+    </button>
 </div>
-
-
