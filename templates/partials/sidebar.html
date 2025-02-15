@@ -2,16 +2,34 @@
     <div class="mb-8 cursor-pointer" onclick="toggleSidebar()">
         <i class="fas fa-th-large text-xl"></i>
     </div>
-    <div id="sidebarContent" class="flex flex-col space-y-8 items-center pl-2">
-        <button class="tooltip flex items-center focus:outline-none">
+    <div class="flex flex-col space-y-2 items-center w-full"> <!-- Reduced space between items -->
+        <button class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
             <i class="fas fa-home text-xl"></i>
             <span class="tooltiptext">Inicio</span>
             <span class="ml-2 hidden sidebar-text">Inicio</span>
         </button>
-        <button class="tooltip flex items-center focus:outline-none">
+        <button class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
             <i class="fas fa-file-alt text-xl"></i>
             <span class="tooltiptext">Faltantes de reportar</span>
             <span class="ml-2 hidden sidebar-text">Faltantes de reportar</span>
         </button>
+        <button class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
+            <i class="fas fa-chart-bar text-xl"></i>
+            <span class="tooltiptext">Reporte de resultados</span>
+            <span class="ml-2 hidden sidebar-text">Reporte de resultados</span>
+        </button>
+        <button class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
+            <i class="fas fa-cog text-xl"></i>
+            <span class="tooltiptext">Configuracion</span>
+            <span class="ml-2 hidden sidebar-text">Configuracion</span>
+        </button>
     </div>
+    <button class="mt-auto mb-4 tooltip flex items-center focus:outline-none sidebar-item w-full px-4" 
+    onclick="window.location.href='{{ url_for('app_routes.logout') }}'">
+    <i class="fas fa-sign-out-alt text-xl"></i>
+    <span class="tooltiptext">Cerrar Sesión</span>
+    <span class="ml-2 hidden sidebar-text">Cerrar Sesión</span>
+</button>
 </div>
+
+
