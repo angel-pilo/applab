@@ -1,15 +1,56 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
+    <head>
+        <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
-</head>
-<body>
-    <h1>Bienvenido, Administrador</h1>
-    <p>Panel de control exclusivo para administradores.</p>
-    <a href="{{ url_for('app_routes.add_employee') }}">Agregar Empleado</a> <!-- Enlace a la página de agregar empleado -->
-    <a href="{{ url_for('app_routes.logout') }}">Cerrar sesión</a>
+    <title>Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="../static/css/admin.css">
+
+    </head>
+<body class="bg-gray-100 font-sans">
+<div class="flex h-screen">
+    {% include 'partials/sidebar.html' %}
+    <div class="flex-1 flex flex-col">
+        {% include 'partials/navbar.html' %}
+        <div class="grid">
+            <button class="card">
+                <i class="fas fa-users-cog icon"></i>
+                <h2>VISUALIZACIÓN DE ROLES</h2>
+            </button>
+            <button class="card">
+                <i class="fas fa-clipboard-list icon"></i>
+                <h2>INVENTARIO DE REACTIVOS</h2>
+            </button>
+            <button class="card">
+                <i class="fas fa-chart-line icon"></i>
+                <h2>REPORTE FINANCIERO</h2>
+            </button>
+            <button class="card">
+                <i class="fas fa-truck icon"></i>
+                <h2>PROVEEDORES</h2>
+            </button>
+            <button class="card">
+                <i class="fas fa-user-md icon"></i>
+                <h2>DOCTORES</h2>
+            </button>
+            <button class="card">
+                <i class="fas fa-hospital icon"></i>
+                <h2>HOSPITALES</h2>
+            </button>
+            <button class="card">
+                <i class="fas fa-users icon"></i>
+                <h2>EMPLEADOS</h2>
+            </button>
+            <button class="card">
+                <i class="fas fa-cog icon"></i>
+                <h2>CONFIGURACIÓN</h2>
+            </button>
+        </div>
+
+        {% include 'partials/footer.html' %}
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/enfermero.js') }}"></script>
 </body>
 </html>
