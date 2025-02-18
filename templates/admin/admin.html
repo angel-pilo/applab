@@ -1,56 +1,40 @@
-<!DOCTYPE html>
-<html lang="es">
-    <head>
-        <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
-    <link rel="stylesheet" href="../static/css/admin.css">
+{% extends "base.html" %}
 
-    </head>
-<body class="bg-gray-100 font-sans">
-<div class="flex h-screen">
-    {% include 'partials/sidebar.html' %}
-    <div class="flex-1 flex flex-col">
-        {% include 'partials/navbar.html' %}
-        <div class="grid">
-            <button class="card">
-                <i class="fas fa-users-cog icon"></i>
-                <h2>VISUALIZACIÓN DE ROLES</h2>
-            </button>
-            <button class="card">
-                <i class="fas fa-clipboard-list icon"></i>
-                <h2>INVENTARIO DE REACTIVOS</h2>
-            </button>
-            <button class="card">
-                <i class="fas fa-chart-line icon"></i>
-                <h2>REPORTE FINANCIERO</h2>
-            </button>
-            <button class="card">
-                <i class="fas fa-truck icon"></i>
-                <h2>PROVEEDORES</h2>
-            </button>
-            <button class="card">
-                <i class="fas fa-user-md icon"></i>
-                <h2>DOCTORES</h2>
-            </button>
-            <button class="card">
-                <i class="fas fa-hospital icon"></i>
-                <h2>HOSPITALES</h2>
-            </button>
-            <button class="card">
-                <i class="fas fa-users icon"></i>
-                <h2>EMPLEADOS</h2>
-            </button>
-            <button class="card">
-                <i class="fas fa-cog icon"></i>
-                <h2>CONFIGURACIÓN</h2>
-            </button>
-        </div>
+{% block title %}Dashboard Admin{% endblock %}
 
-        {% include 'partials/footer.html' %}
-    </div>
+{% block content %}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
+    <button class="card">
+        <i class="fas fa-users-cog icon"></i>
+        <h2>VISUALIZACIÓN DE ROLES</h2>
+    </button>
+    <button class="card">
+        <i class="fas fa-clipboard-list icon"></i>
+        <h2>INVENTARIO DE REACTIVOS</h2>
+    </button>
+    <button class="card">
+        <i class="fas fa-chart-line icon"></i>
+        <h2>REPORTE FINANCIERO</h2>
+    </button>
+    <button class="card">
+        <i class="fas fa-truck icon"></i>
+        <h2>PROVEEDORES</h2>
+    </button>
+    <button class="card">
+        <i class="fas fa-user-md icon"></i>
+        <h2>DOCTORES</h2>
+    </button>
+    <button class="card">
+        <i class="fas fa-hospital icon"></i>
+        <h2>HOSPITALES</h2>
+    </button>
+    <button class="card" onclick="window.location.href='{{ url_for('app_routes.add_employee') }}'">
+        <i class="fas fa-users icon"></i>
+        <h2>EMPLEADOS</h2>
+    </button>
+    <button class="card">
+        <i class="fas fa-cog icon"></i>
+        <h2>CONFIGURACIÓN</h2>
+    </button>
 </div>
-<script src="{{ url_for('static', filename='js/enfermero.js') }}"></script>
-</body>
-</html>
+{% endblock %}

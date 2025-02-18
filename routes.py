@@ -67,5 +67,6 @@ def quimico_dashboard():
 @app_routes.route("/admin/add_employee")
 def add_employee():
     # Lógica para mostrar el formulario de agregar empleado
-    return render_template("admin/add_employee.html")
-
+    if session.get("rol") == "admin":
+        return render_template("admin/add_employee.html")  
+    return redirect(url_for("app_routes.login"))
