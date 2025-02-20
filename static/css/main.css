@@ -36,6 +36,7 @@ body {
     opacity: 1;
 }
 
+
 /* Transición fluida del sidebar */
 .sidebar-expanded {
     width: 250px;
@@ -75,6 +76,7 @@ body {
 .sidebar-expanded .sidebar-item i {
     margin-right: 8px;
 }
+
 
 .sidebar-collapsed .sidebar-item {
     justify-content: center;
