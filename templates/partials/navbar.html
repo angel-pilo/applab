@@ -32,10 +32,10 @@
         </div>
         <div class="relative">
             <div class="flex items-center space-x-2 cursor-pointer" onclick="toggleProfile()">
-                <img alt="User profile picture" class="w-8 h-8 rounded-full" height="32" src="https://storage.googleapis.com/a1aa/image/oCD9Le4-feeiN6D-IjtWB1q7qxJxFOQVSpK1KIJSJWE.jpg" width="32"/>
+                <img alt="User profile picture" class="w-8 h-8 rounded-full" height="32" src="{{ session['foto_perfil'] }}" width="32"/>
                 <div class="text-sm">
-                    <div>Angel</div>
-                    <div class="text-gray-500">Rol</div>
+                    <div>{{ session['nombres'] }}</div>
+                    <div class="text-gray-500">{{ session['rol'] }}</div>
                 </div>
             </div>
             <div id="profilePopup" class="profile-popup">
@@ -44,10 +44,10 @@
                     <i class="fas fa-times cursor-pointer" onclick="closeProfile()"></i>
                 </div>
                 <div class="p-4 flex items-center space-x-4">
-                    <img alt="User profile picture" class="w-12 h-12 rounded-full" height="48" src="https://storage.googleapis.com/a1aa/image/oCD9Le4-feeiN6D-IjtWB1q7qxJxFOQVSpK1KIJSJWE.jpg" width="48"/>
+                    <img alt="User profile picture" class="w-8 h-8 rounded-full" height="32" src="{{ session['foto_perfil'] }}" width="48"/>
                     <div>
-                        <div class="text-sm font-bold">Nombre</div>
-                        <div class="text-sm text-gray-500">Rol</div>
+                        <div>{{ session['nombres'] }}</div>
+                        <div class="text-gray-500">{{ session['rol'] }}</div>
                     </div>
                 </div>
                 <div class="p-4 border-t">
