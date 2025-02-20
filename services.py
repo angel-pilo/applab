@@ -8,17 +8,21 @@ key = os.getenv('SUPABASE_KEY')
 supabase: Client = create_client(url, key)
 
 def verificar_usuario(usuario, password):
-    # Llama a la función almacenada en Supabase
+    # Llamar a la función de RPC que verifica el usuario y la contraseña
     result = supabase.rpc('check_user_password', {'p_username': usuario, 'p_password': password}).execute()
     
-    # Imprimir el resultado para depuración
-    print("Resultado de Supabase:", result.data)
+    # Verifica si el resultado tiene algún usuario
+    if result.data and len(result.data) > 0:
+        user = result.data[0]  # Obtén el primer resultado
+        user_id = user['user_id']  # Cambia 'id' por 'user_id'
+        
+        # Obtén el rol del usuario
+        rol_result = supabase.table('empleado_roles').select('rol_id').eq('empleado_id', user_id).execute()
+        
+        if rol_result.data:
+            return user  # Devuelve el usuario con su rol
+    return None  # Retorna None si no se encontró el usuario
 
-    # Verifica si el resultado contiene datos
-    if result.data and isinstance(result.data, list) and len(result.data) > 0:
-        # Retorna el primer resultado (el objeto del usuario)
-        return result.data[0]
-    
-    return None
+
 
 
