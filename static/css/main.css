@@ -1,3 +1,14 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #FAFBFE;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
 .tooltip {
     position: relative;
     display: inline-block;
@@ -99,4 +110,36 @@
     display: block;
     opacity: 1;
     transform: translateY(0);
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 1rem;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+    width: 250px; 
+    height: 250px;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.card h2 {
+    margin-bottom: 10px;  /* Pa que separe un poco del icono jeje */
+}
+
+.card:hover {
+    transform: scale(1.05);
+}
+
+.icon {
+    font-size: 40px; 
+    color: #1E40AF; 
+    margin-bottom: 10px;
+    width: 120px;
+    height: 120px;
 }
