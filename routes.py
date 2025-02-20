@@ -26,7 +26,7 @@ def login():
         user = verificar_usuario(usuario, password)
         if user:
             session["usuario"] = usuario
-            session["rol"] = role_map.get(user['role_id'], "default")
+            session["rol"] = role_map.get(user['rol_id'], "default")  # Mapeo de rol_id a nombre de rol
             return redirect(url_for('app_routes.' + f"{session['rol']}_dashboard"))  
         else:
             flash('Usuario o contraseña incorrectos.', 'error')
