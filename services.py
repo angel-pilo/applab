@@ -30,3 +30,29 @@ def verificar_usuario(usuario, password):
             return user
 
     return None
+
+def obtener_empleados():
+    # Consulta para obtener empleados junto con sus roles
+    result = supabase \
+        .table('empleados') \
+        .select('id, nombres, apellidos, empleado_roles(rol_id)') \
+        .execute()
+
+    # Imprime para depuración
+    print(result.data)  
+    
+    # Verifica si se obtuvieron resultados
+    if not result.data:
+        return []  # Retorna una lista vacía si no hay empleados
+    
+    # Retorna una lista de diccionarios
+    return [
+        {
+            "id": emp['id'],
+            "nombres": emp['nombres'],
+            "apellidos": emp['apellidos'],
+            "rol_id": emp['empleado_roles'][0]['rol_id'] if emp['empleado_roles'] else None
+        } 
+        for emp in result.data
+    ]
+

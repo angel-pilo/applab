@@ -141,4 +141,76 @@ window.onload = function() {
     radioButtons.forEach(radio => radio.checked = false);
 }
 
+        function validateForm() {
+            const requiredFields = document.querySelectorAll('[required]');
+            let valid = true;
 
+            requiredFields.forEach(field => {
+                if (!field.value) {
+                    field.classList.add('border-red-500');
+                    valid = false;
+                } else {
+                    field.classList.remove('border-red-500');
+                }
+            });
+
+            if (!valid) {
+                alert('Por favor, complete todos los campos obligatorios.');
+            }
+
+            return valid;
+        }
+
+        function updateUsername() {
+            const firstName = document.getElementById('first_name').value;
+            const lastName = document.getElementById('last_name').value;
+            const birthdate = document.getElementById('birthdate').value;
+
+            const firstInitial = firstName ? firstName.charAt(0).toLowerCase() : '';
+            const firstLastName = lastName ? lastName.split(' ')[0].toLowerCase() : '';
+            const birthYear = birthdate ? new Date(birthdate).getFullYear().toString().slice(-2) : '';
+
+            document.getElementById('username').value = `${firstInitial}${firstLastName}${birthYear}`;
+        }
+
+        function openDatePicker() {
+            document.getElementById('birthdate').showPicker();
+        }
+
+
+//add_employee
+        function validateForm() {
+            const requiredFields = document.querySelectorAll('[required]');
+            let valid = true;
+
+            requiredFields.forEach(field => {
+                if (!field.value) {
+                    field.classList.add('border-red-500');
+                    valid = false;
+                } else {
+                    field.classList.remove('border-red-500');
+                }
+            });
+
+            if (!valid) {
+                alert('Por favor, complete todos los campos obligatorios.');
+            }
+
+            return valid;
+        }
+
+        function updateUsername() {
+            const firstName = document.getElementById('first_name').value;
+            const lastName = document.getElementById('last_name').value;
+            const birthdate = document.getElementById('birthdate').value;
+
+            const firstInitial = firstName ? firstName.charAt(0).toLowerCase() : '';
+            const firstLastName = lastName ? lastName.split(' ')[0].toLowerCase() : '';
+            const birthYear = birthdate ? new Date(birthdate).getFullYear().toString().slice(-2) : '';
+
+            document.getElementById('username').value = `${firstInitial}${firstLastName}${birthYear}`;
+        }
+
+        function openDatePicker() {
+            document.getElementById('birthdate').showPicker();
+        }

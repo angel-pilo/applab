@@ -3,7 +3,6 @@
 {% block title %}Empleados{% endblock %}
 
 {% block content %}
-
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
@@ -11,13 +10,21 @@
 </head>
 
 <!--<div class="container mx-auto p-4">
-    <div class="flex flex-row items-center mb-4">
-        <button class="text-2xl"><i class="fas fa-arrow-left"></i></button>
+    <div class="flex items-center mb-4">
+        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
         <h1 class="text-4xl font-bold ml-4">EMPLEADOS</h1>
     </div>
 </div>-->
+
+<!--<div id="main-content" class="flex-1 p-8 transition-all duration-300">
+    <div class="flex items-center space-x-2 mb-6">
+        <i class="fas fa-arrow-left text-2xl"></i>
+        <h1 class="text-3xl font-bold">Empleados</h1>
+    </div>-->
+
+
 <div class="container mx-auto p-4 mt-8">
-    <div class="flex flex-row">
+    <div class="flex items-center mb-4">
         <div class="relative w-1/2">
             <input type="text" id="search-input" placeholder="Buscar empleado" class="w-full p-2 border rounded" oninput="searchEmployee()">
             <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
@@ -29,10 +36,13 @@
     <div id="not-found-message" class="hidden text-red-500 mb-4">
         El empleado no está registrado. <a href="#" class="text-blue-500 underline">Registrar empleado</a>
     </div>
+
     <div class="flex">
         <div class="w-2/3">
             <div class="flex items-center mb-2 relative">
-                <button class="bg-gray-200 p-2" style="border-radius: 1rem;" onclick="toggleFilterMenu()"><i class="fas fa-filter"></i> Filtro</button>
+                <button class="bg-gray-200 p-2" style="border-radius: 1rem;" onclick="toggleFilterMenu()">
+                    <i class="fas fa-filter"></i> Filtro
+                </button>
                 <div id="filter-menu" class="absolute top-10 left-0 bg-white border rounded shadow-lg p-4 hidden" style="border-radius: 1rem;">
                     <div class="mb-2">
                         <input type="radio" name="filter-role" value="mostrador" class="mr-2">
@@ -46,95 +56,53 @@
                         <input type="radio" name="filter-role" value="administrador" class="mr-2">
                         <label for="filter-role">Administrador</label>
                     </div>
-                    <div class="mb-2">
-                        <input type="checkbox" id="filter-emergency-contact" class="mr-2">
-                        <label for="filter-emergency-contact">Contacto de emergencia</label>
-                    </div>
-                    <div class="mb-2">
-                        <input type="checkbox" id="filter-allergies" class="mr-2">
-                        <label for="filter-allergies">Alergias</label>
-                    </div>
                     <button class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;" onclick="applyFilters()">Aplicar filtros</button>
                 </div>
             </div>
+
             <div class="overflow-y-auto max-h-96">
                 <table class="min-w-full bg-white rounded-lg shadow-md">
                     <thead>
                         <tr class="border-b">
                             <th class="py-2 px-4 text-left text-red-500">ID <i class="fas fa-arrow-down"></i></th>
                             <th class="py-2 px-4 text-left">Nombre</th>
+                            <th class="py-2 px-4 text-left">Apellido</th>
                             <th class="py-2 px-4 text-left">Tipo de empleado</th>
                             <th class="py-2 px-4 text-left"></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#007\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'mostrador', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                            <td class="py-2 px-15"><input type="radio" name="employee" value="#007" class="mr-2">#007</td>
-                            <td class="py-2 px-15">Nombre completo del empleado</td>
-                            <td class="py-2 px-15">Mostrador</td>
-                            <td class="py-2 px-15">
-                                <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#007')" style="border-radius: 1rem;">Eliminar</button>
-                            </td>
-                        </tr>
-                        <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#006\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'quimico', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                            <td class="py-2 px-15"><input type="radio" name="employee" value="#006" class="mr-2">#006</td>
-                            <td class="py-2 px-15">Nombre completo del empleado</td>
-                            <td class="py-2 px-15">Químico</td>
-                            <td class="py-2 px-15">
-                                <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#006')" style="border-radius: 1rem;">Eliminar</button>
-                            </td>
-                        </tr>
-                        <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#005\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'administrador', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                            <td class="py-2 px-15"><input type="radio" name="employee" value="#005" class="mr-2">#005</td>
-                            <td class="py-2 px-15">Nombre completo del empleado</td>
-                            <td class="py-2 px-15">Administrador</td>
-                            <td class="py-2 px-15">
-                                <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#005')" style="border-radius: 1rem;">Eliminar</button>
-                            </td>
-                        </tr>
-                        <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#004\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'mostrador', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                            <td class="py-2 px-15"><input type="radio" name="employee" value="#004" class="mr-2">#004</td>
-                            <td class="py-2 px-15">Nombre completo del empleado</td>
-                            <td class="py-2 px-15">Mostrador</td>
-                            <td class="py-2 px-15">
-                                <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#004')" style="border-radius: 1rem;">Eliminar</button>
-                            </td>
-                        </tr>
-                        <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#003\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'quimico', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                            <td class="py-2 px-15"><input type="radio" name="employee" value="#003" class="mr-2">#003</td>
-                            <td class="py-2 px-15">Nombre completo del empleado</td>
-                            <td class="py-2 px-15">Químico</td>
-                            <td class="py-2 px-15">
-                                <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#003')" style="border-radius: 1rem;">Eliminar</button>
-                            </td>
-                        </tr>
-                        <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#002\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'administrador', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                            <td class="py-2 px-15"><input type="radio" name="employee" value="#002" class="mr-2">#002</td>
-                            <td class="py-2 px-15">Nombre completo del empleado</td>
-                            <td class="py-2 px-15">Administrador</td>
-                            <td class="py-2 px-15">
-                                <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#002')" style="border-radius: 1rem;">Eliminar</button>
-                            </td>
-                        </tr>
-                        <tr class="cursor-pointer" onclick="document.querySelector('input[value=\'#001\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'mostrador', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                            <td class="py-2 px-15"><input type="radio" name="employee" value="#001" class="mr-2">#001</td>
-                            <td class="py-2 px-15">Nombre completo del empleado</td>
-                            <td class="py-2 px-15">Mostrador</td>
-                            <td class="py-2 px-15">
-                                <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#001')" style="border-radius: 1rem;">Eliminar</button>
-                            </td>
-                        </tr>
+                        {% if empleados %}
+                            {% for empleado in empleados %}
+                            <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'{{ empleado.id }}\']').checked = true; showDetails({ name: '{{ empleado.nombres }}', lastname: '{{ empleado.apellidos }}', role: '{{ empleado.rol }}', emergencyContact: '{{ empleado.contacto_emergencia }}', allergies: '{{ empleado.alergias }}', joiningDate: '{{ empleado.fecha_ingreso }}' })">
+                                <td class="py-2 px-4">
+                                    <input type="radio" name="employee" value="{{ empleado.id }}" class="mr-2">#{{ empleado.id }}
+                                </td>    
+                                <td class="py-2 px-4">{{ empleado.nombres }}</td>
+                                <td class="py-2 px-4">{{ empleado.apellidos }}</td>
+                                <td class="py-2 px-4">{{ empleado.rol }}</td>
+                                <td class="py-2 px-4">
+                                    <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;" onclick="window.location.href='{{ url_for('app_routes.edit_employee', empleado_id=empleado.id) }}'">Editar</button>
+                                    <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('{{ empleado.id }}')" style="border-radius: 1rem;">Eliminar</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="py-2 px-4 text-center">No hay empleados registrados.</td>
+                            </tr>
+                        {% endif %}
                     </tbody>
+                    
+
+
+                
+
+
                 </table>
             </div>
         </div>
+
         <div class="w-1/3 ml-4 mt-16">
             <div class="bg-white p-4 rounded-lg shadow-md" style="border-radius: 1rem;">
                 <h2 class="text-xl font-bold mb-4">Detalles</h2>
@@ -164,8 +132,9 @@
         </div>
         <div class="mt-4 flex justify-end">
             <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
-            <button class="bg-red-500 text-white px-4 py-2" style="border-radius: 1rem;">Continuar</button>
+            <button class="bg-red-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="deleteEmployee()">Continuar</button>
         </div>
     </div>
 </div>
+
 {% endblock %}

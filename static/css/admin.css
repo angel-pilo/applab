@@ -15,3 +15,13 @@
 .card:hover {
     transform: translateY(-4px);
 }
+
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.5);
+}
+
+
+
+
+
