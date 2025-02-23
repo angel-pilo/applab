@@ -214,3 +214,142 @@ window.onload = function() {
         function openDatePicker() {
             document.getElementById('birthdate').showPicker();
         }
+
+// Manejo del evento de click en el enlace "Explorar"
+function triggerFileInput(event) {
+    event.preventDefault();  // Evita que se agregue # a la URL
+    document.getElementById('file-input').click();  // Abre el explorador de archivos
+}
+
+// Función para manejar la selección del archivo
+function handleFileSelect(event) {
+    const fileInput = event.target;
+    const file = fileInput.files[0];
+
+    if (file) {
+        const fileName = file.name;
+        const fileReader = new FileReader();
+
+        fileReader.onload = function() {
+            const imageUrl = fileReader.result;
+            // Muestra la imagen seleccionada y el botón de eliminar con el icono SVG
+            document.getElementById('file-drop-zone').innerHTML = `
+                <div class="relative">
+                    <img src="${imageUrl}" alt="Foto de perfil" class="w-24 h-24 object-cover rounded-full mx-auto mb-4">
+                    <button class="absolute top-0 right-0 bg-white p-1 rounded-full" onclick="removeImage()">
+                        <img src="/static/icon/eliminar.svg" alt="Eliminar imagen" class="w-5 h-5">
+                    </button>
+                    <p class="text-gray-600 mt-2">Imagen seleccionada: ${fileName}</p>
+                </div>
+            `;
+        };
+
+        fileReader.readAsDataURL(file);
+    }
+}
+
+// Función para manejar la eliminación de la imagen
+function removeImage() {
+    const dropZone = document.getElementById('file-drop-zone');
+    // Restaura la zona de arrastre a su estado inicial
+    dropZone.innerHTML = `
+        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+        <p class="mt-2 text-gray-600">Arrastrar y soltar archivos o <a href="#" class="text-blue-500" onclick="triggerFileInput(event)">Explorar</a></p>
+        <p class="text-gray-400">Formatos admitidos: JPEG, PNG, GIF, WEBP</p>
+        <input type="file" id="file-input" class="hidden" accept="image/jpeg, image/png, image/gif, image/webp, image/svg+xml, image/vnd.adobe.illustrator" onchange="handleFileSelect(event)">
+    `;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('file-drop-zone');
+
+    // Evitar el comportamiento predeterminado en dragenter y dragover
+    dropZone.addEventListener('dragenter', function(event) {
+        event.preventDefault();  // Es necesario para permitir el drop
+        dropZone.classList.add('dragging');  // Activar feedback visual
+    });
+
+    dropZone.addEventListener('dragover', function(event) {
+        event.preventDefault();
+        dropZone.classList.add('dragging');  // Mantener el feedback visual
+    });
+
+    // Eliminar feedback visual cuando el archivo deja la zona
+    dropZone.addEventListener('dragleave', function(event) {
+        event.preventDefault();
+            dropZone.classList.remove('dragging');  // Restaurar estilos
+        });
+
+    // Manejar la caída del archivo en la zona
+    dropZone.addEventListener('drop', function(event) {
+        event.preventDefault();
+        dropZone.classList.remove('dragging');  // Restaurar estilos
+
+        const files = event.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];  // Tomar el primer archivo
+
+            // Verificar que el archivo sea de tipo imagen
+            if (file.type.startsWith('image/')) {
+                const fileReader = new FileReader();
+                fileReader.onload = function() {
+                    const imageUrl = fileReader.result;
+                    // Mostrar la imagen cargada en el área y el botón de eliminar con el icono SVG
+                    dropZone.innerHTML = `  
+                        <div class="relative">
+                            <img src="${imageUrl}" alt="Imagen seleccionada" class="w-24 h-24 object-cover rounded-full mx-auto mb-4">
+                            <button class="absolute top-0 right-0 bg-white p-1 rounded-full" onclick="removeImage()">
+                                <img src="{{ url_for('static', filename='icons/eliminar.svg') }}" class="icon-small">
+                            </button>
+                            <p class="text-gray-600 mt-2">Imagen seleccionada: ${file.name}</p>
+                        </div>
+                    `;
+                };
+
+                fileReader.readAsDataURL(file);  // Leer el archivo como URL para mostrar la imagen
+            } else {
+                dropZone.innerHTML = `
+                    <p class="text-red-500">Por favor, selecciona una imagen.</p>
+                `;
+            }
+        }
+    });
+});
+
+function getSelectedEmployeeType() {
+    const selectedEmployee = document.querySelector('input[name="employee_type"]:checked');
+    if (selectedEmployee) {
+        console.log(`Empleado seleccionado: ${selectedEmployee.value}`);
+    } else {
+        console.log('No se ha seleccionado un empleado');
+    }
+}
+
+function getSelectedGender() {
+    const selectedGender = document.querySelector('input[name="gender"]:checked');
+    if (selectedGender) {
+        console.log(`Sexo seleccionado: ${selectedGender.value}`);
+    } else {
+        console.log('No se ha seleccionado un sexo');
+    }
+}
+
+// Ejemplo de cómo usarlas
+document.getElementById('yourButtonId').addEventListener('click', function() {
+    getSelectedEmployeeType();
+    getSelectedGender();
+});
+
+
+    // Obtener todos los inputs de tipo radio para 'employee_type'
+    const employeeTypeRadios = document.querySelectorAll('input[name="employee_type"]');
+
+    // Agregar un evento de cambio para cada radio button
+    employeeTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Obtener el 'role_id' desde el atributo 'data-role-id' del radio seleccionado
+            const roleId = this.getAttribute('data-role-id');
+            // Actualizar el campo oculto con el 'role_id'
+            document.getElementById('role_id').value = roleId;
+        });
+    });

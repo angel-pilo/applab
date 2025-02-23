@@ -16,12 +16,73 @@
     transform: translateY(-4px);
 }
 
-
 input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(0.5);
 }
 
+/* Estilos para la zona de arrastre de archivo */
+#file-drop-zone {
+    border: 2px dashed #E2E8F0; /* Gris claro */
+    background-color: #F9FAFB; /* Fondo gris muy claro */
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Sombra suave */
+}
+
+#file-drop-zone i {
+    font-size: 3rem;
+    color: #A0AEC0; /* Gris suave */
+    transition: color 0.3s ease;
+}
+
+#file-drop-zone p {
+    color: #4A5568; /* Gris oscuro */
+}
+
+/* Estilo cuando un archivo es arrastrado sobre la zona */
+#file-drop-zone.dragging {
+    background-color: #EDF2F7; /* Azul muy suave */
+    border-color: #3B82F6; /* Azul claro */
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3); /* Sombra azul */
+}
+
+#file-drop-zone.dragging i {
+    color: #3B82F6; /* Azul claro */
+}
 
 
+/* Estilos para la imagen cargada */
+#file-drop-zone img {
+    max-width: 100px;
+    max-height: 100px;
+    object-fit: cover;
+    border-radius: 50%;
+    margin-bottom: 10px;
+}
 
+#file-drop-zone p.image-selected {
+    color: #2D3748; /* Gris oscuro */
+}
 
+/* Estilo para el botón de eliminar imagen */
+#file-drop-zone button {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    transition: background-color 0.3s ease;
+}
+
+#file-drop-zone button:hover {
+    background-color: #dc2626;  /* Rojo más oscuro al pasar el mouse */
+}
+
+/* Estilo adicional para asegurar que el icono esté centrado */
+#file-drop-zone button i {
+    font-size: 16px;
+}
