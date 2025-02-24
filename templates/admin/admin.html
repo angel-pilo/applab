@@ -3,38 +3,40 @@
 {% block title %}Dashboard Admin{% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
-    <button class="card">
-        <h2>VISUALIZACIÓN DE ROLES</h2>
-        <img src="{{ url_for('static', filename='icons/visualizacion.svg') }}" alt="Icono visualización" class="icon">
-    </button>
-    <button class="card">
-        <h2>INVENTARIO DE REACTIVOS</h2>
-        <img src="{{ url_for('static', filename='icons/inventario.svg') }}" alt="Icono inventario" class="icon">
-    </button>
-    <button class="card">
-        <h2>REPORTE FINANCIERO</h2>
-        <img src="{{ url_for('static', filename='icons/financiero.svg') }}" alt="Icono financiero" class="icon">
-    </button>
-    <button class="card">
-        <h2>PROVEEDORES</h2>
-        <img src="{{ url_for('static', filename='icons/proveedores.svg') }}" alt="Icono proveedores" class="icon">
-    </button>
-    <button class="card">
-        <h2>DOCTORES</h2>
-        <img src="{{ url_for('static', filename='icons/doctores.svg') }}" alt="Icono doctores" class="icon">
-    </button>
-    <button class="card">
-        <h2>HOSPITALES</h2>
-        <img src="{{ url_for('static', filename='icons/hospitales.svg') }}" alt="Icono hospitales" class="icon">
-    </button>
-    <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_employees') }}'">
-        <h2>EMPLEADOS</h2>
-        <img src="{{ url_for('static', filename='icons/empleados.svg') }}" alt="Icono empleados" class="icon">
-    </button>
-    <button class="card">
-        <h2>CONFIGURACIÓN</h2>
-        <img src="{{ url_for('static', filename='icons/configuracion.svg') }}" alt="Icono configuracion" class="icon">
-    </button>
+<div class="flex justify-center items-center h-full">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-6 p-6">
+        <button class="card">
+            <h2>VISUALIZACIÓN DE ROLES</h2>
+            <img src="{{ url_for('static', filename='icons/visualizacion.svg') }}" alt="Icono visualización" class="icon">
+        </button>
+        <button class="card">
+            <h2>INVENTARIO DE REACTIVOS</h2>
+            <img src="{{ url_for('static', filename='icons/inventario.svg') }}" alt="Icono inventario" class="icon">
+        </button>
+        <button class="card">
+            <h2>REPORTE FINANCIERO</h2>
+            <img src="{{ url_for('static', filename='icons/financiero.svg') }}" alt="Icono financiero" class="icon">
+        </button>
+        <button class="card">
+            <h2>PROVEEDORES</h2>
+            <img src="{{ url_for('static', filename='icons/proveedores.svg') }}" alt="Icono proveedores" class="icon">
+        </button>
+        <button class="card">
+            <h2>DOCTORES</h2>
+            <img src="{{ url_for('static', filename='icons/doctores.svg') }}" alt="Icono doctores" class="icon">
+        </button>
+        <button class="card">
+            <h2>HOSPITALES</h2>
+            <img src="{{ url_for('static', filename='icons/hospitales.svg') }}" alt="Icono hospitales" class="icon">
+        </button>
+        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_employees') }}'">
+            <h2>EMPLEADOS</h2>
+            <img src="{{ url_for('static', filename='icons/empleados.svg') }}" alt="Icono empleados" class="icon">
+        </button>
+        <button class="card">
+            <h2>CONFIGURACIÓN</h2>
+            <img src="{{ url_for('static', filename='icons/configuracion.svg') }}" alt="Icono configuracion" class="icon">
+        </button>
+    </div>
 </div>
 {% endblock %}
