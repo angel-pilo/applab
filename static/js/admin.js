@@ -162,20 +162,21 @@ window.onload = function() {
         }
 
         function updateUsername() {
-            const nombres = document.getElementById('nombres').value;
-            const apellidos = document.getElementById('apellidos').value;
+            const firstName = document.getElementById('nombres').value;
+            const lastName = document.getElementById('apellidos').value;
             const birthdate = document.getElementById('fecha_nacimiento').value;
-
-            const firstInitial = nombres ? nombres.charAt(0).toLowerCase() : '';
-            const firstapellidos = apellidos ? apellidos.split(' ')[0].toLowerCase() : '';
-            const fecha_nacimiento = fecha_nacimiento ? new Date(fecha_nacimiento).getFullYear().toString().slice(-2) : '';
-
-            document.getElementById('username').value = `${firstInitial}${firstLastName}${fecha_nacimiento}`;
+        
+            const firstInitial = firstName ? firstName.charAt(0).toLowerCase() : '';
+            const firstLastName = lastName ? lastName.split(' ')[0].toLowerCase() : '';
+            const birthYear = birthdate ? new Date(birthdate).getFullYear().toString().slice(-2) : '';
+        
+            document.getElementById('username').value = `${firstInitial}${firstLastName}${birthYear}`;
         }
-
+        
         function openDatePicker() {
             document.getElementById('fecha_nacimiento').showPicker();
         }
+        
 
 
 //add_employee
@@ -199,21 +200,6 @@ window.onload = function() {
             return valid;
         }
 
-        function updateUsername() {
-            const firstName = document.getElementById('first_name').value;
-            const lastName = document.getElementById('last_name').value;
-            const birthdate = document.getElementById('birthdate').value;
-
-            const firstInitial = firstName ? firstName.charAt(0).toLowerCase() : '';
-            const firstLastName = lastName ? lastName.split(' ')[0].toLowerCase() : '';
-            const birthYear = birthdate ? new Date(birthdate).getFullYear().toString().slice(-2) : '';
-
-            document.getElementById('username').value = `${firstInitial}${firstLastName}${birthYear}`;
-        }
-
-        function openDatePicker() {
-            document.getElementById('birthdate').showPicker();
-        }
 
 // Manejo del evento de click en el enlace "Explorar"
 function triggerFileInput(event) {
