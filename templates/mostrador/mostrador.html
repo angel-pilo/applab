@@ -1,15 +1,36 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mostrador Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
-    <h1>Bienvenido, Mostrador</h1>
-    <p>Panel de control para gestión de órdenes y atención al cliente.</p>
-    <a href="{{ url_for('app_routes.logout') }}">Cerrar sesión</a>
+{% extends "base.html" %}
 
-</body>
-</html>
+{% block title %}Dashboard mostrador{% endblock %}
+
+{% block content %}
+<div class="flex justify-center items-center h-full">
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-10 p-6">
+        <button class="card">
+            <h2>Generar orden</h2>
+            <img src="{{ url_for('static', filename='icons/orden.svg') }}" alt="Icono orden" class="icon">
+        </button>
+        <button class="card">
+            <h2>Resultados listos</h2>
+            <img src="{{ url_for('static', filename='icons/listos.svg') }}" alt="Icono listos" class="icon">
+        </button>
+        <button class="card">
+            <h2>Pacientes</h2>
+            <img src="{{ url_for('static', filename='icons/pacientes.svg') }}" alt="Icono pacientes" class="icon">
+        </button>
+        <button class="card">
+            <h2>Corte de caja</h2>
+            <img src="{{ url_for('static', filename='icons/corte.svg') }}" alt="Icono corte de caja" class="icon">
+        </button>
+        <button class="card">
+            <h2>Ordenes recientes</h2>
+            <img src="{{ url_for('static', filename='icons/reciente.svg') }}" alt="Icono ordenes recientes" class="icon">
+        </button>
+        <button class="card">
+            <h2>Configuración</h2>
+            <img src="{{ url_for('static', filename='icons/configuracion.svg') }}" alt="Icono configuracion" class="icon">
+        </button>
+    </div>
+</div>
+{% endblock %}
+ 
+
