@@ -22,19 +22,19 @@
                     <label class="block text-gray-700 font-bold mb-2">Empleado<span class="text-red-500">*</span></label>
                     <div class="flex items-center space-x-4">
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="tipo_empleado" value="quimico" required data-role-id="4">
+                            <input type="radio" class="form-radio" name="tipo_empleado" value="4" required data-role-id="4">
                             <span class="ml-2">Químico</span>
                         </label>
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="tipo_empleado" value="mostrador" data-role-id="2">
+                            <input type="radio" class="form-radio" name="tipo_empleado" value="2" data-role-id="2">
                             <span class="ml-2">Mostrador</span>
                         </label>
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="tipo_empleado" value="enfermero" data-role-id="3">
+                            <input type="radio" class="form-radio" name="tipo_empleado" value="3" data-role-id="3">
                             <span class="ml-2">Enfermero</span>
                         </label>
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="tipo_empleado" value="administrador" data-role-id="1">
+                            <input type="radio" class="form-radio" name="tipo_empleado" value="1" data-role-id="1">
                             <span class="ml-2">Administrador</span>
                         </label>
                     </div>
@@ -47,15 +47,15 @@
                     <label class="block text-gray-700 font-bold mb-2">Sexo<span class="text-red-500">*</span></label>
                     <div class="flex items-center space-x-4">
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="sexo" value="hombre" required>
+                            <input type="radio" class="form-radio" name="sexo" value="M" required>
                             <span class="ml-2">Hombre</span>
                         </label>
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="sexo" value="mujer">
+                            <input type="radio" class="form-radio" name="sexo" value="F">
                             <span class="ml-2">Mujer</span>
                         </label>
                     </div>
-                </div>                
+                </div>                              
                 
                 <div class="w-full md:w-auto">
                     <label class="block text-gray-700 font-bold mb-2" for="fecha_nacimiento">Fecha de nacimiento<span class="text-red-500">*</span></label>
@@ -100,7 +100,7 @@
                         <!-- Input file hidden to trigger on click -->
                         <input type="file" id="file-input" class="hidden" accept="image/jpeg, image/png, image/gif, image/webp" onchange="handleFileSelect(event)">
                     </div>
-                </div>5
+                </div>
             </div>
         </div>
         <div class="flex flex-wrap justify-evenly mt-6">
@@ -145,8 +145,8 @@
                         <label class="block text-gray-700 font-bold mb-2" for="shift">Turno<span class="text-red-500">*</span></label>
                         <select id="turno" name="turno" class="w-full px-4 py-2 border rounded-[1rem]" required>
                             <option>Seleccione un turno</option>
-                            <option>Matutino</option>
-                            <option>Vespertino</option>
+                            <option value="Matutino">Matutino</option>
+                            <option value="Vespertino">Vespertino</option>
                         </select>
                     </div>
                     <div>

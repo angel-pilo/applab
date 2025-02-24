@@ -3,13 +3,18 @@
 {% block title %}Dashboard Enfermero{% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-    <button class="bg-white p-6 rounded-lg shadow-lg text-center focus:outline-none">
-        <div class="text-lg font-bold">FALTANTES DE REPORTAR</div>
-    </button>
-    <button class="bg-white p-6 rounded-lg shadow-lg text-center focus:outline-none">
-        <div class="text-lg font-bold">REPORTE DE RESULTADOS</div>
-    </button>
+<div class="flex justify-center items-center h-full">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-12 p-6">
+        <button class="card">
+            <h2>Faltantes de muestra</h2>
+            <img src="{{ url_for('static', filename='icons/muestra.svg') }}" alt="Icono mustra" class="icon">
+        </button>
+        <button class="card">
+            <h2>Configuración</h2>
+            <img src="{{ url_for('static', filename='icons/configuracion.svg') }}" alt="Icono configuracion" class="icon">
+        </button>
+    </div>
 </div>
 {% endblock %}
+
 
