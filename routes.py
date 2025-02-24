@@ -1,17 +1,15 @@
-from flask import render_template, request, redirect, session, url_for, Blueprint, flash
-from functools import wraps
-from services import verificar_usuario, obtener_empleados
-from utils import add_user_and_employee
-from werkzeug.security import generate_password_hash
-from supabase import create_client, Client
 import os
-from flask import render_template, request, redirect, session, url_for, Blueprint, flash
-from functools import wraps  # Importa wraps
-from services import verificar_usuario, obtener_empleados
-from utils import add_user_and_employee
 import io
+import bcrypt
+
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from functools import wraps
+from services import obtener_empleados, verificar_usuario
+from supabase import Client, create_client
+from utils import *
+from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
-import os
+
 
 app_routes = Blueprint('app_routes', __name__)
 
@@ -94,56 +92,74 @@ def manage_employees():
 @require_role("Admin")
 def add_employee():
     if request.method == "POST":
+        print(request.form)
         # Obtener los datos del formulario
-        first_name = request.form.get("first_name")
-        last_name = request.form.get("last_name")
-        birthdate = request.form.get("birthdate")
-        email = request.form.get("email")
-        phone = request.form.get("phone")
-        password = request.form.get("password")
-        contacto_emergencia = request.form.get("contacto_emergencia")
-        alergias = request.form.get("alergias")
-        role_id = request.form.get("role_id")
-        gender = request.form.get("gender")
+        tipo_empleado = request.form['tipo_empleado']
+        sexo = request.form.get('sexo')
+        if not sexo:
+            return "No se seleccionó el sexo", 400
+        fecha_nacimiento = request.form['fecha_nacimiento']
+        nombres = request.form['nombres']
+        apellidos = request.form['apellidos']
+        telefono = request.form['telefono']
+        correo = request.form['correo']
+        username = request.form['username']
+        password = request.form['password']  # Considera encriptar esta contraseña
+        calle = request.form['calle']
+        numero_ext = request.form['numero_ext']
+        numero_int = request.form['numero_int']
+        codigo_postal = request.form['codigo_postal']
+        municipio = request.form['municipio']
+        curp_rfc = request.form['curp_rfc']
+        turno = request.form['turno']
+        condiciones_medicas = request.form['condiciones_medicas']
+        contacto_emergencia = request.form['contacto_emergencia']
 
-        # Procesar la imagen
-        if 'profile_picture' in request.files:
-            profile_picture = request.files['profile_picture']
-            if profile_picture and allowed_file(profile_picture.filename):
-                # Convertir la imagen a un objeto binario
-                image_data = profile_picture.read()
+        # Paso 1: Inserta el nuevo usuario en la tabla `usuarios`
+        user_data = {
+            "username": username,
+            "password": password  # Recuerda encriptar la contraseña
+        }
 
-                # Subir la imagen a Supabase Storage
-                storage = supabase.storage()
-                file_name = secure_filename(profile_picture.filename)
-                file_path = f"profile_pictures/{file_name}"
+        user_response = supabase.table('usuarios').insert(user_data).execute()
 
-                # Subir la imagen al bucket de Supabase Storage
-                response = storage.from_('your_bucket_name').upload(file_path, io.BytesIO(image_data))
+        if user_response.status_code != 201:  # Verifica si la inserción fue exitosa
+            return f"Error al agregar usuario: {user_response.data}", user_response.status_code
 
-                if response.status_code == 200:
-                    photo_url = f"{supabase_url}/storage/v1/object/public/{file_path}"
-                else:
-                    flash('Error al subir la imagen.', 'danger')
-                    return redirect(url_for("app_routes.add_employee"))
-            else:
-                flash('Formato de imagen no permitido.', 'danger')
-                return redirect(url_for("app_routes.add_employee"))
+        # Obtener el ID del nuevo usuario
+        usuario_id = user_response.data[0]['id']  # Asegúrate de que la respuesta contiene el ID
+
+        # Paso 2: Prepara los datos del empleado, incluyendo el usuario_id
+        employee_data = {
+            "tipo_empleado": tipo_empleado,
+            "sexo": sexo,
+            "fecha_nacimiento": fecha_nacimiento,
+            "nombres": nombres,
+            "apellidos": apellidos,
+            "telefono": telefono,
+            "correo": correo,
+            "usuario_id": usuario_id,  # Asigna el ID del usuario aquí
+            "calle": calle,
+            "numero_ext": numero_ext,
+            "numero_int": numero_int,
+            "codigo_postal": codigo_postal,
+            "municipio": municipio,
+            "curp_rfc": curp_rfc,
+            "turno": turno,
+            "condiciones_medicas": condiciones_medicas,
+            "contacto_emergencia": contacto_emergencia
+        }
+
+        # Inserta el nuevo empleado en la tabla `empleados`
+        employee_response = supabase.table('empleados').insert(employee_data).execute()
+
+        if employee_response.status_code == 201:  # Verifica si la inserción fue exitosa
+            return redirect(url_for('admin.success'))  # Redirige a una página de éxito o similar
         else:
-            photo_url = None  # Si no se sube imagen, dejamos en None
+            return f"Error al agregar empleado: {employee_response.data}", employee_response.status_code
 
-        # Validar los campos
-        if not all([first_name, last_name, birthdate, email, phone, password, role_id, gender]):
-            flash("Todos los campos son obligatorios.", "danger")
-            return redirect(url_for("app_routes.add_employee"))
+    return render_template('admin/add_employee.html')
 
-        # Usar la función para agregar el usuario y el empleado
-        _, message = add_user_and_employee(first_name, last_name, birthdate, email, phone, password, contacto_emergencia, alergias, role_id, gender, photo_url)
-        flash(message, "success" if "correctamente" in message else "danger")
-
-        return redirect(url_for("app_routes.manage_employees"))
-
-    return render_template("admin/add_employee.html")
 
 @app_routes.route('/admin/edit_employee/<int:empleado_id>', methods=['GET', 'POST'])
 @require_role("Admin")

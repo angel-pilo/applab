@@ -22,19 +22,19 @@
                     <label class="block text-gray-700 font-bold mb-2">Empleado<span class="text-red-500">*</span></label>
                     <div class="flex items-center space-x-4">
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="employee_type" value="quimico" required data-role-id="4">
+                            <input type="radio" class="form-radio" name="tipo_empleado" value="quimico" required data-role-id="4">
                             <span class="ml-2">Químico</span>
                         </label>
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="employee_type" value="mostrador" data-role-id="2">
+                            <input type="radio" class="form-radio" name="tipo_empleado" value="mostrador" data-role-id="2">
                             <span class="ml-2">Mostrador</span>
                         </label>
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="employee_type" value="enfermero" data-role-id="3">
+                            <input type="radio" class="form-radio" name="tipo_empleado" value="enfermero" data-role-id="3">
                             <span class="ml-2">Enfermero</span>
                         </label>
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="employee_type" value="administrador" data-role-id="1">
+                            <input type="radio" class="form-radio" name="tipo_empleado" value="administrador" data-role-id="1">
                             <span class="ml-2">Administrador</span>
                         </label>
                     </div>
@@ -47,48 +47,48 @@
                     <label class="block text-gray-700 font-bold mb-2">Sexo<span class="text-red-500">*</span></label>
                     <div class="flex items-center space-x-4">
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="gender" value="hombre" required>
+                            <input type="radio" class="form-radio" name="sexo" value="hombre" required>
                             <span class="ml-2">Hombre</span>
                         </label>
                         <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="gender" value="mujer">
+                            <input type="radio" class="form-radio" name="sexo" value="mujer">
                             <span class="ml-2">Mujer</span>
                         </label>
                     </div>
                 </div>                
                 
                 <div class="w-full md:w-auto">
-                    <label class="block text-gray-700 font-bold mb-2" for="birthdate">Fecha de nacimiento<span class="text-red-500">*</span></label>
+                    <label class="block text-gray-700 font-bold mb-2" for="fecha_nacimiento">Fecha de nacimiento<span class="text-red-500">*</span></label>
                     <div class="relative" onclick="openDatePicker()">
-                        <input type="date" id="birthdate" class="w-full px-4 py-2 border rounded-[1rem]" required oninput="updateUsername()">
+                        <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" class="w-full px-4 py-2 border rounded-[1rem]" required oninput="updateUsername()">
                     </div>
-                </div>
+                </div>                
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="first_name">Nombre(s)<span class="text-red-500">*</span></label>
-                        <input type="text" id="first_name" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa los nombres del empleado" required oninput="updateUsername()">
+                        <label class="block text-gray-700 font-bold mb-2" for="nombres">Nombre(s)<span class="text-red-500">*</span></label>
+                        <input type="text" id="nombres" name="nombres" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa los nombres del empleado" required oninput="updateUsername()">
                     </div>
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="last_name">Apellidos<span class="text-red-500">*</span></label>
-                        <input type="text" id="last_name" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa los apellidos del empleado" required oninput="updateUsername()">
+                        <label class="block text-gray-700 font-bold mb-2" for="apellidos">Apellidos<span class="text-red-500">*</span></label>
+                        <input type="text" id="apellidos" name="apellidos" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa los apellidos del empleado" required oninput="updateUsername()">
                     </div>
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="phone">Teléfono<span class="text-red-500">*</span></label>
-                        <input type="text" id="phone" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el teléfono del empleado" required>
+                        <label class="block text-gray-700 font-bold mb-2" for="telefono">Teléfono<span class="text-red-500">*</span></label>
+                        <input type="text" id="telefono" name="telefono" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el teléfono del empleado" required>
                     </div>
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="email">Correo electrónico<span class="text-red-500">*</span></label>
-                        <input type="email" id="email" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el correo del empleado" required>
+                        <label class="block text-gray-700 font-bold mb-2" for="correo">Correo electrónico<span class="text-red-500">*</span></label>
+                        <input type="email" id="correo" name="correo" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el correo del empleado" required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="username">Usuario<span class="text-red-500">*</span></label>
-                        <input type="text" id="username" class="w-full px-4 py-2 border rounded-[1rem]" value="Usuario generado" readonly required>
+                        <input type="text" id="username" name="username" class="w-full px-4 py-2 border rounded-[1rem]" value="Usuario generado" readonly required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="password">Contraseña<span class="text-red-500">*</span></label>
-                        <input type="password" id="password" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa la contraseña del empleado" required>
+                        <input type="password" id="password" name="password" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa la contraseña del empleado" required>
                     </div>
                 </div>
                 <div id="drop-zone" class="md:col-span-1">
@@ -108,28 +108,29 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="street">Calle<span class="text-red-500">*</span></label>
-                        <input type="text" id="street" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Calle" required>
+                        <input type="text" id="calle" name="calle" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Calle" required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="ext_number">No. Ext.<span class="text-red-500">*</span></label>
-                        <input type="text" id="ext_number" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="No. ext." required>
+                        <input type="text" id="numero_ext" name="numero_ext" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="No. ext." required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="int_number">No. Int.</label>
-                        <input type="text" id="int_number" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="No. int.">
+                        <input type="text" id="numero_int" name="numero_int" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="No. int.">
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="postal_code">Código postal<span class="text-red-500">*</span></label>
-                        <input type="text" id="postal_code" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Código postal" required>
+                        <input type="text" id="codigo_postal" name="codigo_postal" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Código postal" required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="municipality">Municipio<span class="text-red-500">*</span></label>
-                        <input type="text" id="municipality" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Municipio" required>
+                        <input type="text" id="municipio" name="municipio" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Municipio" required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="state">Estado<span class="text-red-500">*</span></label>
-                        <select id="state" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                        <select id="estado" name="estado" class="w-full px-4 py-2 border rounded-[1rem]" required>
                             <option>Seleccione un estado</option>
+                            <option>Jalisco</option>
                         </select>
                     </div>
                 </div>
@@ -137,22 +138,24 @@
             <div class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="curp">CURP o RFC<span class="text-red-500">*</span></label>
-                        <input type="text" id="curp" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa CURP o RFC" required>
+                        <label class="block text-gray-700 font-bold mb-2" for="curp_rfc">CURP o RFC<span class="text-red-500">*</span></label>
+                        <input type="text" id="curp_rfc" name="curp_rfc" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa CURP o RFC" required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="shift">Turno<span class="text-red-500">*</span></label>
-                        <select id="shift" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                        <select id="turno" name="turno" class="w-full px-4 py-2 border rounded-[1rem]" required>
                             <option>Seleccione un turno</option>
+                            <option>Matutino</option>
+                            <option>Vespertino</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2 text-sm" for="medical_conditions">Alergias o condiciones médicas</label>
-                        <input type="text" id="medical_conditions" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Para prevenir emergencias">
+                        <input type="text" id="condiciones_medicas" name="condiciones_medicas" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Para prevenir emergencias">
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="emergency_contact">Contacto de emergencia<span class="text-red-500">*</span></label>
-                        <input type="text" id="emergency_contact" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Nombre, teléfono y relación" required>
+                        <input type="text" id="contacto_emergencia" name="contacto_emergencia" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Nombre, teléfono y relación" required>
                     </div>
                 </div>
             </div>
