@@ -1,7 +1,8 @@
 /* admin.css */
 
 .container {
-    max-width: 1200px;
+    /*max-width: 1200px;*/
+    max-width: 96%;
     margin: 0 auto;
 }
 
@@ -85,4 +86,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Estilo adicional para asegurar que el icono esté centrado */
 #file-drop-zone button i {
     font-size: 16px;
+}
+
+.max-w-7xl {
+    max-width: 96%;
 }

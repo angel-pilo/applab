@@ -12,7 +12,7 @@
 </head>
 <div id="main-content" class="flex-1 p-8 transition-all duration-300">
     <div class="flex items-center space-x-2 mb-6">
-        <i class="fas fa-arrow-left text-2xl"></i>
+        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
         <h1 class="text-3xl font-bold">Agregar nuevo empleado</h1>
     </div>
     <form onsubmit="return validateForm()" method="POST" enctype="multipart/form-data">
@@ -162,7 +162,7 @@
         </div>
         <div class="max-w-4xl mx-auto flex justify-end mt-6">
             <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-[1rem] mr-4">Guardar</button>
-            <button type="button" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-[1rem]">Cancelar</button>
+            <button type="button" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-[1rem]" onclick="window.history.back()">Cancelar</button>
         </div>
     </form>
 </div>
