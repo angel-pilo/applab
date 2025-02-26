@@ -12,8 +12,7 @@ def verificar_usuario(usuario, password):
     try:
         # Obtiene el usuario por nombre de usuario
         result = supabase.table('usuarios').select('id, password').eq('username', usuario).execute()
-        
-        # Comprueba si se encontró el usuario
+
         if result.data and len(result.data) > 0:
             user = result.data[0]
             user_id = user['id']
@@ -31,7 +30,6 @@ def verificar_usuario(usuario, password):
                     rol_result = supabase.table('empleado_roles').select('rol_id').eq('empleado_id', empleado_id).execute()
 
                     if not rol_result.data:
-                        print("El usuario no tiene rol asignado.")  # Mensaje indicando que no hay rol
                         return None  # Usuario sin rol
 
                     rol_id = rol_result.data[0]['rol_id']
@@ -44,18 +42,12 @@ def verificar_usuario(usuario, password):
                             'foto_perfil': empleado_info.data[0]['foto_perfil'],
                             'rol_id': rol_id
                         })
-                        print("Resultado de check_user_password:", user)
                         return user
 
-            else:
-                print("Contraseña incorrecta.")
-
-    except Exception as e:
-        print(f"Error en verificar_usuario: {e}")
+    except Exception:
+        return None
     
     return None
-
-
 
 
 def obtener_empleados():
@@ -66,14 +58,9 @@ def obtener_empleados():
             .select('id, nombres, apellidos, empleado_roles(rol_id)') \
             .execute()
 
-        # Imprime para depuración
-        print(result.data)  
-        
-        # Verifica si se obtuvieron resultados
         if not result.data:
             return []  # Retorna una lista vacía si no hay empleados
         
-        # Retorna una lista de diccionarios
         return [
             {
                 "id": emp['id'],
@@ -84,6 +71,5 @@ def obtener_empleados():
             for emp in result.data
         ]
     
-    except Exception as e:
-        print(f"Error en obtener_empleados: {e}")
+    except Exception:
         return []

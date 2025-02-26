@@ -1,3 +1,54 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.flex-1 {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; /* Se asegura de que ocupa toda la pantalla */
+}
+
+/* Permitir que el contenido empuje el footer hacia abajo */
+.flex-1 > .flex-col {
+    flex-grow: 1;
+}
+
+/* Asegurar que el footer siempre se quede abajo */
+footer {
+    margin-top: auto;
+}
+
+/* Permitir que el contenido empuje el footer hacia abajo */
+.content-wrapper {
+    flex: 1;  /* Se expande para llenar el espacio disponible */
+    display: flex;
+    flex-direction: column;
+    padding: 0; /* Elimina el padding si no es necesario */
+}
+
+#sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    background-color: #0E2238;
+    overflow: hidden;
+    z-index: 1000;
+    transition: width 0.3s ease-in-out;
+}
+
+.sidebar-expanded {
+    width: 250px !important; /* Se asegura que tome el ancho correcto */
+}
+
+.sidebar-collapsed {
+    width: 64px !important;
+}
+
+
 body {
     font-family: Arial, sans-serif;
     background-color: #FAFBFE;
@@ -128,6 +179,7 @@ body {
     height: 250px;
     font-size: 1.25rem;
     font-weight: 600;
+    margin: 0; /* Asegúrate de que no haya márgenes adicionales */
 }
 
 .card h2 {
@@ -144,4 +196,13 @@ body {
     margin-bottom: 10px;
     width: 120px;
     height: 120px;
+}
+
+#main-content {
+    margin-left: 64px;
+    transition: margin-left 0.3s ease-in-out;
+}
+
+.sidebar-expanded + #main-content {
+    margin-left: 250px;
 }
