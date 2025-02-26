@@ -29,12 +29,12 @@
             <input type="text" id="search-input" placeholder="Buscar empleado" class="w-full p-2 border rounded" oninput="searchEmployee()">
             <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
         </div>
-        <button class="bg-blue-500 text-white px-4 py-2 hover:bg-blue-600 transition duration-300 ml-4" style="border-radius: 1rem;" onclick="window.location.href='{{ url_for('app_routes.add_employee') }}'">
+        <button class="btn-editar" style="border-radius: 1rem;" onclick="window.location.href='{{ url_for('app_routes.add_employee') }}'">
             Añadir empleado
         </button>
     </div>
     <div id="not-found-message" class="hidden text-red-500 mb-4">
-        El empleado no está registrado. <a href="#" class="text-blue-500 underline">Registrar empleado</a>
+        El empleado no está registrado. <a href="{{ url_for('app_routes.add_employee') }}" class="text-blue-500 underline">Registrar empleado</a>
     </div>
 
     <div class="flex">
@@ -60,7 +60,7 @@
                 </div>
             </div>
 
-            <div class="overflow-y-auto max-h-96">
+            <div class="overflow-y-auto max-h-120">
                 <table class="min-w-full bg-white rounded-lg shadow-md">
                     <thead>
                         <tr class="border-b">
@@ -73,7 +73,7 @@
                     </thead>
                     <tbody>
                         {% if empleados %}
-                            {% for empleado in empleados %}
+                            {% for empleado in empleados | sort(attribute='id') %}
                             <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'{{ empleado.id }}\']').checked = true; showDetails({ name: '{{ empleado.nombres }}', lastname: '{{ empleado.apellidos }}', role: '{{ empleado.rol }}', emergencyContact: '{{ empleado.contacto_emergencia }}', allergies: '{{ empleado.alergias }}', joiningDate: '{{ empleado.fecha_ingreso }}' })">
                                 <td class="py-2 px-4">
                                     <input type="radio" name="employee" value="{{ empleado.id }}" class="mr-2">#{{ empleado.id }}
@@ -82,8 +82,8 @@
                                 <td class="py-2 px-15">{{ empleado.apellidos }}</td>
                                 <td class="py-2 px-15">{{ empleado.rol }}</td>
                                 <td class="py-2 px-15">
-                                    <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;" onclick="window.location.href='{{ url_for('app_routes.edit_employee', empleado_id=empleado.id) }}'">Editar</button>
-                                    <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('{{ empleado.id }}')" style="border-radius: 1rem;">Eliminar</button>
+                                    <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_employee', empleado_id=empleado.id) }}'">Editar</button>
+                                    <button class="btn-eliminar" onclick="confirmDelete('{{ empleado.id }}')" style="border-radius: 1rem;">Eliminar</button>
                                 </td>
                             </tr>
                             {% endfor %}
