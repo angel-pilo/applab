@@ -223,7 +223,7 @@ function handleFileSelect(event) {
                 <div class="relative">
                     <img src="${imageUrl}" alt="Foto de perfil" class="w-24 h-24 object-cover rounded-full mx-auto mb-4">
                     <button class="absolute top-0 right-0 bg-white p-1 rounded-full" onclick="removeImage()">
-                        <img src="/static/icon/eliminar.svg" alt="Eliminar imagen" class="w-5 h-5">
+                        <img src="{{ url_for('static', filename='icons/eliminar.svg') }}" alt="Eliminar imagen" class="w-5 h-5">
                     </button>
                     <p class="text-gray-600 mt-2">Imagen seleccionada: ${fileName}</p>
                 </div>

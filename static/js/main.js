@@ -1,14 +1,23 @@
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content'); // Asegura que el contenido se mueva
     const sidebarTexts = document.querySelectorAll('.sidebar-text');
 
-    sidebar.classList.toggle('sidebar-expanded');
-    sidebar.classList.toggle('sidebar-collapsed');
+    if (sidebar.classList.contains('sidebar-expanded')) {
+        sidebar.classList.remove('sidebar-expanded');
+        sidebar.classList.add('sidebar-collapsed');
+        mainContent.style.marginLeft = "64px"; // Ajuste cuando se colapsa
+    } else {
+        sidebar.classList.remove('sidebar-collapsed');
+        sidebar.classList.add('sidebar-expanded');
+        mainContent.style.marginLeft = "250px"; // Ajuste cuando se expande
+    }
 
     sidebarTexts.forEach(text => {
         text.classList.toggle('hidden');
     });
 }
+
 
 
 function toggleNotifications() {
