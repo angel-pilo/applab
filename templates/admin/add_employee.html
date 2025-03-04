@@ -130,7 +130,9 @@
                         <label class="block text-gray-700 font-bold mb-2" for="state">Estado<span class="text-red-500">*</span></label>
                         <select id="estado" name="estado" class="w-full px-4 py-2 border rounded-[1rem]" required>
                             <option>Seleccione un estado</option>
-                            <option>Jalisco</option>
+                            {% for estado in estados %}
+                            <option value="{{ estado }}">{{ estado }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                 </div>
