@@ -1,251 +1,163 @@
-<html>
+{% extends "base.html" %}
+
+{% block title %}editar empleado{% endblock %}
+
+{% block content %}
+
 <head>
-    <title>Empleados</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <script>
-        function showDetails(employee) {
-            document.getElementById('employee-name').innerText = employee.name;
-            document.getElementById('employee-lastname').innerText = employee.lastname;
-            document.getElementById('employee-role').innerText = employee.role;
-            document.getElementById('employee-emergency-contact').innerText = employee.emergencyContact;
-            document.getElementById('employee-allergies').innerText = employee.allergies;
-            document.getElementById('employee-joining-date').innerText = employee.joiningDate;
-            document.getElementById('no-selection-message').classList.add('hidden');
-            document.getElementById('employee-details').classList.remove('hidden');
-        }
-
-        function confirmDelete(employeeId) {
-            document.querySelector(`input[value="${employeeId}"]`).checked = true;
-            document.getElementById('delete-modal').classList.remove('hidden');
-            document.getElementById('delete-employee-id').value = employeeId;
-        }
-
-        function closeModal() {
-            document.getElementById('delete-modal').classList.add('hidden');
-        }
-
-        function searchEmployee() {
-            const searchValue = document.getElementById('search-input').value.toLowerCase().trim();
-            const rows = document.querySelectorAll('tbody tr');
-            let found = false;
-
-            rows.forEach(row => {
-                const name = row.querySelector('td:nth-child(2)').innerText.toLowerCase().trim();
-                const nameWords = name.split(' ');
-                if (nameWords.some(word => word.startsWith(searchValue))) {
-                    row.style.display = '';
-                    found = true;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-
-            const notFoundMessage = document.getElementById('not-found-message');
-            if (!found) {
-                notFoundMessage.classList.remove('hidden');
-            } else {
-                notFoundMessage.classList.add('hidden');
-            }
-        }
-
-        function toggleFilterMenu() {
-            document.getElementById('filter-menu').classList.toggle('hidden');
-        }
-
-        function applyFilters() {
-            const roleFilter = document.querySelector('input[name="filter-role"]:checked')?.value;
-            const emergencyContactFilter = document.getElementById('filter-emergency-contact').checked;
-            const allergiesFilter = document.getElementById('filter-allergies').checked;
-            const rows = document.querySelectorAll('tbody tr');
-
-            rows.forEach(row => {
-                const role = row.querySelector('td:nth-child(3)').innerText.toLowerCase();
-                const emergencyContact = row.querySelector('td:nth-child(4)').innerText.toLowerCase();
-                const allergies = row.querySelector('td:nth-child(5)').innerText.toLowerCase();
-
-                let showRow = true;
-
-                if (roleFilter && !role.includes(roleFilter)) {
-                    showRow = false;
-                }
-                if (emergencyContactFilter && !emergencyContact.includes('contacto de emergencia')) {
-                    showRow = false;
-                }
-                if (allergiesFilter && !allergies.includes('alergias')) {
-                    showRow = false;
-                }
-
-                row.style.display = showRow ? '' : 'none';
-            });
-
-            toggleFilterMenu(); // Close the filter menu after applying filters
-        }
-
-        window.onload = function() {
-            document.getElementById('no-selection-message').classList.remove('hidden');
-            document.getElementById('employee-details').classList.add('hidden');
-            const radioButtons = document.querySelectorAll('input[name="employee"]');
-            radioButtons.forEach(radio => radio.checked = false);
-        }
-    </script>
 </head>
-<body class="bg-gray-100 font-sans">
-    <div class="container mx-auto p-4">
-        <div class="flex items-center mb-4">
-            <button class="text-2xl"><i class="fas fa-arrow-left"></i></button>
-            <h1 class="text-4xl font-bold ml-4">EMPLEADOS</h1>
-        </div>
+<div class="flex-1 p-8 transition-all duration-300">
+    <div class="flex items-center space-x-2 mb-6">
+        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+        <h1 class="text-3xl font-bold">Agregar nuevo empleado</h1>
     </div>
-    <div class="container mx-auto p-4 mt-8">
-        <div class="flex items-center mb-4">
-            <div class="relative w-1/2">
-                <input type="text" id="search-input" placeholder="Buscar empleado" class="w-full p-2 border rounded" oninput="searchEmployee()">
-                <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
-            </div>
-            <button class="bg-blue-500 text-white px-4 py-2 hover:bg-blue-600 transition duration-300 ml-4" style="border-radius: 1rem;">Añadir empleado</button>
-        </div>
-        <div id="not-found-message" class="hidden text-red-500 mb-4">
-            El empleado no está registrado. <a href="#" class="text-blue-500 underline">Registrar empleado</a>
-        </div>
-        <div class="flex">
-            <div class="w-2/3">
-                <div class="flex items-center mb-2 relative">
-                    <button class="bg-gray-200 p-2" style="border-radius: 1rem;" onclick="toggleFilterMenu()"><i class="fas fa-filter"></i> Filtro</button>
-                    <div id="filter-menu" class="absolute top-10 left-0 bg-white border rounded shadow-lg p-4 hidden" style="border-radius: 1rem;">
-                        <div class="mb-2">
-                            <input type="radio" name="filter-role" value="mostrador" class="mr-2">
-                            <label for="filter-role">Mostrador</label>
-                        </div>
-                        <div class="mb-2">
-                            <input type="radio" name="filter-role" value="quimico" class="mr-2">
-                            <label for="filter-role">Químico</label>
-                        </div>
-                        <div class="mb-2">
-                            <input type="radio" name="filter-role" value="administrador" class="mr-2">
-                            <label for="filter-role">Administrador</label>
-                        </div>
-                        <div class="mb-2">
-                            <input type="checkbox" id="filter-emergency-contact" class="mr-2">
-                            <label for="filter-emergency-contact">Contacto de emergencia</label>
-                        </div>
-                        <div class="mb-2">
-                            <input type="checkbox" id="filter-allergies" class="mr-2">
-                            <label for="filter-allergies">Alergias</label>
-                        </div>
-                        <button class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;" onclick="applyFilters()">Aplicar filtros</button>
+    <form onsubmit="return validateForm()" method="POST" enctype="multipart/form-data">
+        <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md">
+            <div class="flex flex-wrap justify-between items-center mb-6">
+                <div class="w-full md:w-auto mb-4 md:mb-0">
+                    <label class="block text-gray-700 font-bold mb-2">Empleado<span class="text-red-500">*</span></label>
+                    <div class="flex items-center space-x-4">
+                        {% for role_id, role_name in role_map.items() %}
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="radio" class="form-radio" name="tipo_empleado" value="{{ role_id }}" 
+                                       {% if is_edit and empleado.rol_id == role_id %}checked{% endif %} required>
+                                <span class="ml-2">{{ role_name }}</span>
+                            </label>
+                        {% endfor %}
                     </div>
                 </div>
-                <div class="overflow-y-auto max-h-96">
-                    <table class="min-w-full bg-white rounded-lg shadow-md">
-                        <thead>
-                            <tr class="border-b">
-                                <th class="py-2 px-4 text-left text-red-500">ID <i class="fas fa-arrow-down"></i></th>
-                                <th class="py-2 px-4 text-left">Nombre</th>
-                                <th class="py-2 px-4 text-left">Tipo de empleado</th>
-                                <th class="py-2 px-4 text-left"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#007\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'mostrador', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                                <td class="py-2 px-4"><input type="radio" name="employee" value="#007" class="mr-2">#007</td>
-                                <td class="py-2 px-4">Nombre completo del empleado</td>
-                                <td class="py-2 px-4">Mostrador</td>
-                                <td class="py-2 px-4">
-                                    <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                    <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#007')" style="border-radius: 1rem;">Eliminar</button>
-                                </td>
-                            </tr>
-                            <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#006\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'quimico', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                                <td class="py-2 px-4"><input type="radio" name="employee" value="#006" class="mr-2">#006</td>
-                                <td class="py-2 px-4">Nombre completo del empleado</td>
-                                <td class="py-2 px-4">Químico</td>
-                                <td class="py-2 px-4">
-                                    <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                    <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#006')" style="border-radius: 1rem;">Eliminar</button>
-                                </td>
-                            </tr>
-                            <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#005\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'administrador', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                                <td class="py-2 px-4"><input type="radio" name="employee" value="#005" class="mr-2">#005</td>
-                                <td class="py-2 px-4">Nombre completo del empleado</td>
-                                <td class="py-2 px-4">Administrador</td>
-                                <td class="py-2 px-4">
-                                    <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                    <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#005')" style="border-radius: 1rem;">Eliminar</button>
-                                </td>
-                            </tr>
-                            <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#004\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'mostrador', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                                <td class="py-2 px-4"><input type="radio" name="employee" value="#004" class="mr-2">#004</td>
-                                <td class="py-2 px-4">Nombre completo del empleado</td>
-                                <td class="py-2 px-4">Mostrador</td>
-                                <td class="py-2 px-4">
-                                    <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                    <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#004')" style="border-radius: 1rem;">Eliminar</button>
-                                </td>
-                            </tr>
-                            <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#003\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'quimico', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                                <td class="py-2 px-4"><input type="radio" name="employee" value="#003" class="mr-2">#003</td>
-                                <td class="py-2 px-4">Nombre completo del empleado</td>
-                                <td class="py-2 px-4">Químico</td>
-                                <td class="py-2 px-4">
-                                    <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                    <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#003')" style="border-radius: 1rem;">Eliminar</button>
-                                </td>
-                            </tr>
-                            <tr class="border-b cursor-pointer" onclick="document.querySelector('input[value=\'#002\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'administrador', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                                <td class="py-2 px-4"><input type="radio" name="employee" value="#002" class="mr-2">#002</td>
-                                <td class="py-2 px-4">Nombre completo del empleado</td>
-                                <td class="py-2 px-4">Administrador</td>
-                                <td class="py-2 px-4">
-                                    <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                    <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#002')" style="border-radius: 1rem;">Eliminar</button>
-                                </td>
-                            </tr>
-                            <tr class="cursor-pointer" onclick="document.querySelector('input[value=\'#001\']').checked = true; showDetails({name: 'Nombre completo del empleado', lastname: 'Apellido', role: 'mostrador', emergencyContact: 'Contacto de emergencia', allergies: 'Alergias', joiningDate: '01/01/2020'})">
-                                <td class="py-2 px-4"><input type="radio" name="employee" value="#001" class="mr-2">#001</td>
-                                <td class="py-2 px-4">Nombre completo del empleado</td>
-                                <td class="py-2 px-4">Mostrador</td>
-                                <td class="py-2 px-4">
-                                    <button class="bg-blue-500 text-white px-8 py-1 hover:bg-blue-600 transition duration-300" style="border-radius: 1rem;">Editar</button>
-                                    <button class="bg-[#FC3131] text-white px-6 py-1 hover:bg-red-600 transition duration-300 ml-2" onclick="confirmDelete('#001')" style="border-radius: 1rem;">Eliminar</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                
+                <!-- Campo oculto para enviar el role_id -->
+                <input type="hidden" name="role_id" id="role_id">
+                
+                <div class="w-full md:w-auto mb-4 md:mb-0">
+                    <label class="block text-gray-700 font-bold mb-2">Sexo<span class="text-red-500">*</span></label>
+                    <div class="flex items-center space-x-4">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" class="form-radio" name="sexo" value="M" 
+                                   {% if empleado.sexo == "M" %}checked{% endif %} required>
+                            <span class="ml-2">Hombre</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" class="form-radio" name="sexo" value="F" 
+                                   {% if empleado.sexo == "F" %}checked{% endif %}>
+                            <span class="ml-2">Mujer</span>
+                        </label>
+                    </div>
+                </div>                              
+                
+                <div class="w-full md:w-auto">
+                    <label class="block text-gray-700 font-bold mb-2" for="fecha_nacimiento">Fecha de nacimiento<span class="text-red-500">*</span></label>
+                    <div class="relative" onclick="openDatePicker()">
+                        <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ empleado.fecha_nacimiento }}" required oninput="updateUsername()">
+                    </div>
+                </div>                
             </div>
-            <div class="w-1/3 ml-4 mt-16">
-                <div class="bg-white p-4 rounded-lg shadow-md" style="border-radius: 1rem;">
-                    <h2 class="text-xl font-bold mb-4">Detalles</h2>
-                    <div id="no-selection-message" class="text-gray-500">Seleccione un empleado para mostrar información previa.</div>
-                    <div id="employee-details" class="hidden">
-                        <p><strong>Nombre del empleado:</strong> <span id="employee-name">Nombre</span></p>
-                        <p><strong>Apellido:</strong> <span id="employee-lastname">Apellidos</span></p>
-                        <p><strong>Tipo de empleado:</strong> <span id="employee-role">Rol del empleado</span></p>
-                        <p><strong>Contacto de emergencia:</strong> <span id="employee-emergency-contact">Contacto de emergencia</span></p>
-                        <p><strong>Alergias:</strong> <span id="employee-allergies">Alergias</span></p>
-                        <p><strong>Fecha de ingreso:</strong> <span id="employee-joining-date">dd/mm/aaaa</span></p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="nombres">Nombre(s)<span class="text-red-500">*</span></label>    
+                        <input type="text" id="nombres" name="nombres" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa los nombres del empleado" value="{{ empleado.nombres }}" required oninput="updateUsername()">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="apellidos">Apellidos<span class="text-red-500">*</span></label>
+                        <input type="text" id="apellidos" name="apellidos" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa los apellidos del empleado" value="{{ empleado.apellidos }}" required oninput="updateUsername()">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="telefono">Teléfono<span class="text-red-500">*</span></label>
+                        <input type="text" id="telefono" name="telefono" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el teléfono del empleado" value="{{ empleado.telefono }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="correo">Correo electrónico<span class="text-red-500">*</span></label>
+                        <input type="email" id="correo" name="correo" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el correo del empleado"value="{{ empleado.correo }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="username">Usuario<span class="text-red-500">*</span></label>
+                        <input type="text" id="username" name="username" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ empleado.username }}" readonly required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="password">Contraseña<span class="text-red-500">*</span></label>
+                        <input type="password" id="password" name="password" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Deja en blanco para mantener la contraseña actual">
+                    </div>
+                </div>
+                <div id="drop-zone" class="md:col-span-1">
+                    <label class="block text-gray-700 font-bold mb-2">Foto de Perfil</label>
+                    <div id="file-drop-zone" class="border-dashed border-2 border-gray-300 rounded-lg p-4 text-center">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+                        <p class="mt-2 text-gray-600">Arrastra y suelta archivos o <a href="#" class="text-blue-500" id="browse-link" onclick="triggerFileInput(event)">Explorar</a></p>
+                        <p class="text-gray-400">Formatos admitidos: JPEG, PNG, GIF, WEBP</p>
+                        <!-- Input file hidden to trigger on click -->
+                        <input type="file" id="file-input" class="hidden" accept="image/jpeg, image/png, image/gif, image/webp" onchange="handleFileSelect(event)">
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div id="delete-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-        <div class="bg-white p-6 rounded-lg shadow-lg" style="border-radius: 1rem;">
-            <h2 class="text-xl font-bold mb-4">Confirmar Eliminación</h2>
-            <p>¿Estás seguro de que deseas eliminar este empleado?</p>
-            <input type="hidden" id="delete-employee-id">
-            <div class="mt-4">
-                <label for="password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
-                <input type="password" id="password" class="mt-1 p-2 border rounded w-full" style="border-radius: 1rem;">
+        <div class="flex flex-wrap justify-evenly mt-6">
+            <div class="w-full md:w-[43.5%] bg-white p-6 rounded-lg shadow-md mb-6 md:mb-0">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="street">Calle<span class="text-red-500">*</span></label>
+                        <input type="text" id="calle" name="calle" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Calle" value="{{ empleado.calle }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="ext_number">No. Ext.<span class="text-red-500">*</span></label>
+                        <input type="text" id="numero_ext" name="numero_ext" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="No. ext." value="{{ empleado.numero_ext }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="int_number">No. Int.</label>
+                        <input type="text" id="numero_int" name="numero_int" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="No. int." value="{{ empleado.numero_int }}">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="postal_code">Código postal<span class="text-red-500">*</span></label>
+                        <input type="text" id="codigo_postal" name="codigo_postal" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Código postal" value="{{ empleado.codigo_postal }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="municipality">Municipio<span class="text-red-500">*</span></label>
+                        <input type="text" id="municipio" name="municipio" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Municipio" value="{{ empleado.municipio }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="state">Estado<span class="text-red-500">*</span></label>
+                        <select id="estado" name="estado" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                            {% for estado in estados %}
+                                <option value="{{ estado }}" {% if empleado.estado == estado %}selected{% endif %}>{{ estado }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div class="mt-4 flex justify-end">
-                <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
-                <button class="bg-red-500 text-white px-4 py-2" style="border-radius: 1rem;">Continuar</button>
+            <div class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="curp_rfc">CURP o RFC<span class="text-red-500">*</span></label>
+                        <input type="text" id="curp_rfc" name="curp_rfc" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa CURP o RFC" value="{{ empleado.curp_rfc }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="shift">Turno<span class="text-red-500">*</span></label>
+                        <select id="turno" name="turno" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                            <option value="">Seleccione un turno</option>
+                            <option value="Matutino" {% if empleado.turno == "Matutino" %}selected{% endif %}>Matutino</option>
+                            <option value="Vespertino" {% if empleado.turno == "Vespertino" %}selected{% endif %}>Vespertino</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2 text-sm" for="medical_conditions">Alergias o condiciones médicas</label>
+                        <input type="text" id="condiciones_medicas" name="condiciones_medicas" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Para prevenir emergencias" value="{{ empleado.condiciones_medicas }}">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2" for="emergency_contact">Contacto de emergencia<span class="text-red-500">*</span></label>
+                        <input type="text" id="contacto_emergencia" name="contacto_emergencia" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Nombre, teléfono y relación" value="{{ empleado.contacto_emergencia }}" required>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</body>
-</html>
+        <div class="max-w-4xl mx-auto flex justify-end mt-6">
+            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-[1rem] mr-4">Guardar</button>
+            <button type="button" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-[1rem]" onclick="window.history.back()">Cancelar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
