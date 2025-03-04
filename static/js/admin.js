@@ -75,11 +75,15 @@ function confirmDelete(employeeId) {
 
 function deleteEmployee() {
     const employeeId = document.getElementById('delete-employee-id').value;
-    const password = document.getElementById('password').value;
+    const password = document.getElementById('password').value.trim();
+    const modalMessage = document.getElementById('modal-message'); // Obtener el contenedor de mensajes
+
+    // Limpiar mensajes anteriores
+    modalMessage.innerHTML = '';
 
     // Validar que la contraseña no esté vacía
     if (!password) {
-        alert("Por favor, ingresa tu contraseña.");
+        modalMessage.innerHTML = '<p class="text-red-600 text-sm">La contraseña es requerida.</p>';
         return;
     }
 
@@ -91,32 +95,87 @@ function deleteEmployee() {
         },
         body: `password=${encodeURIComponent(password)}`
     })
-    .then(response => {
-        if (response.redirected) {
-            // Si el servidor redirige, recargar la página
-            window.location.href = response.url;
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+    .then(({ status, body }) => {
+        if (status === 200) {
+            modalMessage.innerHTML = '<p class="text-green-600 text-sm">Empleado desactivado correctamente.</p>';
+            setTimeout(() => {
+                closeModal(); // Cerrar modal después de 2 segundos
+                location.reload(); // Refrescar la página
+            }, 2000);
         } else {
-            // Si no hay redirección, mostrar un mensaje de error
-            return response.json().then(data => {
-                alert(data.message || "Error al eliminar el empleado.");
-                closeModal(); // Cerrar el modal si hay un error
-            });
+            // Mostrar el mensaje de error sin fondo
+            modalMessage.innerHTML = `<p class="text-red-600 text-sm">${body.message}</p>`;
         }
-    })
-    .then(() => {
-        // Si la eliminación fue exitosa
-        closeModal(); // Cerrar el modal
-        location.reload(); // Recargar la página para reflejar los cambios
     })
     .catch(error => {
         console.error('Error:', error);
-        alert("Hubo un error al comunicarse con el servidor.");
+        modalMessage.innerHTML = '<p class="text-red-600 text-sm">Hubo un error al comunicarse con el servidor.</p>';
     });
 }
 
+
 function closeModal() {
-    document.getElementById('delete-modal').classList.add('hidden');
+    document.getElementById('active-modal').classList.add('hidden'); // Ocultar el modal
+    document.getElementById('password').value = ''; // Limpiar el campo de contraseña
+    document.getElementById('modal-message').innerHTML = ''; // Limpiar mensajes de error
 }
+
+//activar empleado
+function confirmactive(employeeId) {
+    console.log("Empleado a eliminar:", employeeId);
+    document.getElementById('active-modal').classList.remove('hidden');
+    document.getElementById('active-employee-id').value = employeeId;
+}
+
+function activeEmployee() {
+    const employeeId = document.getElementById('active-employee-id').value;
+    const password = document.getElementById('password').value.trim();
+    const modalMessage = document.getElementById('modal-message'); // Obtener el contenedor de mensajes
+
+    // Limpiar mensajes anteriores
+    modalMessage.innerHTML = '';
+
+    // Validar que la contraseña no esté vacía
+    if (!password) {
+        modalMessage.innerHTML = '<p class="text-red-600 text-sm">La contraseña es requerida.</p>';
+        return;
+    }
+
+    // Enviar la solicitud al servidor
+    fetch(`/admin/active_employee/${employeeId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `password=${encodeURIComponent(password)}`
+    })
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+    .then(({ status, body }) => {
+        if (status === 200) {
+            modalMessage.innerHTML = '<p class="text-green-600 text-sm">Empleado desactivado correctamente.</p>';
+            setTimeout(() => {
+                closeModal(); // Cerrar modal después de 2 segundos
+                location.reload(); // Refrescar la página
+            }, 2000);
+        } else {
+            // Mostrar el mensaje de error sin fondo
+            modalMessage.innerHTML = `<p class="text-red-600 text-sm">${body.message}</p>`;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        modalMessage.innerHTML = '<p class="text-red-600 text-sm">Hubo un error al comunicarse con el servidor.</p>';
+    });
+}
+
+
+function closeModal() {
+    document.getElementById('active-modal').classList.add('hidden'); // Ocultar el modal
+    document.getElementById('password').value = ''; // Limpiar el campo de contraseña
+    document.getElementById('modal-message').innerHTML = ''; // Limpiar mensajes de error
+}
+
 
 function searchEmployee() {
     const searchValue = document.getElementById('search-input').value.toLowerCase().trim();

@@ -84,6 +84,7 @@
                                 <td class="py-2 px-15">
                                     <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_employee', empleado_id=empleado.id) }}'">Editar</button>
                                     <button class="btn-eliminar" onclick="confirmDelete('{{ empleado.id }}')" style="border-radius: 1rem;">Eliminar</button>
+                                    <button class="btn-activar" onclick="confirmactive('{{ empleado.id }}')" style="border-radius: 1rem;">Activar</button>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -95,6 +96,7 @@
                     </tbody>
                 </table>
             </div>
+
         </div>
 
         <div class="w-1/3 ml-4 mt-16">
@@ -120,15 +122,43 @@
         <h2 class="text-xl font-bold mb-4">Confirmar Eliminación</h2>
         <p>¿Estás seguro de que deseas eliminar este empleado?</p>
         <input type="hidden" id="delete-employee-id">
+
+        <!-- Aquí se mostrarán los mensajes de error o éxito -->
+        <div id="modal-message" class="mt-2 text-center"></div>
+
         <div class="mt-4">
             <label for="password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
             <input type="password" id="password" class="mt-1 p-2 border rounded w-full" style="border-radius: 1rem;">
         </div>
+
         <div class="mt-4 flex justify-end">
             <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
             <button class="bg-red-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="deleteEmployee()">Continuar</button>
         </div>
     </div>
 </div>
+
+<!-- active Confirmation Modal -->
+<div id="active-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-lg shadow-lg" style="border-radius: 1rem;">
+        <h2 class="text-xl font-bold mb-4">Confirmar Activacion</h2>
+        <p>¿Estás seguro de que deseas activar este empleado?</p>
+        <input type="hidden" id="active-employee-id">
+
+        <!-- Aquí se mostrarán los mensajes de error o éxito -->
+        <div id="modal-message" class="mt-2 text-center"></div>
+
+        <div class="mt-4">
+            <label for="password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
+            <input type="password" id="password" class="mt-1 p-2 border rounded w-full" style="border-radius: 1rem;">
+        </div>
+
+        <div class="mt-4 flex justify-end">
+            <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
+            <button class="bg-green-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="activeEmployee()">Continuar</button>
+        </div>
+    </div>
+</div>
+
 
 {% endblock %}
