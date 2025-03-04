@@ -8,6 +8,7 @@ from utils import *
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
 import json
+import hashlib
 
 app_routes = Blueprint('app_routes', __name__)
 
@@ -64,7 +65,7 @@ def login():
         if not user_query.data:
             flash('Usuario no encontrado o desactivado.', 'error')
             return redirect(url_for('app_routes.login'))
-        
+
         user = user_query.data[0]  # Obtener el primer usuario activo
 
         # Validar contraseña
@@ -102,9 +103,12 @@ def login():
         session["nombres"] = user.get('nombres')
         session["foto_perfil"] = user.get('foto_perfil')
 
+        session['user_id'] = user['id']  # Establecer user_id en la sesión correctamente
+
         return redirect(url_for(f"app_routes.{rol.lower()}_dashboard"))
 
     return render_template('auth/login.html')
+
 
 @app_routes.route("/logout")
 def logout():
@@ -333,6 +337,42 @@ def edit_employee(empleado_id):
 
         flash("Empleado actualizado correctamente", "success")
         return redirect(url_for("app_routes.manage_employees"))
+    
+@app_routes.route('/admin/delete_employee/<int:id>', methods=['POST'])
+@require_role("Admin")
+def delete_employee(id):
+    # Verificar si el usuario ha iniciado sesión
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+
+    # Obtener la contraseña del formulario
+    password = request.form.get('password').strip()  # Eliminar espacios en blanco
+
+    if not password:
+        return jsonify({"message": "La contraseña es requerida."}), 400
+
+    # Verificar la contraseña del administrador
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+
+    if not admin_user_query.data:
+        return jsonify({"message": "Usuario no encontrado."}), 404
+
+    admin_user = admin_user_query.data  # Obtener el primer usuario activo
+
+    # Validar la contraseña utilizando bcrypt
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    # Desactivar al empleado (marcar como inactivo)
+    try:
+        supabase.table('usuarios').update({'activo': False}).eq('id', id).execute()
+        return jsonify({"message": "Empleado desactivado correctamente."}), 200
+    except Exception as e:
+        print(f"Error al desactivar el empleado: {e}")
+        return jsonify({"message": "Error al desactivar el empleado."}), 500
+
+
+
 
 @app_routes.route("/mostrador")
 @require_role("Mostrador")

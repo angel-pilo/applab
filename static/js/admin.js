@@ -74,36 +74,45 @@ function confirmDelete(employeeId) {
 }
 
 function deleteEmployee() {
-    let employeeId = document.getElementById('delete-employee-id').value;
-    let password = document.getElementById('password').value;
+    const employeeId = document.getElementById('delete-employee-id').value;
+    const password = document.getElementById('password').value;
 
+    // Validar que la contraseña no esté vacía
     if (!password) {
-        alert("Por favor, ingresa tu contraseña para confirmar.");
+        alert("Por favor, ingresa tu contraseña.");
         return;
     }
 
-    fetch('/eliminar-empleado', {
+    // Enviar la solicitud al servidor
+    fetch(`/admin/delete_employee/${employeeId}`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({ 
-            empleado_id: employeeId, 
-            password: password 
-        })
+        body: `password=${encodeURIComponent(password)}`
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert("Empleado eliminado correctamente.");
-            location.reload(); // Recargar página
+    .then(response => {
+        if (response.redirected) {
+            // Si el servidor redirige, recargar la página
+            window.location.href = response.url;
         } else {
-            alert("Error: " + data.message);
+            // Si no hay redirección, mostrar un mensaje de error
+            return response.json().then(data => {
+                alert(data.message || "Error al eliminar el empleado.");
+                closeModal(); // Cerrar el modal si hay un error
+            });
         }
     })
-    .catch(error => console.error('Error:', error));
+    .then(() => {
+        // Si la eliminación fue exitosa
+        closeModal(); // Cerrar el modal
+        location.reload(); // Recargar la página para reflejar los cambios
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("Hubo un error al comunicarse con el servidor.");
+    });
 }
-
 
 function closeModal() {
     document.getElementById('delete-modal').classList.add('hidden');
