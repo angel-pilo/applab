@@ -68,10 +68,42 @@ function showDetails(employee) {
 }
 
 function confirmDelete(employeeId) {
-    document.querySelector(`input[value="${employeeId}"]`).checked = true;
+    console.log("Empleado a eliminar:", employeeId);
     document.getElementById('delete-modal').classList.remove('hidden');
     document.getElementById('delete-employee-id').value = employeeId;
 }
+
+function deleteEmployee() {
+    let employeeId = document.getElementById('delete-employee-id').value;
+    let password = document.getElementById('password').value;
+
+    if (!password) {
+        alert("Por favor, ingresa tu contraseña para confirmar.");
+        return;
+    }
+
+    fetch('/eliminar-empleado', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+            empleado_id: employeeId, 
+            password: password 
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert("Empleado eliminado correctamente.");
+            location.reload(); // Recargar página
+        } else {
+            alert("Error: " + data.message);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
 
 function closeModal() {
     document.getElementById('delete-modal').classList.add('hidden');

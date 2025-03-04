@@ -1,11 +1,12 @@
 import os
 import bcrypt
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for, request, session, jsonify
 from functools import wraps
 from services import obtener_empleados, verificar_usuario
 from supabase import Client, create_client
 from utils import *
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash
 
 app_routes = Blueprint('app_routes', __name__)
 
@@ -45,21 +46,54 @@ def login():
     if request.method == 'POST':
         usuario = request.form.get('username')
         password = request.form.get('password')
-        user = verificar_usuario(usuario, password)
 
-        if user:
-            session["usuario"] = usuario
-            session["rol"] = role_map.get(user.get('rol_id'))
-            session["nombres"] = user.get('nombres')
-            session["foto_perfil"] = user.get('foto_perfil')
+        # Consultar usuario y verificar si está activo
+        user_query = supabase.table("usuarios").select("*").eq("username", usuario).eq("activo", True).execute()
 
-            if session["rol"]:
-                return redirect(url_for(f"app_routes.{session['rol'].lower()}_dashboard"))
-            flash('Error: Usuario sin rol asignado.', 'error')
-        else:
+        # Verificar si el usuario existe
+        if not user_query.data:
+            flash('Usuario no encontrado o desactivado.', 'error')
+            return redirect(url_for('app_routes.login'))
+        
+        user = user_query.data[0]  # Obtener el primer usuario activo
+
+        # Validar contraseña
+        if not verificar_usuario(usuario, password):
             flash('Usuario o contraseña incorrectos.', 'error')
-        return redirect(url_for('app_routes.login'))
-    
+            return redirect(url_for('app_routes.login'))
+
+        # Obtener empleado_id del usuario
+        empleado_query = supabase.table("empleados").select("id").eq("usuario_id", user['id']).execute()
+
+        if not empleado_query.data:
+            flash('Error: No se encontró un empleado asociado al usuario.', 'error')
+            return redirect(url_for('app_routes.login'))
+
+        empleado_id = empleado_query.data[0]['id']
+
+        # Obtener rol del empleado
+        rol_query = supabase.table("empleado_roles").select("rol_id").eq("empleado_id", empleado_id).execute()
+
+        if not rol_query.data:
+            flash('Error: El empleado no tiene roles asignados.', 'error')
+            return redirect(url_for('app_routes.login'))
+
+        # Asignar rol
+        rol_id = rol_query.data[0]['rol_id']
+        rol = role_map.get(rol_id)
+
+        if not rol:
+            flash('Error: Rol no reconocido.', 'error')
+            return redirect(url_for('app_routes.login'))
+
+        # Guardar sesión
+        session["usuario"] = usuario
+        session["rol"] = rol
+        session["nombres"] = user.get('nombres')
+        session["foto_perfil"] = user.get('foto_perfil')
+
+        return redirect(url_for(f"app_routes.{rol.lower()}_dashboard"))
+
     return render_template('auth/login.html')
 
 @app_routes.route("/logout")
@@ -191,12 +225,36 @@ def edit_employee(empleado_id):
     
     return render_template("admin/edit_employee.html", empleado_id=empleado_id)
 
-@app_routes.route('/admin/delete_employee/<int:id>', methods=['POST'])
+@app_routes.route('/admin/delete_employee', methods=['POST'])
 @require_role("Admin")
-def delete_employee(id):
-    print(f"Empleado con ID {id} eliminado")  # Solo para pruebas
-    flash("Empleado eliminado correctamente", "success")
-    return redirect(url_for('app_routes.manage_employees'))
+def delete_employee():
+    data = request.json
+    employee_id = data.get("empleado_id")
+    password = data.get("password")
+
+    usuario_actual = session.get("usuario")
+    if not usuario_actual:
+        return jsonify({"success": False, "message": "Usuario no autenticado"}), 401
+
+    user_query = supabase.table("usuarios").select("password").eq("username", usuario_actual).single().execute()
+    if not user_query or not user_query.data:
+        return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
+
+    hashed_password = user_query.data["password"]
+    if not check_password_hash(hashed_password, password):
+        return jsonify({"success": False, "message": "Contraseña incorrecta"}), 403
+
+    empleado_query = supabase.table("empleados").select("usuario_id").eq("id", employee_id).single().execute()
+    if not empleado_query or not empleado_query.data:
+        return jsonify({"success": False, "message": "Empleado no encontrado"}), 404
+
+    usuario_id = empleado_query.data["usuario_id"]
+
+    # Marcar como inactivo en vez de eliminar
+    supabase.table("usuarios").update({"activo": False}).eq("id", usuario_id).execute()
+
+    return jsonify({"success": True, "message": "Empleado y usuario desactivados correctamente"}), 200
+
 
 @app_routes.route("/mostrador")
 @require_role("Mostrador")
