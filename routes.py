@@ -1,13 +1,24 @@
 import os
 import bcrypt
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for, request, session, jsonify
 from functools import wraps
 from services import obtener_empleados, verificar_usuario
 from supabase import Client, create_client
 from utils import *
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash
+import json
 
 app_routes = Blueprint('app_routes', __name__)
+
+# Obtener la ruta absoluta al archivo estados.json
+ruta_estados = os.path.join(os.path.dirname(__file__), 'static', 'JSON', 'estados.json')
+                            
+# Cargar los estados desde el archivo JSON
+with open(ruta_estados, 'r', encoding='utf-8') as file:
+    estados_data = json.load(file)
+    estados = estados_data['estados']
+
 
 # Inicializa la conexión a Supabase
 url = os.getenv('SUPABASE_URL')
@@ -45,21 +56,54 @@ def login():
     if request.method == 'POST':
         usuario = request.form.get('username')
         password = request.form.get('password')
-        user = verificar_usuario(usuario, password)
 
-        if user:
-            session["usuario"] = usuario
-            session["rol"] = role_map.get(user.get('rol_id'))
-            session["nombres"] = user.get('nombres')
-            session["foto_perfil"] = user.get('foto_perfil')
+        # Consultar usuario y verificar si está activo
+        user_query = supabase.table("usuarios").select("*").eq("username", usuario).eq("activo", True).execute()
 
-            if session["rol"]:
-                return redirect(url_for(f"app_routes.{session['rol'].lower()}_dashboard"))
-            flash('Error: Usuario sin rol asignado.', 'error')
-        else:
+        # Verificar si el usuario existe
+        if not user_query.data:
+            flash('Usuario no encontrado o desactivado.', 'error')
+            return redirect(url_for('app_routes.login'))
+        
+        user = user_query.data[0]  # Obtener el primer usuario activo
+
+        # Validar contraseña
+        if not verificar_usuario(usuario, password):
             flash('Usuario o contraseña incorrectos.', 'error')
-        return redirect(url_for('app_routes.login'))
-    
+            return redirect(url_for('app_routes.login'))
+
+        # Obtener empleado_id del usuario
+        empleado_query = supabase.table("empleados").select("id").eq("usuario_id", user['id']).execute()
+
+        if not empleado_query.data:
+            flash('Error: No se encontró un empleado asociado al usuario.', 'error')
+            return redirect(url_for('app_routes.login'))
+
+        empleado_id = empleado_query.data[0]['id']
+
+        # Obtener rol del empleado
+        rol_query = supabase.table("empleado_roles").select("rol_id").eq("empleado_id", empleado_id).execute()
+
+        if not rol_query.data:
+            flash('Error: El empleado no tiene roles asignados.', 'error')
+            return redirect(url_for('app_routes.login'))
+
+        # Asignar rol
+        rol_id = rol_query.data[0]['rol_id']
+        rol = role_map.get(rol_id)
+
+        if not rol:
+            flash('Error: Rol no reconocido.', 'error')
+            return redirect(url_for('app_routes.login'))
+
+        # Guardar sesión
+        session["usuario"] = usuario
+        session["rol"] = rol
+        session["nombres"] = user.get('nombres')
+        session["foto_perfil"] = user.get('foto_perfil')
+
+        return redirect(url_for(f"app_routes.{rol.lower()}_dashboard"))
+
     return render_template('auth/login.html')
 
 @app_routes.route("/logout")
@@ -97,7 +141,7 @@ def add_employee():
         required_fields = [
             "sexo", "fecha_nacimiento", "nombres", "apellidos", "telefono", "correo",
             "username", "password", "calle", "numero_ext", "codigo_postal", "municipio",
-            "curp_rfc", "turno", "condiciones_medicas", "contacto_emergencia", "tipo_empleado"
+            "estado", "curp_rfc", "turno", "condiciones_medicas", "contacto_emergencia", "tipo_empleado"
         ]
 
         for field in required_fields:
@@ -118,6 +162,7 @@ def add_employee():
         numero_int = request.form.get('numero_int', None)  # Puede ser opcional
         codigo_postal = request.form['codigo_postal']
         municipio = request.form['municipio']
+        estado = request.form['estado']
         curp_rfc = request.form['curp_rfc']
         turno = request.form['turno']
         condiciones_medicas = request.form['condiciones_medicas']
@@ -159,6 +204,7 @@ def add_employee():
             "numero_int": numero_int,
             "codigo_postal": codigo_postal,
             "municipio": municipio,
+            "estado": estado, 
             "curp_rfc": curp_rfc,
             "turno": turno,
             "condiciones_medicas": condiciones_medicas,
@@ -176,27 +222,117 @@ def add_employee():
 
         return redirect(url_for('app_routes.manage_employees'))  # Redirección tras éxito
 
-    return render_template('admin/add_employee.html')
+    return render_template('admin/add_employee.html', estados=estados)
 
 
 
 
-@app_routes.route('/admin/edit_employee/<int:empleado_id>', methods=['GET', 'POST'])
+@app_routes.route('/admin/edit_employee/<int:empleado_id>', methods=['GET', 'POST'])  #metodo parecido al de añadir pero con la forma de obtener los datos para ponerlos
 @require_role("Admin")
+    
 def edit_employee(empleado_id):
-    # Lógica para obtener el empleado existente y permitir su edición
-    if request.method == "POST":
+    if request.method == "GET":
+        # Obtener los datos del empleado desde la base de datos
+        empleado = supabase.table('empleados').select('*').eq('id', empleado_id).execute()
+        if not empleado.data:
+            flash("Empleado no encontrado", "error")
+            return redirect(url_for("app_routes.manage_employees"))
+
+        empleado = empleado.data[0]
+
+        # Obtener el rol del empleado
+        rol = supabase.table('empleado_roles').select('rol_id').eq('empleado_id', empleado_id).execute()
+        if rol.data:
+            empleado['rol_id'] = rol.data[0]['rol_id']
+
+        # Obtener el usuario asociado al empleado (incluyendo la contraseña)
+        usuario = supabase.table('usuarios').select('username, password').eq('id', empleado['usuario_id']).execute()
+        if usuario.data:
+            empleado['username'] = usuario.data[0]['username']
+            empleado['password'] = usuario.data[0]['password']  # Recuperar la contraseña
+
+        # Renderizar la plantilla con los datos del empleado y role_map
+        return render_template('admin/edit_employee.html', empleado=empleado, is_edit=True, role_map=role_map, estados=estados)
+
+    elif request.method == "POST":
+        # Obtener y validar datos del formulario
+        required_fields = [
+            "sexo", "fecha_nacimiento", "nombres", "apellidos", "telefono", "correo",
+            "username", "calle", "numero_ext", "codigo_postal", "municipio", "estado",
+            "curp_rfc", "turno", "condiciones_medicas", "contacto_emergencia", "tipo_empleado"
+        ]
+
+        for field in required_fields:
+            if not request.form.get(field):
+                return f"El campo {field} es obligatorio", 400
+
+        # Datos generales
+        sexo = request.form['sexo']
+        fecha_nacimiento = request.form['fecha_nacimiento']
+        nombres = request.form['nombres']
+        apellidos = request.form['apellidos']
+        telefono = request.form['telefono']
+        correo = request.form['correo']
+        username = request.form['username']
+        calle = request.form['calle']
+        numero_ext = request.form['numero_ext']
+        numero_int = request.form.get('numero_int', None)
+        codigo_postal = request.form['codigo_postal']
+        municipio = request.form['municipio']
+        estado = request.form['estado']
+        curp_rfc = request.form['curp_rfc']
+        turno = request.form['turno']
+        condiciones_medicas = request.form['condiciones_medicas']
+        contacto_emergencia = request.form['contacto_emergencia']
+        rol_id = request.form.get('tipo_empleado')
+
+        if not rol_id.isdigit():
+            return "Tipo de empleado inválido", 400
+        rol_id = int(rol_id)
+
+        # Obtener el empleado actual para recuperar el usuario_id
+        empleado_actual = supabase.table('empleados').select('usuario_id').eq('id', empleado_id).execute()
+        if not empleado_actual.data:
+            flash("Empleado no encontrado", "error")
+            return redirect(url_for("app_routes.manage_employees"))
+
+        usuario_id = empleado_actual.data[0]['usuario_id']
+
+        # Actualizar el usuario
+        usuario_data = {"username": username}
+        nueva_password = request.form.get('password')
+        if nueva_password:  # Si se proporciona una nueva contraseña
+            hashed_password = bcrypt.hashpw(nueva_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            usuario_data['password'] = hashed_password
+
+        supabase.table('usuarios').update(usuario_data).eq('id', usuario_id).execute()
+
+        # Actualizar el empleado
+        empleado_data = {
+            "sexo": sexo,
+            "fecha_nacimiento": fecha_nacimiento,
+            "nombres": nombres,
+            "apellidos": apellidos,
+            "telefono": telefono,
+            "correo": correo,
+            "calle": calle,
+            "numero_ext": numero_ext,
+            "numero_int": numero_int,
+            "codigo_postal": codigo_postal,
+            "municipio": municipio,
+            "estado": estado,
+            "curp_rfc": curp_rfc,
+            "turno": turno,
+            "condiciones_medicas": condiciones_medicas,
+            "contacto_emergencia": contacto_emergencia
+        }
+        supabase.table('empleados').update(empleado_data).eq('id', empleado_id).execute()
+
+        # Actualizar el rol del empleado
+        supabase.table('empleado_roles').update({"rol_id": rol_id}).eq('empleado_id', empleado_id).execute()
+
         flash("Empleado actualizado correctamente", "success")
         return redirect(url_for("app_routes.manage_employees"))
-    
-    return render_template("admin/edit_employee.html", empleado_id=empleado_id)
-
-@app_routes.route('/admin/delete_employee/<int:id>', methods=['POST'])
-@require_role("Admin")
-def delete_employee(id):
-    print(f"Empleado con ID {id} eliminado")  # Solo para pruebas
-    flash("Empleado eliminado correctamente", "success")
-    return redirect(url_for('app_routes.manage_employees'))
 
 @app_routes.route("/mostrador")
 @require_role("Mostrador")
