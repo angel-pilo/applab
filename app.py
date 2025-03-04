@@ -29,4 +29,5 @@ app.register_blueprint(app_routes)
 
 # Iniciar la aplicación solo si este archivo se ejecuta directamente
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))  # Usa el puerto asignado por Heroku
+    app.run(host='0.0.0.0', port=port, debug=True)  # Configura el host y puerto dinámicos
