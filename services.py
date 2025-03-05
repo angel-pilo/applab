@@ -63,7 +63,6 @@ def obtener_empleados():
             print("No se encontraron empleados.")  # Mensaje para depuración
             return []  # Retorna una lista vacía si no hay empleados
         
-        # Crea una lista para almacenar los empleados con estado
         empleados_con_estado = []
 
         for emp in empleados_result.data:
@@ -74,14 +73,28 @@ def obtener_empleados():
                 .eq('id', emp['usuario_id']) \
                 .execute()
 
-            # Verifica si se encontró el usuario
             estado_usuario = usuario_result.data[0]['estado_usuario'] if usuario_result.data else False
+
+            # Obtener el ID del rol
+            rol_id = emp['empleado_roles'][0]['rol_id'] if 'empleado_roles' in emp and emp['empleado_roles'] else None
+
+            # Obtener el nombre del rol desde la tabla roles
+            if rol_id:
+                rol_result = supabase \
+                    .table('roles') \
+                    .select('nombre') \
+                    .eq('id', rol_id) \
+                    .execute()
+                
+                rol_nombre = rol_result.data[0]['nombre'] if rol_result.data else "Sin rol"
+            else:
+                rol_nombre = "Sin rol"
 
             empleados_con_estado.append({
                 "id": emp['id'],
                 "nombres": emp['nombres'],
                 "apellidos": emp['apellidos'],
-                "rol_id": emp['empleado_roles'][0]['rol_id'] if emp['empleado_roles'] else None,
+                "rol": rol_nombre,  # Ahora guardamos el nombre del rol en lugar del ID
                 "estado": estado_usuario
             })
 
