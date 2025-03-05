@@ -59,7 +59,7 @@ def login():
         password = request.form.get('password')
 
         # Consultar usuario y verificar si está activo
-        user_query = supabase.table("usuarios").select("*").eq("username", usuario).eq("activo", True).execute()
+        user_query = supabase.table("usuarios").select("*").eq("username", usuario).eq("estado_usuario", True).execute()
 
         # Verificar si el usuario existe
         if not user_query.data:
@@ -365,38 +365,12 @@ def delete_employee(id):
 
     # Desactivar al empleado (marcar como inactivo)
     try:
-        supabase.table('usuarios').update({'activo': False}).eq('id', id).execute()
+        supabase.table('usuarios').update({'estado_usuario': False}).eq('id', id).execute()
         return jsonify({"message": "Empleado desactivado correctamente."}), 200
     except Exception as e:
         print(f"Error al desactivar el empleado: {e}")
         return jsonify({"message": "Error al desactivar el empleado."}), 500
     
-@app_routes.route('/admin/active_employee/<int:id>', methods=['POST'])
-@require_role("Admin")
-def active_employee(id):
-    # Verificar si el usuario ha iniciado sesión
-    if 'user_id' not in session:
-        return jsonify({"message": "No estás autorizado."}), 403
-    # Obtener la contraseña del formulario
-    password = request.form.get('password', '').strip()  # Eliminar espacios en blanco
-    if not password:
-        return jsonify({"message": "La contraseña es requerida."}), 400
-    # Verificar la contraseña del administrador
-    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
-    if not admin_user_query.data:
-        return jsonify({"message": "Usuario no encontrado."}), 404
-    admin_user = admin_user_query.data  # Obtener el usuario administrador
-    # Validar la contraseña utilizando bcrypt
-    if not bcrypt.checkpw(password.encode('utf-8'), admin_user['password'].encode('utf-8')):
-        return jsonify({"message": "Contraseña incorrecta."}), 401
-    # Activar empleado (marcar como activo)
-    try:
-        supabase.table('usuarios').update({'activo': True}).eq('id', id).execute()
-        return jsonify({"message": "Empleado activado correctamente."}), 200
-    except Exception as e:
-        print(f"Error al activar el empleado: {e}")
-        return jsonify({"message": "Error al activar el empleado."}), 500
-
 @app_routes.route("/mostrador")
 @require_role("Mostrador")
 def mostrador_dashboard():

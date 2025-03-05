@@ -51,25 +51,45 @@ def verificar_usuario(usuario, password):
 
 
 def obtener_empleados():
-    """Obtiene una lista de empleados junto con sus roles."""
+    """Obtiene una lista de empleados junto con sus roles y estado."""
     try:
-        result = supabase \
+        # Obtiene los empleados junto con sus roles
+        empleados_result = supabase \
             .table('empleados') \
-            .select('id, nombres, apellidos, empleado_roles(rol_id)') \
+            .select('id, nombres, apellidos, usuario_id, empleado_roles(rol_id)') \
             .execute()
 
-        if not result.data:
+        if not empleados_result.data:
+            print("No se encontraron empleados.")  # Mensaje para depuración
             return []  # Retorna una lista vacía si no hay empleados
         
-        return [
-            {
+        # Crea una lista para almacenar los empleados con estado
+        empleados_con_estado = []
+
+        for emp in empleados_result.data:
+            # Obtiene el estado del usuario correspondiente al empleado
+            usuario_result = supabase \
+                .table('usuarios') \
+                .select('estado_usuario') \
+                .eq('id', emp['usuario_id']) \
+                .execute()
+
+            # Verifica si se encontró el usuario
+            estado_usuario = usuario_result.data[0]['estado_usuario'] if usuario_result.data else False
+
+            empleados_con_estado.append({
                 "id": emp['id'],
                 "nombres": emp['nombres'],
                 "apellidos": emp['apellidos'],
-                "rol_id": emp['empleado_roles'][0]['rol_id'] if emp['empleado_roles'] else None
-            } 
-            for emp in result.data
-        ]
+                "rol_id": emp['empleado_roles'][0]['rol_id'] if emp['empleado_roles'] else None,
+                "estado": estado_usuario
+            })
+
+        return empleados_con_estado
     
-    except Exception:
+    except Exception as e:
+        print(f"Error al obtener empleados: {e}")  # Imprimir error para depuración
         return []
+
+
+
