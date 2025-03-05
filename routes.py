@@ -73,8 +73,25 @@ def login():
             flash('Usuario o contraseña incorrectos.', 'error')
             return redirect(url_for('app_routes.login'))
 
-        # Obtener empleado_id del usuario
-        empleado_query = supabase.table("empleados").select("id").eq("usuario_id", user['id']).execute()
+        # Obtener id, nombres y foto_perfil del usuario en una sola consulta
+        empleado_query = (
+            supabase.table("empleados")
+            .select("id, nombres, foto_perfil")
+            .eq("usuario_id", user['id'])
+            .execute()
+        )
+
+        # Extraer los datos si la consulta fue exitosa
+        if empleado_query.data:
+            empleado = empleado_query.data[0]  # Tomamos el primer resultado
+            empleado_id = empleado.get("id")
+            nombres = empleado.get("nombres")
+            foto_perfil = empleado.get("foto_perfil")
+        else:
+            empleado_id = None
+            nombres = None
+            foto_perfil = None
+
 
         if not empleado_query.data:
             flash('Error: No se encontró un empleado asociado al usuario.', 'error')
@@ -100,8 +117,8 @@ def login():
         # Guardar sesión
         session["usuario"] = usuario
         session["rol"] = rol
-        session["nombres"] = user.get('nombres')
-        session["foto_perfil"] = user.get('foto_perfil')
+        session["nombres"] = nombres
+        session["foto_perfil"] = foto_perfil
 
         session['user_id'] = user['id']  # Establecer user_id en la sesión correctamente
 
