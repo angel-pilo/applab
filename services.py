@@ -51,57 +51,53 @@ def verificar_usuario(usuario, password):
 
 
 def obtener_empleados():
-    """Obtiene una lista de empleados junto con sus roles y estado."""
+    """Obtiene una lista de empleados con los campos especificados."""
     try:
-        # Obtiene los empleados junto con sus roles
-        empleados_result = supabase \
-            .table('empleados') \
-            .select('id, nombres, apellidos, usuario_id, empleado_roles(rol_id)') \
-            .execute()
+        # Consulta corregida con sintaxis válida para joins
+        empleados_result = supabase.table('empleados').select(
+            '''
+            id,
+            nombres,
+            apellidos,
+            usuario_id,
+            contacto_emergencia,
+            condiciones_medicas,
+            fecha_nacimiento,
+            usuario_id(estado_usuario),  
+            empleado_roles(rol_id(id, nombre)) 
+            '''
+        ).execute()
 
         if not empleados_result.data:
-            print("No se encontraron empleados.")  # Mensaje para depuración
-            return []  # Retorna una lista vacía si no hay empleados
-        
-        empleados_con_estado = []
+            print("No se encontraron empleados.")
+            return []
 
+        empleados_con_datos = []
         for emp in empleados_result.data:
-            # Obtiene el estado del usuario correspondiente al empleado
-            usuario_result = supabase \
-                .table('usuarios') \
-                .select('estado_usuario') \
-                .eq('id', emp['usuario_id']) \
-                .execute()
-
-            estado_usuario = usuario_result.data[0]['estado_usuario'] if usuario_result.data else False
-
-            # Obtener el ID del rol
-            rol_id = emp['empleado_roles'][0]['rol_id'] if 'empleado_roles' in emp and emp['empleado_roles'] else None
-
-            # Obtener el nombre del rol desde la tabla roles
-            if rol_id:
-                rol_result = supabase \
-                    .table('roles') \
-                    .select('nombre') \
-                    .eq('id', rol_id) \
-                    .execute()
-                
-                rol_nombre = rol_result.data[0]['nombre'] if rol_result.data else "Sin rol"
-            else:
-                rol_nombre = "Sin rol"
-
-            empleados_con_estado.append({
-                "id": emp['id'],
-                "nombres": emp['nombres'],
-                "apellidos": emp['apellidos'],
-                "rol": rol_nombre,  # Ahora guardamos el nombre del rol en lugar del ID
-                "estado": estado_usuario
+            # Extraer estado_usuario del join con usuarios
+            estado_usuario = emp.get("usuario_id", {}).get("estado_usuario", False)
+            
+            # Extraer rol_id y nombre del rol
+            roles = emp.get("empleado_roles", [{}])
+            rol_data = roles[0].get("rol_id", {}) if roles else {}
+            
+            empleados_con_datos.append({
+                "id": emp["id"],
+                "nombres": emp["nombres"],
+                "apellidos": emp["apellidos"],
+                "usuario_id": emp["usuario_id"].get("id") if isinstance(emp["usuario_id"], dict) else emp["usuario_id"],
+                "contacto_emergencia": emp["contacto_emergencia"],
+                "condiciones_medicas": emp["condiciones_medicas"],
+                "fecha_nacimiento": emp["fecha_nacimiento"],
+                "estado": estado_usuario,
+                "rol_id": rol_data.get("id"),
+                "rol_nombre": rol_data.get("nombre", "Sin rol")
             })
 
-        return empleados_con_estado
-    
+        return empleados_con_datos
+
     except Exception as e:
-        print(f"Error al obtener empleados: {e}")  # Imprimir error para depuración
+        print(f"Error al obtener empleados: {e}")
         return []
 
 
