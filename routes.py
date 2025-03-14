@@ -354,6 +354,7 @@ def edit_employee(empleado_id):
 
         flash("Empleado actualizado correctamente", "success")
         return redirect(url_for("app_routes.manage_employees"))
+
     
 @app_routes.route('/admin/delete_employee/<int:id>', methods=['POST'])
 @require_role("Admin")
@@ -387,6 +388,28 @@ def delete_employee(id):
     except Exception as e:
         print(f"Error al desactivar el empleado: {e}")
         return jsonify({"message": "Error al desactivar el empleado."}), 500
+    
+@app_routes.route('/admin/activate_employee/<int:user_id>', methods=['POST'])
+@require_role("Admin")
+def activate_employee(user_id):
+    # Verificar que el usuario existe y está desactivado
+    user_query = supabase.table('usuarios').select('*').eq('id', user_id).execute()
+    
+    if not user_query.data:
+        return jsonify({"message": "Usuario no encontrado."}), 404
+
+    user = user_query.data[0]
+
+    if user['estado_usuario']:
+        return jsonify({"message": "El usuario ya está activado."}), 400
+
+    try:
+        # Actualizar el estado a TRUE
+        supabase.table('usuarios').update({'estado_usuario': True}).eq('id', user_id).execute()
+        return jsonify({"message": "Usuario activado correctamente."}), 200
+    except Exception as e:
+        print(f"Error al activar usuario: {e}")
+        return jsonify({"message": "Error al activar usuario."}), 500
     
 @app_routes.route("/mostrador")
 @require_role("Mostrador")

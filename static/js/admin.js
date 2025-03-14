@@ -121,6 +121,50 @@ function deleteEmployee() {
     });
 }
 
+function activateEmployee(employeeId) {
+    fetch(`/admin/activate_employee/${employeeId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+    .then(({ status, body }) => {
+        if (status === 200) {
+            // Mostrar el mensaje de activación en el modal
+            showActivationMessage();
+
+            // Opcionalmente, puedes recargar la página después de que el modal desaparezca
+            setTimeout(() => {
+                location.reload(); // Refrescar la página para reflejar el nuevo estado
+            }, 3000); // El tiempo debe coincidir con el del modal (en este caso, 3 segundos)
+        } else {
+            alert(body.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Hubo un error al activar el empleado.');
+    });
+}
+
+// Función para mostrar el modal de activación con un mensaje
+function showActivationMessage() {
+    const modal = document.getElementById("activation-modal");
+    const message = document.getElementById("activation-message");
+
+    // Cambiar el mensaje si es necesario
+    message.textContent = "Usuario activado correctamente.";
+
+    // Mostrar el modal
+    modal.classList.remove("hidden");
+
+    // Después de 3 segundos, ocultamos el modal
+    setTimeout(() => {
+        modal.classList.add("hidden");
+    }, 2500); // Desaparece después de 3 segundos
+}
+
 
 function closeModal() {
     document.getElementById('delete-modal').classList.add('hidden'); // Ocultar el modal

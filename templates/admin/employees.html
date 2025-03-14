@@ -75,45 +75,22 @@
                     <tbody>
                         {% if empleados %}
                             {% for empleado in empleados | sort(attribute='id') %}
-                                {% if empleado.estado %}  <!-- Solo mostrar empleados activos -->
-                                <tr class="border-b cursor-pointer" onclick="selectEmployee({{ empleado.id }}, '{{ empleado.nombres }}', '{{ empleado.apellidos }}', '{{ empleado.rol_nombre }}', '{{ empleado.contacto_emergencia }}', '{{ empleado.condiciones_medicas }}', '{{ empleado.fecha_nacimiento }}')">
-                                    <td class="py-2 px-4">
-                                        <input type="radio" name="employee" value="{{ empleado.id }}" class="mr-2" id="employee-{{ empleado.id }}">#{{ empleado.id }}
-                                    </td>    
-                                    <td class="py-2 px-15">{{ empleado.nombres }}</td>
-                                    <td class="py-2 px-15">{{ empleado.apellidos }}</td>
-                                    <td class="py-2 px-15">{{ empleado.rol_nombre }}</td>
-                                    <td class="py-2 px-15">  <!-- Se eliminó la columna de estado -->
-                                        <button class="btn-editar" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_employee', empleado_id=empleado.id) }}'">Editar</button>
-                                        <button class="btn-eliminar" onclick="event.stopPropagation(); confirmDelete('{{ empleado.id }}')" style="border-radius: 1rem;">Eliminar</button>
-                                    </td>
-                                </tr>
-                                {% endif %}
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="5" class="py-2 px-4 text-center">No hay empleados registrados.</td>  <!-- Cambiar colspan según las columnas -->
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                    
-                    <!--<tbody>
-                        {% if empleados %}
-                            {% for empleado in empleados | sort(attribute='id') %}
-                            <tr class="border-b cursor-pointer" onclick="selectEmployee({{ empleado.id }}, '{{ empleado.nombres }}', '{{ empleado.apellidos }}', '{{ empleado.rol }}', '{{ empleado.contacto_emergencia }}', '{{ empleado.alergias }}', '{{ empleado.fecha_ingreso }}')">
+                            <tr class="border-b cursor-pointer {% if not empleado.estado %}bg-gray-100{% endif %}" onclick="selectEmployee({{ empleado.id }}, '{{ empleado.nombres }}', '{{ empleado.apellidos }}', '{{ empleado.rol_nombre }}', '{{ empleado.contacto_emergencia }}', '{{ empleado.condiciones_medicas }}', '{{ empleado.fecha_nacimiento }}')">
                                 <td class="py-2 px-4">
                                     <input type="radio" name="employee" value="{{ empleado.id }}" class="mr-2" id="employee-{{ empleado.id }}">#{{ empleado.id }}
                                 </td>    
                                 <td class="py-2 px-15">{{ empleado.nombres }}</td>
                                 <td class="py-2 px-15">{{ empleado.apellidos }}</td>
-                                <td class="py-2 px-15">{{ empleado.rol }}</td>
-                                <td class="py-2 px-15">{{ 'Activo' if empleado.estado else 'Inactivo' }}</td> 
+                                <td class="py-2 px-15">{{ empleado.rol_nombre }}</td>
+                                <td class="py-2 px-15">{{ 'Activo' if empleado.estado else 'Inactivo' }}</td>
                                 <td class="py-2 px-15">
                                     {% if empleado.estado %}
                                         <button class="btn-editar" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_employee', empleado_id=empleado.id) }}'">Editar</button>
                                         <button class="btn-eliminar" onclick="event.stopPropagation(); confirmDelete('{{ empleado.id }}')" style="border-radius: 1rem;">Eliminar</button>
                                     {% else %}
-                                    <button class="btn-activar" onclick="confirmActivate('{{ empleado.id }}')" style="border-radius: 1rem;">Activar</button>
+                                    <button onclick="activateEmployee({{ empleado.id }})" class="btn-activar">
+                                        Activar
+                                    </button>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -123,7 +100,7 @@
                                 <td colspan="6" class="py-2 px-4 text-center">No hay empleados registrados.</td>
                             </tr>
                         {% endif %}
-                    </tbody>-->
+                    </tbody>
 
                 </table>
             </div>
@@ -168,6 +145,14 @@
             <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
             <button class="bg-red-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="deleteEmployee()">Continuar</button>
         </div>
+    </div>
+</div>
+
+<!-- Activation Confirmation Modal -->
+<div id="activation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-lg shadow-lg" style="border-radius: 1rem;">
+        <h2 class="text-xl font-bold mb-4">Usuario Activado</h2>
+        <p id="activation-message" class="text-center">Usuario activado correctamente.</p>
     </div>
 </div>
 
