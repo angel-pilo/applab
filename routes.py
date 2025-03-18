@@ -2,7 +2,7 @@ import os
 import bcrypt
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for, request, session, jsonify
 from functools import wraps
-from services import obtener_empleados, verificar_usuario
+from services import *
 from supabase import Client, create_client
 from utils import *
 from werkzeug.utils import secure_filename
@@ -425,3 +425,104 @@ def enfermero_dashboard():
 @require_role("Quimico")
 def quimico_dashboard():
     return render_template("quimico/quimico.html")
+
+@app_routes.route('/admin/hospitals')
+def manage_hospitals():
+    """Página de gestión de hospitales"""
+    hospitales = obtener_hospitales()
+    return render_template('admin/hospitals.html', hospitales=hospitales)
+
+@app_routes.route('/admin/add_hospital', methods=['GET', 'POST'])
+def add_hospital():
+    """Formulario para agregar un hospital"""
+    if request.method == 'POST':
+        nombre = request.form['nombre']
+        telefono = request.form['telefono']
+        correo = request.form['correo']
+        calle = request.form['calle']
+        numero_ext = request.form['numero_ext']
+        numero_int = request.form.get('numero_int', None)
+        codigo_postal = request.form['codigo_postal']
+        municipio = request.form['municipio']
+        estado = request.form['estado']
+        anotaciones = request.form.get('anotaciones', '')
+        
+        crear_hospital(nombre, telefono, correo, calle, numero_ext, numero_int, codigo_postal, municipio, estado, anotaciones)
+        flash("Hospital registrado exitosamente", "success")
+        return redirect(url_for('app_routes.manage_hospitals'))
+    
+    return render_template('admin/add_hospital.html')
+
+@app_routes.route('/admin/edit_hospital/<int:hospital_id>', methods=['GET', 'POST'])
+def edit_hospital(hospital_id):
+    """Formulario para editar un hospital"""
+    hospital = obtener_hospital_por_id(hospital_id)
+    if not hospital:
+        flash("Hospital no encontrado", "error")
+        return redirect(url_for('app_routes.manage_hospitals'))
+    
+    if request.method == 'POST':
+        nombre = request.form['nombre']
+        telefono = request.form['telefono']
+        correo = request.form['correo']
+        calle = request.form['calle']
+        numero_ext = request.form['numero_ext']
+        numero_int = request.form.get('numero_int', None)
+        codigo_postal = request.form['codigo_postal']
+        municipio = request.form['municipio']
+        estado = request.form['estado']
+        anotaciones = request.form.get('anotaciones', '')
+        
+        actualizar_hospital(hospital_id, nombre, telefono, correo, calle, numero_ext, numero_int, codigo_postal, municipio, estado, anotaciones)
+        flash("Hospital actualizado exitosamente", "success")
+        return redirect(url_for('app_routes.manage_hospitals'))
+    
+    return render_template('admin/edit_hospital.html', hospital=hospital)
+
+@app_routes.route('/admin/delete_hospital/<int:hospital_id>', methods=['POST'])
+def delete_hospital(hospital_id):
+    """Eliminar (desactivar) un hospital verificando la contraseña del administrador"""
+    password = request.form.get('password', '').strip()
+    
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+    
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+    
+    if not admin_user_query.data:
+        return jsonify({"message": "Usuario no encontrado."}), 404
+    
+    admin_user = admin_user_query.data
+    
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+    
+    try:
+        eliminar_hospital(hospital_id)
+        return jsonify({"message": "Hospital eliminado correctamente."}), 200
+    except Exception as e:
+        return jsonify({"message": "Error al eliminar hospital."}), 500
+
+@app_routes.route('/admin/activate_hospital/<int:hospital_id>', methods=['POST'])
+def activate_hospital(hospital_id):
+    """Activar un hospital en la base de datos verificando la contraseña del administrador"""
+    password = request.form.get('password', '').strip()
+    
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+    
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+    
+    if not admin_user_query.data:
+        return jsonify({"message": "Usuario no encontrado."}), 404
+    
+    admin_user = admin_user_query.data
+    
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+    
+    try:
+        response = supabase.table('hospitales').update({"activo": True}).eq('id', hospital_id).execute()
+        return jsonify({"message": "Hospital activado correctamente."}), 200
+    except Exception as e:
+        return jsonify({"message": "Error al activar hospital."}), 500

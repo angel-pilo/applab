@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Hospitales{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <div class="flex items-center mb-4">
+        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+        <h1 class="text-4xl font-bold ml-4">Hospitales</h1>
+    </div>
+</div>
+
+<div class="container mx-auto p-4 mt-8">
+    <div class="flex items-center mb-4">
+        <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.add_hospital') }}'">
+            Añadir Hospital
+        </button>
+    </div>
+    
+    <table class="min-w-full bg-white rounded-lg shadow-md">
+        <thead>
+            <tr class="border-b">
+                <th class="py-2 px-4 text-left">ID</th>
+                <th class="py-2 px-4 text-left">Nombre</th>
+                <th class="py-2 px-4 text-left">Teléfono</th>
+                <th class="py-2 px-4 text-left">Correo</th>
+                <th class="py-2 px-4 text-left">Dirección</th>
+                <th class="py-2 px-4 text-left">Estado</th>
+                <th class="py-2 px-4">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for hospital in hospitales %}
+            <tr class="border-b {% if not hospital.activo %}bg-gray-100{% endif %}">
+                <td class="py-2 px-4">{{ hospital.id }}</td>
+                <td class="py-2 px-4">{{ hospital.nombre }}</td>
+                <td class="py-2 px-4">{{ hospital.telefono }}</td>
+                <td class="py-2 px-4">{{ hospital.correo }}</td>
+                <td class="py-2 px-4">{{ hospital.calle }}, {{ hospital.numero_ext }}, {{ hospital.municipio }}, {{ hospital.estado }}</td>
+                <td class="py-2 px-4">{{ 'Activo' if hospital.activo else 'Inactivo' }}</td>
+                <td class="py-2 px-4">
+                    {% if hospital.activo %}
+                        <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_hospital', hospital_id=hospital.id) }}'">Editar</button>
+                        <button class="btn-eliminar" onclick="confirmDelete('{{ hospital.id }}')">Eliminar</button>
+                    {% else %}
+                        <button class="btn-activar" onclick="activateHospital({{ hospital.id }})">Activar</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-lg shadow-lg" style="border-radius: 1rem;">
+        <h2 class="text-xl font-bold mb-4">Confirmar Eliminación</h2>
+        <p>¿Estás seguro de que deseas eliminar este hospital?</p>
+        <input type="hidden" id="delete-hospital-id">
+
+        <div id="modal-message" class="mt-2 text-center"></div>
+
+        <div class="mt-4">
+            <label for="password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
+            <input type="password" id="password" class="mt-1 p-2 border rounded w-full" style="border-radius: 1rem;">
+        </div>
+
+        <div class="mt-4 flex justify-end">
+            <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
+            <button class="bg-red-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="deleteHospital()">Continuar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Activation Confirmation Modal -->
+<div id="activation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-lg shadow-lg" style="border-radius: 1rem;">
+        <h2 class="text-xl font-bold mb-4">Confirmar Activación</h2>
+        <p>¿Estás seguro de que deseas activar este hospital?</p>
+        <input type="hidden" id="activate-hospital-id">
+
+        <div id="activation-modal-message" class="mt-2 text-center"></div>
+
+        <div class="mt-4">
+            <label for="activate-password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
+            <input type="password" id="activate-password" class="mt-1 p-2 border rounded w-full" style="border-radius: 1rem;">
+        </div>
+
+        <div class="mt-4 flex justify-end">
+            <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
+            <button class="bg-green-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="activateHospital()">Activar</button>
+        </div>
+    </div>
+</div>
+
+
+<script src="{{ url_for('static', filename='js/hospitals.js') }}"></script>
+
+{% endblock %}

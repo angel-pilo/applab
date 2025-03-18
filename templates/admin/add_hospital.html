@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Añadir Hospital{% endblock %}
+
+{% block content %}
+
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+
+<div class="container mx-auto p-4">
+    <div class="flex items-center mb-4">
+        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+        <h1 class="text-4xl font-bold ml-4">Agregar Nuevo Hospital</h1>
+    </div>
+</div>
+
+<div class="container mx-auto p-4 bg-white shadow-md rounded-lg">
+    <form method="POST">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Nombre del Hospital</label>
+                <input type="text" name="nombre" class="w-full p-2 border rounded" required>
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Número de Teléfono</label>
+                <input type="text" name="telefono" class="w-full p-2 border rounded" required>
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Correo Electrónico</label>
+                <input type="email" name="correo" class="w-full p-2 border rounded" required>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Calle</label>
+                <input type="text" name="calle" class="w-full p-2 border rounded" required>
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">No. Ext</label>
+                <input type="text" name="numero_ext" class="w-full p-2 border rounded" required>
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">No. Int</label>
+                <input type="text" name="numero_int" class="w-full p-2 border rounded">
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Código Postal</label>
+                <input type="text" name="codigo_postal" class="w-full p-2 border rounded" required>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Municipio</label>
+                <input type="text" name="municipio" class="w-full p-2 border rounded" required>
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Estado</label>
+                <input type="text" name="estado" class="w-full p-2 border rounded" required>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <label class="block text-gray-700 font-bold mb-2">Anotaciones Extras</label>
+            <textarea name="anotaciones" class="w-full p-2 border rounded" rows="4"></textarea>
+        </div>
+        
+        <div class="mt-6 flex justify-end">
+            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded">Guardar</button>
+            <button type="button" class="bg-gray-300 text-gray-700 px-6 py-2 rounded ml-2" onclick="window.history.back()">Cancelar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
