@@ -1,6 +1,6 @@
 import os
 import bcrypt
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for, request, session, jsonify
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for, jsonify
 from functools import wraps
 from services import *
 from supabase import Client, create_client
@@ -20,12 +20,12 @@ with open(ruta_estados, 'r', encoding='utf-8') as file:
     estados_data = json.load(file)
     estados = estados_data["estados"]  # Extrae la lista de estados del JSON
 
-
 # Inicializa la conexión a Supabase
 url = os.getenv('SUPABASE_URL')
 key = os.getenv('SUPABASE_KEY')
 supabase: Client = create_client(url, key)
 
+# Mapeo de roles por ID
 role_map = {
     1: "Admin",
     2: "Mostrador",
@@ -33,8 +33,8 @@ role_map = {
     4: "Quimico"
 }
 
+# Decorador para restringir acceso según rol
 def require_role(role):
-    """ Decorador para verificar el rol del usuario """
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -44,13 +44,24 @@ def require_role(role):
         return wrapper
     return decorator
 
+# Ruta principal
 @app_routes.route("/")
 def home():
     if "usuario" in session:
-        rol = session.get("rol", "").lower()
+        rol = session.get("rol", "").capitalize()  # Asegurar que el rol esté bien escrito
         if rol in role_map.values():
-            return redirect(url_for(f"app_routes.{rol}_dashboard"))
+            return redirect(url_for(f"app_routes.{rol.lower()}_dashboard"))
+    
     return redirect(url_for("app_routes.login"))
+
+# Ruta de Dashboard
+@app_routes.route("/dashboard")
+def dashboard():
+    if "usuario" not in session:
+        return redirect(url_for("app_routes.login"))
+    
+    return render_template("dashboard.html")
+
 
 @app_routes.route('/login', methods=['GET', 'POST'])
 def login():
@@ -392,24 +403,44 @@ def delete_employee(id):
 @app_routes.route('/admin/activate_employee/<int:user_id>', methods=['POST'])
 @require_role("Admin")
 def activate_employee(user_id):
-    # Verificar que el usuario existe y está desactivado
-    user_query = supabase.table('usuarios').select('*').eq('id', user_id).execute()
+    """ Activar un usuario en la base de datos verificando la contraseña del administrador """
+    password = request.form.get('password', '').strip()
+
+    # Verificar si el administrador ha iniciado sesión
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+
+    # Obtener el usuario administrador de la sesión
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+    
+    if not admin_user_query.data:
+        return jsonify({"message": "Administrador no encontrado."}), 404
+
+    admin_user = admin_user_query.data
+
+    # Verificar la contraseña del administrador
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    # Verificar que el usuario a activar existe y está desactivado
+    user_query = supabase.table('usuarios').select('*').eq('id', user_id).single().execute()
     
     if not user_query.data:
         return jsonify({"message": "Usuario no encontrado."}), 404
 
-    user = user_query.data[0]
+    user = user_query.data
 
     if user['estado_usuario']:
         return jsonify({"message": "El usuario ya está activado."}), 400
 
     try:
-        # Actualizar el estado a TRUE
+        # Activar el usuario en la base de datos
         supabase.table('usuarios').update({'estado_usuario': True}).eq('id', user_id).execute()
         return jsonify({"message": "Usuario activado correctamente."}), 200
     except Exception as e:
         print(f"Error al activar usuario: {e}")
         return jsonify({"message": "Error al activar usuario."}), 500
+
     
 @app_routes.route("/mostrador")
 @require_role("Mostrador")
@@ -542,3 +573,24 @@ def activate_hospital(hospital_id):
         return jsonify({"message": "Hospital activado correctamente."}), 200
     except Exception:
         return jsonify({"message": "Error al activar hospital."}), 500
+    
+# Rutas de sidebar según rol
+@app_routes.route("/reportes")
+def reportes():
+    return render_template("admin/reportes.html")
+
+@app_routes.route("/configuracion")
+def configuracion():
+    return render_template("admin/configuracion.html")
+
+@app_routes.route("/faltantes")
+def faltantes():
+    return render_template("mostrador/faltantes.html")
+
+@app_routes.route("/pacientes")
+def pacientes():
+    return render_template("enfermero/pacientes.html")
+
+@app_routes.route("/resultados")
+def resultados():
+    return render_template("quimico/resultados.html")

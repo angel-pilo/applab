@@ -1,7 +1,8 @@
-from flask import Flask
+from flask import Flask, session
 from dotenv import load_dotenv
 import os
 import bcrypt
+from supabase import create_client, Client
 
 # Cargar las variables de entorno
 load_dotenv()
@@ -14,14 +15,38 @@ key = os.getenv('SUPABASE_KEY')
 if url is None or key is None:
     raise ValueError("Las variables de entorno SUPABASE_URL y SUPABASE_KEY deben estar definidas")
 
-from supabase import create_client, Client
-supabase: Client = create_client(url, key)
-
 # Crear la instancia de la aplicación Flask
 app = Flask(__name__)
 
 # Agrega la clave secreta
-app.secret_key = 'supersecreto'  
+app.secret_key = 'supersecreto'
+
+# Definir los ítems de la sidebar según el rol, evitando `"#"` en `url`
+role_sidebar_items = {
+    "Admin": [
+        {"icon": "fa-home", "text": "Inicio", "url": "app_routes.admin_dashboard"},
+        {"icon": "fa-users", "text": "Gestión de Empleados", "url": "app_routes.manage_employees"},
+        {"icon": "fa-chart-bar", "text": "Reportes", "url": "app_routes.reportes"},
+        {"icon": "fa-cog", "text": "Configuración", "url": "app_routes.configuracion"}
+    ],
+    "Mostrador": [
+        {"icon": "fa-home", "text": "Inicio", "url": "app_routes.mostrador_dashboard"},
+        {"icon": "fa-file-alt", "text": "Faltantes de Reportar", "url": "app_routes.faltantes"}
+    ],
+    "Enfermero": [
+        {"icon": "fa-home", "text": "Inicio", "url": "app_routes.enfermero_dashboard"},
+        {"icon": "fa-user-nurse", "text": "Pacientes", "url": "app_routes.pacientes"}
+    ],
+    "Quimico": [
+        {"icon": "fa-home", "text": "Inicio", "url": "app_routes.quimico_dashboard"},
+        {"icon": "fa-vials", "text": "Resultados de Laboratorio", "url": "app_routes.resultados"}
+    ]
+}
+
+# Registrar la variable en el contexto global
+@app.context_processor
+def inject_sidebar_items():
+    return {"role_sidebar_items": role_sidebar_items}
 
 # Importar y registrar las rutas
 from routes import app_routes

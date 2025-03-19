@@ -1,32 +1,20 @@
-
 <div id="sidebar" class="text-white sidebar-collapsed flex flex-col items-center py-4 sidebar-transition h-screen" style="background-color: #0E2238">
     <!-- Botón de menú -->
     <div class="mb-8 cursor-pointer" onclick="toggleSidebar()">
         <i class="fas fa-th-large text-xl"></i>
     </div>
     
-    <!-- Ítems del sidebar -->
+    <!-- Ítems de la sidebar dinámicos según el rol -->
     <div class="flex flex-col space-y-2 items-center w-full">
-        <button class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
-            <i class="fas fa-home text-xl"></i>
-            <span class="tooltiptext">Inicio</span>
-            <span class="ml-2 hidden sidebar-text">Inicio</span>
-        </button>
-        <button class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
-            <i class="fas fa-file-alt text-xl"></i>
-            <span class="tooltiptext">Faltantes de reportar</span>
-            <span class="ml-2 hidden sidebar-text">Faltantes de reportar</span>
-        </button>
-        <button class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
-            <i class="fas fa-chart-bar text-xl"></i>
-            <span class="tooltiptext">Reporte de resultados</span>
-            <span class="ml-2 hidden sidebar-text">Reporte de resultados</span>
-        </button>
-        <button class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
-            <i class="fas fa-cog text-xl"></i>
-            <span class="tooltiptext">Configuración</span>
-            <span class="ml-2 hidden sidebar-text">Configuración</span>
-        </button>
+        {% set role_items = role_sidebar_items.get(session.get("rol"), []) %}
+        {% for item in role_items %}
+            <a href="{% if item.url.startswith('app_routes.') %}{{ url_for(item.url) }}{% else %}#{% endif %}" 
+                class="tooltip flex items-center focus:outline-none sidebar-item w-full px-4">
+                <i class="fas {{ item.icon }} text-xl"></i>
+                <span class="tooltiptext">{{ item.text }}</span>
+                <span class="ml-2 hidden sidebar-text">{{ item.text }}</span>
+            </a>
+        {% endfor %}
     </div>
 
     <!-- Botón de Cerrar Sesión -->
