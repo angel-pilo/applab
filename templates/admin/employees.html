@@ -7,6 +7,21 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
     <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+
+    <style>
+        thead th {
+            position: sticky;
+            top: 0;
+            background-color: white;
+            z-index: 1;  /* Se baja el z-index para que no se superponga */
+        }
+        
+        #delete-modal, #activation-modal {
+            z-index: 1000;  /* Asegura que los modales estén por encima */
+            position: fixed;
+        }              
+    </style>
+
 </head>
 
 <div class="container mx-auto p-4">
@@ -60,9 +75,9 @@
                 </div>
             </div>
 
-            <div class="overflow-y-auto max-h-120">
+            <div class="overflow-y-auto max-h-[calc(10*4rem)] border rounded-lg shadow-md">
                 <table class="min-w-full bg-white rounded-lg shadow-md">
-                    <thead>
+                    <thead class="sticky-header">
                         <tr class="border-b">
                             <th class="py-2 px-15 text-left text-red-500">ID <i class="fas fa-arrow-down"></i></th>
                             <th class="py-4 px-15 text-left">Nombre</th>
@@ -88,7 +103,7 @@
                                         <button class="btn-editar" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_employee', empleado_id=empleado.id) }}'">Editar</button>
                                         <button class="btn-eliminar" onclick="event.stopPropagation(); confirmDelete('{{ empleado.id }}')" style="border-radius: 1rem;">Eliminar</button>
                                     {% else %}
-                                    <button onclick="activateEmployee({{ empleado.id }})" class="btn-activar">
+                                    <button onclick="confirmActivate({{ empleado.id }})" class="btn-activar">
                                         Activar
                                     </button>
                                     {% endif %}
@@ -148,12 +163,26 @@
     </div>
 </div>
 
-<!-- Activation Confirmation Modal -->
+<!-- Activation Confirmation Modal para Empleados -->
 <div id="activation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
     <div class="bg-white p-6 rounded-lg shadow-lg" style="border-radius: 1rem;">
-        <h2 class="text-xl font-bold mb-4">Usuario Activado</h2>
-        <p id="activation-message" class="text-center">Usuario activado correctamente.</p>
+        <h2 class="text-xl font-bold mb-4">Confirmar Activación</h2>
+        <p>¿Estás seguro de que deseas activar este empleado?</p>
+        <input type="hidden" id="activate-employee-id">
+
+        <div id="activation-modal-message" class="mt-2 text-center"></div>
+
+        <div class="mt-4">
+            <label for="activate-password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
+            <input type="password" id="activate-password" class="mt-1 p-2 border rounded w-full" style="border-radius: 1rem;">
+        </div>
+
+        <div class="mt-4 flex justify-end">
+            <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
+            <button class="bg-green-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="activateEmployee()">Activar</button>
+        </div>
     </div>
 </div>
+
 
 {% endblock %}

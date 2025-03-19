@@ -121,67 +121,114 @@ function deleteEmployee() {
     });
 }
 
-function activateEmployee(employeeId) {
+function confirmActivate(employeeId) {
+    console.log("Empleado a activar:", employeeId);
+    const modal = document.getElementById('activation-modal');
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.getElementById('activate-employee-id').value = employeeId;
+    } else {
+        console.error("No se encontró el modal de activación");
+    }
+}
+
+function activateEmployee() {
+    const employeeId = document.getElementById('activate-employee-id').value;
+    const password = document.getElementById('activate-password').value.trim();
+    const modalMessage = document.getElementById('activation-modal-message');
+
+    modalMessage.innerHTML = '';
+
+    if (!password) {
+        modalMessage.innerHTML = '<p class="text-red-600 text-sm">La contraseña es requerida.</p>';
+        return;
+    }
+
     fetch(`/admin/activate_employee/${employeeId}`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
-        }
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `password=${encodeURIComponent(password)}`
     })
     .then(response => response.json().then(data => ({ status: response.status, body: data })))
     .then(({ status, body }) => {
         if (status === 200) {
-            // Mostrar el mensaje de activación en el modal
-            showActivationMessage();
-
-            // Opcionalmente, puedes recargar la página después de que el modal desaparezca
+            modalMessage.innerHTML = '<p class="text-green-600 text-sm">Empleado activado correctamente.</p>';
             setTimeout(() => {
-                location.reload(); // Refrescar la página para reflejar el nuevo estado
-            }, 3000); // El tiempo debe coincidir con el del modal (en este caso, 3 segundos)
+                closeModal();
+                console.log("Recargando página después de activar...");
+                location.reload(); // Recargar la página después de activar
+            }, 1500);
         } else {
-            alert(body.message);
+            console.error("Error del servidor al activar:", body.message);
+            modalMessage.innerHTML = `<p class="text-red-600 text-sm">${body.message}</p>`;
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Hubo un error al activar el empleado.');
+        console.error('Error en fetch:', error);
+        modalMessage.innerHTML = '<p class="text-red-600 text-sm">Hubo un error al comunicarse con el servidor.</p>';
     });
-}
-
-// Función para mostrar el modal de activación con un mensaje
-function showActivationMessage() {
-    const modal = document.getElementById("activation-modal");
-    const message = document.getElementById("activation-message");
-
-    // Cambiar el mensaje si es necesario
-    message.textContent = "Usuario activado correctamente.";
-
-    // Mostrar el modal
-    modal.classList.remove("hidden");
-
-    // Después de 3 segundos, ocultamos el modal
-    setTimeout(() => {
-        modal.classList.add("hidden");
-    }, 2500); // Desaparece después de 3 segundos
 }
 
 
 function closeModal() {
-    document.getElementById('delete-modal').classList.add('hidden'); // Ocultar el modal
-    document.getElementById('password').value = ''; // Limpiar el campo de contraseña
-    document.getElementById('modal-message').innerHTML = ''; // Limpiar mensajes de error
+    const deleteModal = document.getElementById('delete-modal');
+    const activationModal = document.getElementById('activation-modal');
+    const passwordField = document.getElementById('password');
+    const activatePasswordField = document.getElementById('activate-password');
+    const modalMessage = document.getElementById('modal-message');
+    const activationMessage = document.getElementById('activation-modal-message');
+
+    if (deleteModal) {
+        deleteModal.classList.add('hidden');
+    }
+    
+    if (activationModal) {
+        activationModal.classList.add('hidden');
+    }
+
+    if (passwordField) {
+        passwordField.value = '';
+    }
+
+    if (activatePasswordField) {
+        activatePasswordField.value = '';
+    }
+
+    if (modalMessage) {
+        modalMessage.innerHTML = '';
+    }
+
+    if (activationMessage) {
+        activationMessage.innerHTML = '';
+    }
 }
 
+
 //buscar empleado
+function normalizeText(text) {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
 function searchEmployee() {
-    const searchValue = document.getElementById('search-input').value.toLowerCase().trim();
+    const searchValue = normalizeText(document.getElementById('search-input').value);
+    const searchWords = searchValue.split(" "); // Divide la búsqueda en palabras clave
     const rows = document.querySelectorAll('tbody tr');
     let found = false;
 
     rows.forEach(row => {
-        const name = row.querySelector('td:nth-child(2)').innerText.toLowerCase().trim();
-        const nameWords = name.split(' ');
-        if (nameWords.some(word => word.startsWith(searchValue))) {
+        const name = normalizeText(row.querySelector('td:nth-child(2)').innerText);
+        const lastName = normalizeText(row.querySelector('td:nth-child(3)').innerText);
+        const fullNameWords = `${name} ${lastName}`.split(" "); // Divide el nombre y apellido en palabras
+
+        // Verifica si todas las palabras de la búsqueda coinciden con el inicio de alguna palabra en el nombre completo
+        const matches = searchWords.every(word => 
+            fullNameWords.some(fullWord => fullWord.startsWith(word))
+        );
+
+        if (matches) {
             row.style.display = '';
             found = true;
         } else {
@@ -189,12 +236,7 @@ function searchEmployee() {
         }
     });
 
-    const notFoundMessage = document.getElementById('not-found-message');
-    if (!found) {
-        notFoundMessage.classList.remove('hidden');
-    } else {
-        notFoundMessage.classList.add('hidden');
-    }
+    document.getElementById('not-found-message').classList.toggle('hidden', found);
 }
 
 function toggleFilterMenu() {
