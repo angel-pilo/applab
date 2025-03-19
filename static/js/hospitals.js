@@ -1,7 +1,13 @@
 function confirmDelete(hospitalId) {
     console.log("Hospital a eliminar:", hospitalId);
-    document.getElementById('delete-modal').classList.remove('hidden');
-    document.getElementById('delete-hospital-id').value = hospitalId;
+    const modal = document.getElementById('delete-modal');
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.getElementById('delete-hospital-id').value = hospitalId;
+    } else {
+        console.error("No se encontró el modal de eliminación");
+    }
 }
 
 function deleteHospital() {
@@ -9,6 +15,7 @@ function deleteHospital() {
     const password = document.getElementById('password').value.trim();
     const modalMessage = document.getElementById('modal-message');
 
+    // Limpiar mensajes anteriores
     modalMessage.innerHTML = '';
 
     if (!password) {
@@ -28,15 +35,17 @@ function deleteHospital() {
         if (status === 200) {
             modalMessage.innerHTML = '<p class="text-green-600 text-sm">Hospital desactivado correctamente.</p>';
             setTimeout(() => {
-                closeModal();
-                location.reload();
+                closeModal(); // Cerrar modal
+                console.log("Recargando página después de eliminar...");
+                window.location.href = window.location.href; // Recargar la página
             }, 2000);
         } else {
             modalMessage.innerHTML = `<p class="text-red-600 text-sm">${body.message}</p>`;
+            console.error("Error del servidor al eliminar:", body.message);
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Error en fetch:', error);
         modalMessage.innerHTML = '<p class="text-red-600 text-sm">Hubo un error al comunicarse con el servidor.</p>';
     });
 }
@@ -44,6 +53,7 @@ function deleteHospital() {
 function confirmActivate(hospitalId) {
     console.log("Hospital a activar:", hospitalId);
     const modal = document.getElementById('activation-modal');
+
     if (modal) {
         modal.classList.remove('hidden');
         document.getElementById('activate-hospital-id').value = hospitalId;
@@ -77,23 +87,150 @@ function activateHospital() {
             modalMessage.innerHTML = '<p class="text-green-600 text-sm">Hospital activado correctamente.</p>';
             setTimeout(() => {
                 closeModal();
-                location.reload();
-            }, 2000);
+                console.log("Recargando página después de activar...");
+                location.reload(); // Recargar la página después de activar
+            }, 1500);
         } else {
+            console.error("Error del servidor al activar:", body.message);
             modalMessage.innerHTML = `<p class="text-red-600 text-sm">${body.message}</p>`;
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Error en fetch:', error);
         modalMessage.innerHTML = '<p class="text-red-600 text-sm">Hubo un error al comunicarse con el servidor.</p>';
     });
 }
 
+
+
 function closeModal() {
-    document.getElementById('delete-modal').classList.add('hidden');
-    document.getElementById('activation-modal').classList.add('hidden');
-    document.getElementById('password').value = '';
-    document.getElementById('activate-password').value = '';
-    document.getElementById('modal-message').innerHTML = '';
-    document.getElementById('activation-modal-message').innerHTML = '';
+    const deleteModal = document.getElementById('delete-modal');
+    const activationModal = document.getElementById('activation-modal');
+    const passwordField = document.getElementById('password');
+    const activatePasswordField = document.getElementById('activate-password');
+    const modalMessage = document.getElementById('modal-message');
+    const activationMessage = document.getElementById('activation-modal-message');
+
+    if (deleteModal) {
+        deleteModal.classList.add('hidden');
+    }
+    
+    if (activationModal) {
+        activationModal.classList.add('hidden');
+    }
+
+    if (passwordField) {
+        passwordField.value = '';
+    }
+
+    if (activatePasswordField) {
+        activatePasswordField.value = '';
+    }
+
+    if (modalMessage) {
+        modalMessage.innerHTML = '';
+    }
+
+    if (activationMessage) {
+        activationMessage.innerHTML = '';
+    }
 }
+
+//para buscar
+document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("search-hospital");
+    const rows = document.querySelectorAll("tbody tr");
+    const notFoundMessage = document.getElementById("not-found-message");
+
+    searchInput.addEventListener("input", function () {
+        const query = searchInput.value.toLowerCase().trim();
+        let found = false;
+
+        rows.forEach(row => {
+            const name = row.querySelector("td:nth-child(2)").textContent.toLowerCase().trim();
+            const words = name.split(" "); // Dividir en palabras
+
+            // Verificar si la búsqueda coincide con el inicio de alguna palabra
+            const match = words.some(word => word.startsWith(query));
+
+            if (match) {
+                row.style.display = "";
+                found = true;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        notFoundMessage.classList.toggle("hidden", found);
+    });
+});
+
+//filtrar hospitales
+document.addEventListener("DOMContentLoaded", function () {
+    const filterMenu = document.getElementById("filter-menu");
+    const applyFilterButton = document.getElementById("apply-filters");
+    const filterStatusOptions = document.querySelectorAll('input[name="filter-status"]');
+    const filterStateOptions = document.getElementById("filter-state");
+    const rows = Array.from(document.querySelectorAll("tbody tr"));
+    const notFoundMessage = document.getElementById("not-found-message");
+
+    // Función para mostrar/ocultar menú de filtros
+    window.toggleFilterMenu = function () {
+        filterMenu.classList.toggle("hidden");
+    };
+
+    // Aplicar filtros al hacer click en "Aplicar filtros"
+    applyFilterButton.addEventListener("click", function () {
+        applyFilters();
+    });
+
+    // Función para ordenar la tabla por ID
+    function sortTable() {
+        const tbody = document.querySelector("tbody");
+        const sortedRows = [...tbody.rows].sort((a, b) => {
+            const idA = parseInt(a.cells[0].textContent.trim());
+            const idB = parseInt(b.cells[0].textContent.trim());
+            return idA - idB; // Orden ascendente
+        });
+
+        tbody.innerHTML = ""; // Limpiar la tabla
+        sortedRows.forEach(row => tbody.appendChild(row)); // Agregar filas ordenadas
+    }
+
+    function applyFilters() {
+        const selectedStatus = document.querySelector('input[name="filter-status"]:checked')?.value;
+        const selectedState = filterStateOptions.value.toLowerCase();
+        let found = false;
+
+        // Filtrar y ordenar por ID
+        const filteredRows = rows.filter(row => {
+            const status = row.querySelector("td:nth-child(6)").textContent.trim().toLowerCase();
+            const state = row.querySelector("td:nth-child(5)").textContent.split(",").pop().trim().toLowerCase(); // Extraer solo el estado
+
+            const statusMatch = selectedStatus === "all" || status === selectedStatus;
+            const stateMatch = selectedState === "all" || state === selectedState;
+
+            return statusMatch && stateMatch;
+        });
+
+        // Ordenar por ID antes de mostrar la tabla
+        filteredRows.sort((a, b) => {
+            const idA = parseInt(a.querySelector("td:nth-child(1)").textContent.trim());
+            const idB = parseInt(b.querySelector("td:nth-child(1)").textContent.trim());
+            return idA - idB; // Orden ascendente
+        });
+
+        // Vaciar la tabla y agregar las filas filtradas y ordenadas
+        const tbody = document.querySelector("tbody");
+        tbody.innerHTML = "";
+        filteredRows.forEach(row => tbody.appendChild(row));
+
+        found = filteredRows.length > 0;
+        notFoundMessage.classList.toggle("hidden", found);
+
+        filterMenu.classList.add("hidden"); // Ocultar menú después de aplicar filtro
+    }
+
+    // Llamar a la función para ordenar la tabla al cargar la página
+    sortTable();
+});
