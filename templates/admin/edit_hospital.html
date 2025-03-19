@@ -3,6 +3,12 @@
 {% block title %}Editar Hospital{% endblock %}
 
 {% block content %}
+
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
 <div class="container mx-auto p-4">
     <div class="flex items-center mb-4">
         <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
@@ -10,62 +16,71 @@
     </div>
 </div>
 
-<div class="container mx-auto p-4 bg-white shadow-md rounded-lg">
+<div class="w-full max-w-7xl p-4">
     <form method="POST">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-                <label class="block text-gray-700 font-bold mb-2">Nombre del Hospital</label>
-                <input type="text" name="nombre" value="{{ hospital.nombre }}" class="w-full p-2 border rounded" required>
-            </div>
-            <div>
-                <label class="block text-gray-700 font-bold mb-2">Número de Teléfono</label>
-                <input type="text" name="telefono" value="{{ hospital.telefono }}" class="w-full p-2 border rounded" required>
-            </div>
-            <div>
-                <label class="block text-gray-700 font-bold mb-2">Correo Electrónico</label>
-                <input type="email" name="correo" value="{{ hospital.correo }}" class="w-full p-2 border rounded" required>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-            <div>
-                <label class="block text-gray-700 font-bold mb-2">Calle</label>
-                <input type="text" name="calle" value="{{ hospital.calle }}" class="w-full p-2 border rounded" required>
-            </div>
-            <div>
-                <label class="block text-gray-700 font-bold mb-2">No. Ext</label>
-                <input type="text" name="numero_ext" value="{{ hospital.numero_ext }}" class="w-full p-2 border rounded" required>
-            </div>
-            <div>
-                <label class="block text-gray-700 font-bold mb-2">No. Int</label>
-                <input type="text" name="numero_int" value="{{ hospital.numero_int }}" class="w-full p-2 border rounded">
-            </div>
-            <div>
-                <label class="block text-gray-700 font-bold mb-2">Código Postal</label>
-                <input type="text" name="codigo_postal" value="{{ hospital.codigo_postal }}" class="w-full p-2 border rounded" required>
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">Nombre del hospital</label>
+                    <input type="text" name="nombre" value="{{ hospital.nombre }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">Número de teléfono</label>
+                    <input type="text" name="telefono" value="{{ hospital.telefono }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                </div>
+                <div class="col-span-1 md:col-span-2">
+                    <label class="block text-gray-700 font-bold mb-2">Correo electrónico</label>
+                    <input type="email" name="correo" value="{{ hospital.correo }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                </div>
             </div>
         </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-            <div>
-                <label class="block text-gray-700 font-bold mb-2">Municipio</label>
-                <input type="text" name="municipio" value="{{ hospital.municipio }}" class="w-full p-2 border rounded" required>
+
+        <div class="flex flex-col md:flex-row justify-between">
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6 md:mb-0 md:mr-6 w-full md:w-2/3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2">Calle</label>
+                        <input type="text" name="calle" value="{{ hospital.calle }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2">No. Ext.</label>
+                        <input type="text" name="numero_ext" value="{{ hospital.numero_ext }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2">No. Int.</label>
+                        <input type="text" name="numero_int" value="{{ hospital.numero_int }}" class="w-full px-4 py-2 border rounded-[1rem]">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2">Código postal</label>
+                        <input type="text" name="codigo_postal" value="{{ hospital.codigo_postal }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2">Municipio</label>
+                        <input type="text" name="municipio" value="{{ hospital.municipio }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2">Estado</label>
+                        <select name="estado" class="w-full px-4 py-2 border rounded-[1rem]" required>
+                            <option value="">Seleccione un estado</option>
+                            {% for estado in estados %}
+                                <option value="{{ estado }}" {% if hospital.estado == estado %}selected{% endif %}>{{ estado }}</option>
+                            {% endfor %}
+                        </select>                   
+                    </div>
+                </div>
             </div>
-            <div>
-                <label class="block text-gray-700 font-bold mb-2">Estado</label>
-                <input type="text" name="estado" value="{{ hospital.estado }}" class="w-full p-2 border rounded" required>
+
+            <div class="bg-white p-6 rounded-lg shadow-md w-full md:w-1/3">
+                <label class="block text-gray-700 font-bold mb-2">Anotaciones Extra</label>
+                <textarea name="anotaciones" rows="4" class="w-full px-4 py-2 border rounded-[1rem]">{{ hospital.anotaciones }}</textarea>
             </div>
         </div>
-        
-        <div class="mt-4">
-            <label class="block text-gray-700 font-bold mb-2">Anotaciones Extras</label>
-            <textarea name="anotaciones" class="w-full p-2 border rounded" rows="4">{{ hospital.anotaciones }}</textarea>
-        </div>
-        
-        <div class="mt-6 flex justify-end">
-            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded">Actualizar</button>
-            <button type="button" class="bg-gray-300 text-gray-700 px-6 py-2 rounded ml-2" onclick="window.history.back()">Cancelar</button>
+
+        <div class="flex justify-end space-x-4 mt-6">
+            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-[1rem] shadow-md hover:bg-blue-600">Guardar</button>
+            <button type="button" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-[1rem] shadow-md hover:bg-gray-400" onclick="window.history.back()">Cancelar</button>
         </div>
     </form>
 </div>
+
 {% endblock %}
