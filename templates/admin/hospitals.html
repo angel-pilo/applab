@@ -3,6 +3,22 @@
 {% block title %}Hospitales{% endblock %}
 
 {% block content %}
+<head>
+    <style>
+        thead th {
+            position: sticky;
+            top: 0;
+            background-color: white;
+            z-index: 1;  /* Se baja el z-index para que no se superponga */
+        }
+        
+        #delete-modal, #activation-modal {
+            z-index: 1000;  /* Asegura que los modales estén por encima */
+            position: fixed;
+        }              
+    </style>
+</head>
+
 <div class="container mx-auto p-4">
     <div class="flex items-center mb-4">
         <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
@@ -59,40 +75,41 @@
     <div id="not-found-message" class="hidden text-red-500 mb-4">
         No se encontró ningún hospital. <a href="{{ url_for('app_routes.add_hospital') }}" class="text-blue-500 underline">Registrar hospital</a>
     </div>
-    
-    <table class="min-w-full bg-white rounded-lg shadow-md">
-        <thead>
-            <tr class="border-b">
-                <th class="py-2 px-4 text-left">ID</th>
-                <th class="py-2 px-4 text-left">Nombre</th>
-                <th class="py-2 px-4 text-left">Teléfono</th>
-                <th class="py-2 px-4 text-left">Correo</th>
-                <th class="py-2 px-4 text-left">Dirección</th>
-                <th class="py-2 px-4 text-left">Estado</th>
-                <th class="py-2 px-4">Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for hospital in hospitales %}
-            <tr data-hospital-id="{{ hospital.id }}" class="border-b {% if not hospital.activo %}bg-gray-100{% endif %}">
-                <td class="py-2 px-4">{{ hospital.id }}</td>
-                <td class="py-2 px-4">{{ hospital.nombre }}</td>
-                <td class="py-2 px-4">{{ hospital.telefono }}</td>
-                <td class="py-2 px-4">{{ hospital.correo }}</td>
-                <td class="py-2 px-4">{{ hospital.calle }}, {{ hospital.numero_ext }}, {{ hospital.municipio }}, {{ hospital.estado }}</td>
-                <td class="py-2 px-4 estado">{{ 'Activo' if hospital.activo else 'Inactivo' }}</td>
-                <td class="py-2 px-4 acciones">
-                    {% if hospital.activo %}
-                        <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_hospital', hospital_id=hospital.id) }}'">Editar</button>
-                        <button class="btn-eliminar" onclick="confirmDelete('{{ hospital.id }}')">Eliminar</button>
-                    {% else %}
-                        <button onclick="confirmActivate({{ hospital.id }})" class="btn-activar">Activar</button>
-                    {% endif %}
-                </td>                
-            </tr>
-            {% endfor %}
-        </tbody>        
-    </table>
+    <div class="overflow-y-auto max-h-[calc(10*4rem)] border rounded-lg shadow-md">
+        <table class="min-w-full bg-white rounded-lg shadow-md">
+            <thead>
+                <tr class="border-b">
+                    <th class="py-2 px-4 text-left">ID</th>
+                    <th class="py-2 px-4 text-left">Nombre</th>
+                    <th class="py-2 px-4 text-left">Teléfono</th>
+                    <th class="py-2 px-4 text-left">Correo</th>
+                    <th class="py-2 px-4 text-left">Dirección</th>
+                    <th class="py-2 px-4 text-left">Estado</th>
+                    <th class="py-2 px-4">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for hospital in hospitales %}
+                <tr data-hospital-id="{{ hospital.id }}" class="border-b {% if not hospital.activo %}bg-gray-100{% endif %}">
+                    <td class="py-2 px-4">{{ hospital.id }}</td>
+                    <td class="py-2 px-4">{{ hospital.nombre }}</td>
+                    <td class="py-2 px-4">{{ hospital.telefono }}</td>
+                    <td class="py-2 px-4">{{ hospital.correo }}</td>
+                    <td class="py-2 px-4">{{ hospital.calle }}, {{ hospital.numero_ext }}, {{ hospital.municipio }}, {{ hospital.estado }}</td>
+                    <td class="py-2 px-4 estado">{{ 'Activo' if hospital.activo else 'Inactivo' }}</td>
+                    <td class="py-2 px-4 acciones">
+                        {% if hospital.activo %}
+                            <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_hospital', hospital_id=hospital.id) }}'">Editar</button>
+                            <button class="btn-eliminar" onclick="confirmDelete('{{ hospital.id }}')">Eliminar</button>
+                        {% else %}
+                            <button onclick="confirmActivate({{ hospital.id }})" class="btn-activar">Activar</button>
+                        {% endif %}
+                    </td>                
+                </tr>
+                {% endfor %}
+            </tbody>        
+        </table>
+    </div>
 </div>
 
 <!-- Delete Confirmation Modal -->

@@ -142,18 +142,25 @@ document.addEventListener("DOMContentLoaded", function () {
     const rows = document.querySelectorAll("tbody tr");
     const notFoundMessage = document.getElementById("not-found-message");
 
+    function normalizeText(text) {
+        return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    }
+
     searchInput.addEventListener("input", function () {
-        const query = searchInput.value.toLowerCase().trim();
+        const searchValue = normalizeText(searchInput.value);
+        const searchWords = searchValue.split(" "); // Divide la búsqueda en palabras clave
         let found = false;
 
         rows.forEach(row => {
-            const name = row.querySelector("td:nth-child(2)").textContent.toLowerCase().trim();
-            const words = name.split(" "); // Dividir en palabras
+            const name = normalizeText(row.querySelector("td:nth-child(2)").textContent);
+            const nameWords = name.split(" "); // Divide el nombre en palabras
 
-            // Verificar si la búsqueda coincide con el inicio de alguna palabra
-            const match = words.some(word => word.startsWith(query));
+            // Verifica si todas las palabras de la búsqueda coinciden con el inicio de alguna palabra en el nombre
+            const matches = searchWords.every(word =>
+                nameWords.some(fullWord => fullWord.startsWith(word))
+            );
 
-            if (match) {
+            if (matches) {
                 row.style.display = "";
                 found = true;
             } else {
@@ -164,6 +171,7 @@ document.addEventListener("DOMContentLoaded", function () {
         notFoundMessage.classList.toggle("hidden", found);
     });
 });
+
 
 //filtrar hospitales
 document.addEventListener("DOMContentLoaded", function () {
