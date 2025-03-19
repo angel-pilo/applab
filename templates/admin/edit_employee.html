@@ -24,7 +24,7 @@
                         {% for role_id, role_name in role_map.items() %}
                             <label class="inline-flex items-center cursor-pointer">
                                 <input type="radio" class="form-radio" name="tipo_empleado" value="{{ role_id }}" 
-                                       {% if is_edit and empleado.rol_id == role_id %}checked{% endif %} required>
+                                    {% if is_edit and empleado.rol_id == role_id %}checked{% endif %} required>
                                 <span class="ml-2">{{ role_name }}</span>
                             </label>
                         {% endfor %}
@@ -39,12 +39,12 @@
                     <div class="flex items-center space-x-4">
                         <label class="inline-flex items-center cursor-pointer">
                             <input type="radio" class="form-radio" name="sexo" value="M" 
-                                   {% if empleado.sexo == "M" %}checked{% endif %} required>
+                                {% if empleado.sexo == "M" %}checked{% endif %} required>
                             <span class="ml-2">Hombre</span>
                         </label>
                         <label class="inline-flex items-center cursor-pointer">
                             <input type="radio" class="form-radio" name="sexo" value="F" 
-                                   {% if empleado.sexo == "F" %}checked{% endif %}>
+                                {% if empleado.sexo == "F" %}checked{% endif %}>
                             <span class="ml-2">Mujer</span>
                         </label>
                     </div>
