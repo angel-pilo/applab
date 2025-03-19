@@ -12,13 +12,13 @@ import hashlib
 
 app_routes = Blueprint('app_routes', __name__)
 
-# Obtener la ruta absoluta al archivo estados.json
+# Obtener la ruta del archivo JSON con estados
 ruta_estados = os.path.join(os.path.dirname(__file__), 'static', 'JSON', 'estados.json')
-                            
-# Cargar los estados desde el archivo JSON
+
+# Cargar estados desde el JSON
 with open(ruta_estados, 'r', encoding='utf-8') as file:
     estados_data = json.load(file)
-    estados = estados_data['estados']
+    estados = estados_data["estados"]  # Extrae la lista de estados del JSON
 
 
 # Inicializa la conexión a Supabase
@@ -426,13 +426,22 @@ def enfermero_dashboard():
 def quimico_dashboard():
     return render_template("quimico/quimico.html")
 
+# Ruta para la gestión de hospitales con estados únicos
 @app_routes.route('/admin/hospitals')
+@require_role("Admin")
 def manage_hospitals():
     """Página de gestión de hospitales"""
     hospitales = obtener_hospitales()
-    return render_template('admin/hospitals.html', hospitales=hospitales)
 
+    # Obtener estados únicos de hospitales registrados en la base de datos
+    estados_registrados_query = supabase.table('hospitales').select("estado").execute()
+    estados_registrados = list(set(hospital["estado"] for hospital in estados_registrados_query.data if hospital["estado"]))
+
+    return render_template('admin/hospitals.html', hospitales=hospitales, estados_registrados=sorted(estados_registrados))
+
+# Ruta para agregar un hospital
 @app_routes.route('/admin/add_hospital', methods=['GET', 'POST'])
+@require_role("Admin")
 def add_hospital():
     """Formulario para agregar un hospital"""
     if request.method == 'POST':
@@ -446,21 +455,24 @@ def add_hospital():
         municipio = request.form['municipio']
         estado = request.form['estado']
         anotaciones = request.form.get('anotaciones', '')
-        
+
         crear_hospital(nombre, telefono, correo, calle, numero_ext, numero_int, codigo_postal, municipio, estado, anotaciones)
         flash("Hospital registrado exitosamente", "success")
         return redirect(url_for('app_routes.manage_hospitals'))
     
-    return render_template('admin/add_hospital.html')
+    return render_template('admin/add_hospital.html', estados=estados)
 
+# Ruta para editar un hospital
 @app_routes.route('/admin/edit_hospital/<int:hospital_id>', methods=['GET', 'POST'])
+@require_role("Admin")
 def edit_hospital(hospital_id):
     """Formulario para editar un hospital"""
     hospital = obtener_hospital_por_id(hospital_id)
+    
     if not hospital:
         flash("Hospital no encontrado", "error")
         return redirect(url_for('app_routes.manage_hospitals'))
-    
+
     if request.method == 'POST':
         nombre = request.form['nombre']
         telefono = request.form['telefono']
@@ -472,14 +484,16 @@ def edit_hospital(hospital_id):
         municipio = request.form['municipio']
         estado = request.form['estado']
         anotaciones = request.form.get('anotaciones', '')
-        
+
         actualizar_hospital(hospital_id, nombre, telefono, correo, calle, numero_ext, numero_int, codigo_postal, municipio, estado, anotaciones)
         flash("Hospital actualizado exitosamente", "success")
         return redirect(url_for('app_routes.manage_hospitals'))
-    
-    return render_template('admin/edit_hospital.html', hospital=hospital)
 
+    return render_template('admin/edit_hospital.html', hospital=hospital, estados=estados)
+
+# Ruta para eliminar (desactivar) un hospital
 @app_routes.route('/admin/delete_hospital/<int:hospital_id>', methods=['POST'])
+@require_role("Admin")
 def delete_hospital(hospital_id):
     """Eliminar (desactivar) un hospital verificando la contraseña del administrador"""
     password = request.form.get('password', '').strip()
@@ -500,10 +514,12 @@ def delete_hospital(hospital_id):
     try:
         eliminar_hospital(hospital_id)
         return jsonify({"message": "Hospital eliminado correctamente."}), 200
-    except Exception as e:
+    except Exception:
         return jsonify({"message": "Error al eliminar hospital."}), 500
 
+# Ruta para activar un hospital
 @app_routes.route('/admin/activate_hospital/<int:hospital_id>', methods=['POST'])
+@require_role("Admin")
 def activate_hospital(hospital_id):
     """Activar un hospital en la base de datos verificando la contraseña del administrador"""
     password = request.form.get('password', '').strip()
@@ -524,5 +540,5 @@ def activate_hospital(hospital_id):
     try:
         response = supabase.table('hospitales').update({"activo": True}).eq('id', hospital_id).execute()
         return jsonify({"message": "Hospital activado correctamente."}), 200
-    except Exception as e:
+    except Exception:
         return jsonify({"message": "Error al activar hospital."}), 500
