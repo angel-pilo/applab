@@ -101,11 +101,6 @@ def obtener_empleados():
         return []
 
 
-# Inicializa la conexión a Supabase
-url = os.getenv('SUPABASE_URL')
-key = os.getenv('SUPABASE_KEY')
-supabase: Client = create_client(url, key)
-
 def crear_hospital(nombre, telefono, correo, calle, numero_ext, numero_int, codigo_postal, municipio, estado, anotaciones):
     """Registra un nuevo hospital en la base de datos"""
     try:
