@@ -11,10 +11,53 @@
 </div>
 
 <div class="container mx-auto p-4 mt-8">
-    <div class="flex items-center mb-4">
+    <!-- Buscador y botón de añadir hospital en la misma fila -->
+    <div class="flex items-center justify-between mb-2">
+        <input type="text" id="search-hospital" placeholder="Buscar hospital..." class="w-1/3 p-2 border rounded">
         <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.add_hospital') }}'">
             Añadir Hospital
         </button>
+    </div>
+
+    <!-- Botón de Filtros alineado a la izquierda debajo del buscador -->
+    <div class="flex justify-start mb-4">
+        <button class="bg-gray-200 p-2" style="border-radius: 1rem;" onclick="toggleFilterMenu()">
+            <i class="fas fa-filter"></i> Filtro
+        </button>
+    </div>
+
+    <!-- Menú de Filtros -->
+    <div id="filter-menu" class="absolute bg-white border rounded shadow-lg p-4 hidden">
+        <label class="block text-gray-700 font-bold mb-2">Filtrar por Estado del Hospital</label>
+        <div class="mb-2">
+            <input type="radio" name="filter-status" value="all" class="mr-2" checked> Todos
+        </div>
+        <div class="mb-2">
+            <input type="radio" name="filter-status" value="activo" class="mr-2"> Activos
+        </div>
+        <div class="mb-2">
+            <input type="radio" name="filter-status" value="inactivo" class="mr-2"> Inactivos
+        </div>
+
+        <label class="block text-gray-700 font-bold mb-2 mt-4">Filtrar por Estado de México</label>
+        <select id="filter-state" class="w-full px-4 py-2 border rounded-[1rem]">
+            <option value="all">Todos</option>
+            {% for estado in estados_registrados %}
+                <option value="{{ estado|lower }}">{{ estado }}</option>
+            {% endfor %}
+        </select>       
+
+        <!-- Botón para aplicar filtros -->
+        <div class="mt-4 flex justify-end">
+            <button id="apply-filters" class="bg-blue-500 text-white px-4 py-2 rounded shadow-md hover:bg-blue-600">
+                Aplicar Filtros
+            </button>
+        </div>
+    </div>
+
+    <!-- Mensaje cuando no se encuentren hospitales -->
+    <div id="not-found-message" class="hidden text-red-500 mb-4">
+        No se encontró ningún hospital. <a href="{{ url_for('app_routes.add_hospital') }}" class="text-blue-500 underline">Registrar hospital</a>
     </div>
     
     <table class="min-w-full bg-white rounded-lg shadow-md">
@@ -31,24 +74,24 @@
         </thead>
         <tbody>
             {% for hospital in hospitales %}
-            <tr class="border-b {% if not hospital.activo %}bg-gray-100{% endif %}">
+            <tr data-hospital-id="{{ hospital.id }}" class="border-b {% if not hospital.activo %}bg-gray-100{% endif %}">
                 <td class="py-2 px-4">{{ hospital.id }}</td>
                 <td class="py-2 px-4">{{ hospital.nombre }}</td>
                 <td class="py-2 px-4">{{ hospital.telefono }}</td>
                 <td class="py-2 px-4">{{ hospital.correo }}</td>
                 <td class="py-2 px-4">{{ hospital.calle }}, {{ hospital.numero_ext }}, {{ hospital.municipio }}, {{ hospital.estado }}</td>
-                <td class="py-2 px-4">{{ 'Activo' if hospital.activo else 'Inactivo' }}</td>
-                <td class="py-2 px-4">
+                <td class="py-2 px-4 estado">{{ 'Activo' if hospital.activo else 'Inactivo' }}</td>
+                <td class="py-2 px-4 acciones">
                     {% if hospital.activo %}
                         <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_hospital', hospital_id=hospital.id) }}'">Editar</button>
                         <button class="btn-eliminar" onclick="confirmDelete('{{ hospital.id }}')">Eliminar</button>
                     {% else %}
-                        <button class="btn-activar" onclick="activateHospital({{ hospital.id }})">Activar</button>
+                        <button onclick="confirmActivate({{ hospital.id }})" class="btn-activar">Activar</button>
                     {% endif %}
-                </td>
+                </td>                
             </tr>
             {% endfor %}
-        </tbody>
+        </tbody>        
     </table>
 </div>
 
@@ -93,7 +136,6 @@
         </div>
     </div>
 </div>
-
 
 <script src="{{ url_for('static', filename='js/hospitals.js') }}"></script>
 
