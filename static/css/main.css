@@ -255,3 +255,35 @@ body {
     color: white;
     box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); /* sombra más intensa al pasar el ratón */
 }
+
+.btn-guardar {
+    background-color: white;
+    color: #007BFF;
+    padding: 0.25rem 2rem;
+    border-radius: 1rem;
+    border: 2px solid #005FCC;
+    transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* sombra sutil */
+}
+
+.btn-guardar:hover {
+    background-color: #005FCC;
+    color: white;
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); /* sombra más intensa al pasar el ratón */
+}
+
+.btn-cancelar {
+    background-color: white;
+    color: #747474;
+    padding: 0.25rem 2rem;
+    border-radius: 1rem;
+    border: 2px solid #747474;
+    transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* sombra sutil */
+}
+
+.btn-cancelar:hover {
+    background-color: #747474;
+    color: white;
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); /* sombra más intensa al pasar el ratón */
+}
