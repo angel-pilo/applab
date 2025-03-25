@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Doctores{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <div class="flex items-center mb-4">
+        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+        <h1 class="text-4xl font-bold ml-4">Doctores</h1>
+    </div>
+
+    <div class="flex items-center justify-between mb-4">
+        <input type="text" id="search-doctor" placeholder="Buscar doctor..." class="w-1/3 p-2 border rounded">
+        <a href="{{ url_for('app_routes.add_doctor') }}" class="btn-editar">Registrar nuevo doctor</a>
+    </div>
+
+    <!-- Botón de filtro -->
+    <div class="flex justify-start mb-4">
+        <button class="bg-gray-200 p-2 rounded-xl" onclick="toggleFilterMenu()">
+            <i class="fas fa-filter"></i> Filtro
+        </button>
+    </div>
+
+    <!-- Menú de filtro -->
+    <div id="filter-menu" class="absolute bg-white border rounded shadow-lg p-4 hidden z-50">
+        <label class="block font-semibold mb-2">Filtrar por estado del doctor:</label>
+        <div class="mb-2">
+            <input type="radio" name="filter-status" value="all" checked class="mr-2"> Todos
+        </div>
+        <div class="mb-2">
+            <input type="radio" name="filter-status" value="activo" class="mr-2"> Activos
+        </div>
+        <div class="mb-2">
+            <input type="radio" name="filter-status" value="inactivo" class="mr-2"> Inactivos
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button id="apply-filters" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Aplicar filtros
+            </button>
+        </div>
+    </div>
+
+    <!-- Mensaje si no hay doctores -->
+    <div id="not-found-message" class="hidden text-red-500 mb-4">
+        No se encontró ningún doctor. <a href="{{ url_for('app_routes.add_doctor') }}" class="text-blue-500 underline">Registrar doctor</a>
+    </div>
+
+    <!-- Tabla de doctores -->
+    <div class="overflow-y-auto max-h-[calc(10*4rem)] border rounded shadow">
+        <table class="min-w-full bg-white">
+            <thead class="bg-gray-100">
+                <tr class="text-left border-b">
+                    <th class="py-2 px-4">ID</th>
+                    <th class="py-2 px-4">Nombre</th>
+                    <th class="py-2 px-4">Teléfono</th>
+                    <th class="py-2 px-4">Correo</th>
+                    <th class="py-2 px-4">Consultorio</th>
+                    <th class="py-2 px-4">Hospital</th>
+                    <th class="py-2 px-4">Estado</th>
+                    <th class="py-2 px-4 text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doctor in doctores %}
+                <tr data-doctor-id="{{ doctor.id }}" class="{% if not doctor.activo %}bg-gray-100{% endif %}">
+                    <td class="py-2 px-4">{{ doctor.id }}</td>
+                    <td class="py-2 px-4">{{ doctor.nombres }} {{ doctor.apellidos }}</td>
+                    <td class="py-2 px-4">{{ doctor.telefono }}</td>
+                    <td class="py-2 px-4">{{ doctor.correo }}</td>
+                    <td class="py-2 px-4">{{ doctor.tipo_consultorio|capitalize }}</td>
+                    <td class="py-2 px-4">{{ doctor.hospital_nombre or 'N/A' }}</td>
+                    <td class="py-2 px-4 estado">{{ 'Activo' if doctor.activo else 'Inactivo' }}</td>
+                    <td class="py-2 px-4 text-center">
+                        {% if doctor.activo %}
+                            <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_doctor', doctor_id=doctor.id) }}'">Editar</button>
+                            <button class="btn-eliminar" onclick="confirmDeleteDoctor('{{ doctor.id }}')">Eliminar</button>
+                        {% else %}
+                            <button class="btn-activar" onclick="confirmActivateDoctor('{{ doctor.id }}')">Activar</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Incluye los modales de eliminación y activación -->
+{% include 'admin/modales_doctores.html' %}
+
+<!-- Script de JS para doctores -->
+<script src="{{ url_for('static', filename='js/doctores.js') }}"></script>
+{% endblock %}

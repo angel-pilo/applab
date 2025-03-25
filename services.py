@@ -170,3 +170,76 @@ def eliminar_hospital(hospital_id):
     except Exception as e:
         print(f"Error al eliminar hospital: {e}")
         return None
+    
+def crear_doctor(data):
+    try:
+        response = supabase.table('doctores').insert(data).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al crear doctor: {e}")
+        return None
+
+
+def obtener_doctores():
+    try:
+        response = supabase.table('doctores').select(
+            '''
+            id,
+            nombres,
+            apellidos,
+            telefono,
+            correo,
+            tipo_consultorio,
+            calle,
+            numero_ext,
+            numero_int,
+            codigo_postal,
+            municipio,
+            estado,
+            anotaciones,
+            activo,
+            hospital_id(id, nombre)
+            '''
+        ).execute()
+
+        doctores = response.data if response.data else []
+        for d in doctores:
+            if d.get("hospital_id"):
+                d["hospital_nombre"] = d["hospital_id"]["nombre"]
+                d["hospital_id"] = d["hospital_id"]["id"]
+            else:
+                d["hospital_nombre"] = None
+        return doctores
+
+    except Exception as e:
+        print(f"Error al obtener doctores: {e}")
+        return []
+
+
+def actualizar_doctor(doctor_id, data):
+    try:
+        response = supabase.table('doctores').update(data).eq('id', doctor_id).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al actualizar doctor: {e}")
+        return None
+
+
+def desactivar_doctor(doctor_id):
+    """Desactiva (elimina lógicamente) al doctor"""
+    try:
+        response = supabase.table('doctores').update({'activo': False}).eq('id', doctor_id).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al desactivar doctor: {e}")
+        return None
+
+
+def activar_doctor(doctor_id):
+    """Activa a un doctor previamente desactivado"""
+    try:
+        response = supabase.table('doctores').update({'activo': True}).eq('id', doctor_id).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al activar doctor: {e}")
+        return None

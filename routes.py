@@ -594,3 +594,265 @@ def pacientes():
 @app_routes.route("/resultados")
 def resultados():
     return render_template("quimico/resultados.html")
+
+@app_routes.route("/admin/doctores", methods=["GET"])
+@require_role("Admin")
+def manage_doctores():
+    doctores = obtener_doctores()
+    return render_template("admin/doctores.html", doctores=doctores)
+
+@app_routes.route("/admin/add_doctor", methods=["GET", "POST"])
+@require_role("Admin")
+def add_doctor():
+    hospitales = supabase.table("hospitales").select("id, nombre").execute().data
+
+    if request.method == "POST":
+        nombres = request.form["nombres"].strip()
+        apellidos = request.form["apellidos"].strip()
+        telefono = request.form["telefono"].strip()
+        correo = request.form["correo"].strip()
+        tipo_consultorio = request.form["tipo_consultorio"]
+        anotaciones = request.form.get("anotaciones", "")
+
+        # Validación de duplicados (sin .and_())
+        exists_by_data = supabase.table("doctores").select("id") \
+            .eq("nombres", nombres) \
+            .eq("apellidos", apellidos) \
+            .eq("telefono", telefono) \
+            .execute()
+
+        exists_by_email = supabase.table("doctores").select("id") \
+            .eq("correo", correo) \
+            .execute()
+
+        if exists_by_data.data or exists_by_email.data:
+            flash("Ya existe un doctor registrado con el mismo nombre, teléfono o correo.", "error")
+            return render_template(
+                "admin/add_doctor.html",
+                doctor=request.form,
+                hospitales=hospitales,
+                estados=estados,
+                is_edit=False
+            )
+
+        # Construcción del objeto para insertar
+        data = {
+            "nombres": nombres,
+            "apellidos": apellidos,
+            "telefono": telefono,
+            "correo": correo,
+            "tipo_consultorio": tipo_consultorio,
+            "anotaciones": anotaciones,
+            "activo": True
+        }
+
+        if tipo_consultorio == "propio":
+            data.update({
+                "calle": request.form.get("calle"),
+                "numero_ext": request.form.get("numero_ext"),
+                "numero_int": request.form.get("numero_int"),
+                "codigo_postal": request.form.get("codigo_postal"),
+                "municipio": request.form.get("municipio"),
+                "estado": request.form.get("estado"),
+                "hospital_id": None
+            })
+        elif tipo_consultorio == "hospital":
+            data.update({
+                "hospital_id": request.form.get("hospital_id"),
+                "calle": None,
+                "numero_ext": None,
+                "numero_int": None,
+                "codigo_postal": None,
+                "municipio": None,
+                "estado": None
+            })
+        else:
+            data.update({
+                "hospital_id": None,
+                "calle": None,
+                "numero_ext": None,
+                "numero_int": None,
+                "codigo_postal": None,
+                "municipio": None,
+                "estado": None
+            })
+
+        crear_doctor(data)
+        flash("Doctor registrado correctamente.", "success")
+        return redirect(url_for("app_routes.manage_doctores"))
+
+    return render_template("admin/add_doctor.html", doctor={}, hospitales=hospitales, estados=estados, is_edit=False)
+
+@app_routes.route("/admin/edit_doctor/<int:doctor_id>", methods=["GET", "POST"])
+@require_role("Admin")
+def edit_doctor(doctor_id):
+    if request.method == "GET":
+        doctor = supabase.table("doctores").select("*").eq("id", doctor_id).single().execute().data
+        hospitales = supabase.table("hospitales").select("id, nombre").execute().data
+
+        return render_template(
+            "admin/add_doctor.html",
+            doctor=doctor,
+            hospitales=hospitales,
+            estados=estados,
+            is_edit=True
+        )
+
+    elif request.method == "POST":
+        nombres = request.form["nombres"].strip()
+        apellidos = request.form["apellidos"].strip()
+        telefono = request.form["telefono"].strip()
+        correo = request.form["correo"].strip()
+        tipo_consultorio = request.form["tipo_consultorio"]
+        anotaciones = request.form.get("anotaciones", "")
+
+        # Verificar duplicados en otros doctores
+        same_data = supabase.table("doctores").select("id") \
+            .eq("nombres", nombres) \
+            .eq("apellidos", apellidos) \
+            .eq("telefono", telefono) \
+            .neq("id", doctor_id) \
+            .execute()
+
+        same_email = supabase.table("doctores").select("id") \
+            .eq("correo", correo) \
+            .neq("id", doctor_id) \
+            .execute()
+
+        if same_data.data or same_email.data:
+            flash("Ya existe otro doctor con los mismos datos. Revisa nombre, teléfono o correo.", "error")
+            hospitales = supabase.table("hospitales").select("id, nombre").execute().data
+            return render_template(
+                "admin/add_doctor.html",
+                doctor=request.form,
+                hospitales=hospitales,
+                estados=estados,
+                is_edit=True
+            )
+
+        # Actualizar doctor
+        data = {
+            "nombres": nombres,
+            "apellidos": apellidos,
+            "telefono": telefono,
+            "correo": correo,
+            "tipo_consultorio": tipo_consultorio,
+            "anotaciones": anotaciones
+        }
+
+        if tipo_consultorio == "propio":
+            data.update({
+                "calle": request.form.get("calle"),
+                "numero_ext": request.form.get("numero_ext"),
+                "numero_int": request.form.get("numero_int"),
+                "codigo_postal": request.form.get("codigo_postal"),
+                "municipio": request.form.get("municipio"),
+                "estado": request.form.get("estado"),
+                "hospital_id": None
+            })
+        elif tipo_consultorio == "hospital":
+            data.update({
+                "hospital_id": request.form.get("hospital_id"),
+                "calle": None,
+                "numero_ext": None,
+                "numero_int": None,
+                "codigo_postal": None,
+                "municipio": None,
+                "estado": None
+            })
+        else:
+            data.update({
+                "hospital_id": None,
+                "calle": None,
+                "numero_ext": None,
+                "numero_int": None,
+                "codigo_postal": None,
+                "municipio": None,
+                "estado": None
+            })
+
+        actualizar_doctor(doctor_id, data)
+        flash("Doctor actualizado correctamente.", "success")
+        return redirect(url_for("app_routes.manage_doctores"))
+
+@app_routes.route('/admin/delete_doctor/<int:doctor_id>', methods=['POST'])
+@require_role("Admin")
+def delete_doctor(doctor_id):
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+
+    password = request.form.get('password', '').strip()
+
+    if not password:
+        return jsonify({"message": "La contraseña es requerida."}), 400
+
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+
+    if not admin_user_query.data:
+        return jsonify({"message": "Usuario no encontrado."}), 404
+
+    admin_user = admin_user_query.data
+
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        supabase.table('doctores').update({'activo': False}).eq('id', doctor_id).execute()
+        return jsonify({"message": "Doctor desactivado correctamente."}), 200
+    except Exception as e:
+        print(f"Error al desactivar doctor: {e}")
+        return jsonify({"message": "Error al desactivar doctor."}), 500
+
+@app_routes.route('/admin/activate_doctor/<int:doctor_id>', methods=['POST'])
+@require_role("Admin")
+def activate_doctor(doctor_id):
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+
+    password = request.form.get('password', '').strip()
+
+    if not password:
+        return jsonify({"message": "La contraseña es requerida."}), 400
+
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+
+    if not admin_user_query.data:
+        return jsonify({"message": "Usuario no encontrado."}), 404
+
+    admin_user = admin_user_query.data
+
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        supabase.table('doctores').update({'activo': True}).eq('id', doctor_id).execute()
+        return jsonify({"message": "Doctor activado correctamente."}), 200
+    except Exception as e:
+        print(f"Error al activar doctor: {e}")
+        return jsonify({"message": "Error al activar doctor."}), 500
+
+@app_routes.route("/api/check_doctor", methods=["POST"])
+def check_doctor():
+    data = request.get_json()
+    nombres = data.get("nombres", "").strip()
+    apellidos = data.get("apellidos", "").strip()
+    telefono = data.get("telefono", "").strip()
+    correo = data.get("correo", "").strip()
+
+    if not (nombres and apellidos and telefono and correo):
+        return jsonify({"exists": False})
+
+    # Buscar duplicado exacto por nombre, apellido y teléfono
+    exists_by_data = supabase.table("doctores").select("id") \
+        .eq("nombres", nombres) \
+        .eq("apellidos", apellidos) \
+        .eq("telefono", telefono) \
+        .execute()
+
+    exists_by_email = supabase.table("doctores").select("id") \
+        .eq("correo", correo) \
+        .execute()
+
+    if exists_by_data.data or exists_by_email.data:
+        return jsonify({"exists": True})
+    return jsonify({"exists": False})
