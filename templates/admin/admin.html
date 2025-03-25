@@ -21,10 +21,10 @@
             <h2>PROVEEDORES</h2>
             <img src="{{ url_for('static', filename='icons/proveedores.svg') }}" alt="Icono proveedores" class="icon">
         </button>
-        <button class="card">
+        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_doctores') }}'">
             <h2>DOCTORES</h2>
             <img src="{{ url_for('static', filename='icons/doctores.svg') }}" alt="Icono doctores" class="icon">
-        </button>
+        </button>        
         <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_hospitals') }}'">
             <h2>HOSPITALES</h2>
             <img src="{{ url_for('static', filename='icons/hospitales.svg') }}" alt="Icono hospitales" class="icon">
