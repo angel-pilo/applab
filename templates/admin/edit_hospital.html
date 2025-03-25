@@ -9,41 +9,39 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<div class="container mx-auto p-4">
-    <div class="flex items-center mb-4">
+<div class="flex-1 p-8 transition-all duration-300">
+    <div class="flex items-center space-x-2 mb-6">
         <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-        <h1 class="text-4xl font-bold ml-4">Editar Hospital</h1>
+        <h1 class="text-3xl font-bold">Editar Hospital</h1>
     </div>
-</div>
 
-<div class="w-full max-w-7xl p-4">
     <form method="POST">
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-gray-700 font-bold mb-2">Nombre del hospital</label>
+                    <label class="block text-gray-700 font-bold mb-2">Nombre del hospital<span class="text-red-500">*</span></label>
                     <input type="text" name="nombre" value="{{ hospital.nombre }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
                 </div>
                 <div>
-                    <label class="block text-gray-700 font-bold mb-2">Número de teléfono</label>
+                    <label class="block text-gray-700 font-bold mb-2">Número de teléfono<span class="text-red-500">*</span></label>
                     <input type="text" name="telefono" value="{{ hospital.telefono }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
                 </div>
                 <div class="col-span-1 md:col-span-2">
-                    <label class="block text-gray-700 font-bold mb-2">Correo electrónico</label>
+                    <label class="block text-gray-700 font-bold mb-2">Correo electrónico<span class="text-red-500">*</span></label>
                     <input type="email" name="correo" value="{{ hospital.correo }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
                 </div>
             </div>
         </div>
 
-        <div class="flex flex-col md:flex-row justify-between">
-            <div class="bg-white p-6 rounded-lg shadow-md mb-6 md:mb-0 md:mr-6 w-full md:w-2/3">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="flex flex-wrap justify-evenly mt-6">
+            <div class="w-full md:w-[43.5%] bg-white p-6 rounded-[1rem] shadow-md mb-6 md:mb-0">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2">Calle</label>
+                        <label class="block text-gray-700 font-bold mb-2">Calle<span class="text-red-500">*</span></label>
                         <input type="text" name="calle" value="{{ hospital.calle }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
                     </div>
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2">No. Ext.</label>
+                        <label class="block text-gray-700 font-bold mb-2">No. Ext.<span class="text-red-500">*</span></label>
                         <input type="text" name="numero_ext" value="{{ hospital.numero_ext }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
                     </div>
                     <div>
@@ -51,17 +49,17 @@
                         <input type="text" name="numero_int" value="{{ hospital.numero_int }}" class="w-full px-4 py-2 border rounded-[1rem]">
                     </div>
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2">Código postal</label>
+                        <label class="block text-gray-700 font-bold mb-2">Código postal<span class="text-red-500">*</span></label>
                         <input type="text" name="codigo_postal" value="{{ hospital.codigo_postal }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
                     </div>
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2">Municipio</label>
+                        <label class="block text-gray-700 font-bold mb-2">Municipio<span class="text-red-500">*</span></label>
                         <input type="text" name="municipio" value="{{ hospital.municipio }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
                     </div>
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2">Estado</label>
+                        <label class="block text-gray-700 font-bold mb-2">Estado<span class="text-red-500">*</span></label>
                         <select name="estado" class="w-full px-4 py-2 border rounded-[1rem]" required>
-                            <option value="">Seleccione un estado</option>
+                            <option>Seleccione un estado</option>
                             {% for estado in estados %}
                                 <option value="{{ estado }}" {% if hospital.estado == estado %}selected{% endif %}>{{ estado }}</option>
                             {% endfor %}
@@ -70,13 +68,13 @@
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-lg shadow-md w-full md:w-1/3">
+            <div class="w-full md:w-1/2 bg-white p-6 rounded-[1rem] shadow-md">
                 <label class="block text-gray-700 font-bold mb-2">Anotaciones Extra</label>
                 <textarea name="anotaciones" rows="4" class="w-full px-4 py-2 border rounded-[1rem]">{{ hospital.anotaciones }}</textarea>
             </div>
         </div>
 
-        <div class="flex justify-end space-x-4 mt-6">
+        <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
             <button type="submit" class="btn-guardar">Guardar</button>
             <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
         </div>
