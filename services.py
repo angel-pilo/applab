@@ -243,3 +243,95 @@ def activar_doctor(doctor_id):
     except Exception as e:
         print(f"Error al activar doctor: {e}")
         return None
+
+# Crear paciente (sin validación)
+def crear_paciente(data):
+    try:
+        response = supabase.table('pacientes').insert(data).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al crear paciente: {e}")
+        return None
+
+# Crear paciente (con validación de duplicado)
+def crear_paciente_seguro(data):
+    if paciente_duplicado(data['nombres'], data['apellidos'], data['telefono'], data['correo']):
+        return False, "Ya existe un paciente con estos datos."
+    
+    paciente = crear_paciente(data)
+    return True, paciente
+
+# Obtener todos los pacientes
+def obtener_pacientes():
+    try:
+        response = supabase.table('pacientes').select(
+            'id, nombres, apellidos, telefono, correo, activo'
+        ).execute()
+        return response.data or []
+    except Exception as e:
+        print(f"Error al obtener pacientes: {e}")
+        return []
+
+# Obtener paciente por ID
+def obtener_paciente_por_id(paciente_id):
+    try:
+        response = supabase.table('pacientes').select("*").eq("id", paciente_id).single().execute()
+        return response.data
+    except Exception as e:
+        print(f"Error al obtener paciente por ID: {e}")
+        return None
+
+# Actualizar paciente (sin validación)
+def actualizar_paciente(paciente_id, data):
+    try:
+        response = supabase.table('pacientes').update(data).eq("id", paciente_id).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al actualizar paciente: {e}")
+        return None
+
+# Actualizar paciente (con validación de duplicado)
+def actualizar_paciente_seguro(paciente_id, data):
+    try:
+        respuesta = supabase.table("pacientes").select("id").or_(
+            f"nombres.ilike.%{data['nombres']}%,apellidos.ilike.%{data['apellidos']}%,telefono.eq.{data['telefono']},correo.eq.{data['correo']}"
+        ).neq("id", paciente_id).execute()
+
+        if respuesta.data:
+            return False, "Otro paciente ya tiene estos datos."
+
+        paciente = actualizar_paciente(paciente_id, data)
+        return True, paciente
+    except Exception as e:
+        print(f"Error al validar duplicado en actualización: {e}")
+        return False, "Error en validación de datos."
+
+# Eliminar (desactivar)
+def eliminar_paciente(paciente_id):
+    try:
+        response = supabase.table('pacientes').update({"activo": False}).eq("id", paciente_id).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al eliminar paciente: {e}")
+        return None
+
+# Activar
+def activar_paciente(paciente_id):
+    try:
+        response = supabase.table('pacientes').update({"activo": True}).eq("id", paciente_id).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al activar paciente: {e}")
+        return None
+
+# Verificar duplicados
+def paciente_duplicado(nombres, apellidos, telefono, correo):
+    try:
+        response = supabase.table("pacientes").select("id").or_(
+            f"nombres.ilike.%{nombres}%,apellidos.ilike.%{apellidos}%,telefono.eq.{telefono},correo.eq.{correo}"
+        ).execute()
+        return len(response.data) > 0
+    except Exception as e:
+        print(f"Error en verificación de duplicado: {e}")
+        return False
+

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Pacientes{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <div class="flex items-center mb-4">
+        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+        <h1 class="text-4xl font-bold ml-4">Pacientes</h1>
+    </div>
+
+    <div class="flex items-center justify-between mb-4">
+        <input type="text" id="search-patient" placeholder="Buscar paciente..." class="w-1/3 p-2 border rounded">
+        <a href="{{ url_for('app_routes.add_patient') }}" class="btn-editar">Registrar nuevo paciente</a>
+    </div>
+
+    <div class="flex justify-start mb-4">
+        <button class="bg-gray-200 p-2 rounded-xl" onclick="toggleFilterMenu()">
+            <i class="fas fa-filter"></i> Filtro
+        </button>
+    </div>
+
+    <div id="filter-menu" class="absolute bg-white border rounded shadow-lg p-4 hidden z-50">
+        <label class="block font-semibold mb-2">Filtrar por estado del paciente:</label>
+        <div class="mb-2">
+            <input type="radio" name="filter-status" value="all" checked class="mr-2"> Todos
+        </div>
+        <div class="mb-2">
+            <input type="radio" name="filter-status" value="activo" class="mr-2"> Activos
+        </div>
+        <div class="mb-2">
+            <input type="radio" name="filter-status" value="inactivo" class="mr-2"> Inactivos
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button id="apply-filters" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Aplicar filtros
+            </button>
+        </div>
+    </div>
+
+    <div id="not-found-message" class="hidden text-red-500 mb-4">
+        No se encontró ningún paciente. <a href="{{ url_for('app_routes.add_patient') }}" class="text-blue-500 underline">Registrar paciente</a>
+    </div>
+
+    <div class="overflow-y-auto max-h-[calc(10*4rem)] border rounded shadow">
+        <table class="min-w-full bg-white">
+            <thead class="bg-gray-100">
+                <tr class="text-left border-b">
+                    <th class="py-2 px-4">ID</th>
+                    <th class="py-2 px-4">Nombre</th>
+                    <th class="py-2 px-4">Teléfono</th>
+                    <th class="py-2 px-4">Correo</th>
+                    <th class="py-2 px-4">Estado</th>
+                    <th class="py-2 px-4 text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for patient in pacientes %}
+                <tr data-patient-id="{{ patient.id }}" class="{% if not patient.activo %}bg-gray-100{% endif %}">
+                    <td class="py-2 px-4">{{ patient.id }}</td>
+                    <td class="py-2 px-4">{{ patient.nombres }} {{ patient.apellidos }}</td>
+                    <td class="py-2 px-4">{{ patient.telefono }}</td>
+                    <td class="py-2 px-4">{{ patient.correo }}</td>
+                    <td class="py-2 px-4 estado">{{ 'Activo' if patient.activo else 'Inactivo' }}</td>
+                    <td class="py-2 px-4 text-center">
+                        {% if patient.activo %}
+                            <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_patient', patient_id=patient.id) }}'">Editar</button>
+                            {% if rol == 'Admin' %}
+                            <button class="btn-eliminar" onclick="confirmDeletePatient('{{ patient.id }}')">Eliminar</button>
+                            {% endif %}
+                        {% else %}
+                            {% if rol == 'Admin' %}
+                            <button class="btn-activar" onclick="confirmActivatePatient('{{ patient.id }}')">Activar</button>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% include 'admin/modales_pacientes.html' %}
+<script src="{{ url_for('static', filename='js/pacientes.js') }}"></script>
+{% endblock %}
