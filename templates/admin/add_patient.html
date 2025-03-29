@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Paciente{% endblock %}
+
+{% block content %}
+
+<div class="flex-1 p-8 transition-all duration-300">
+  <div class="flex items-center space-x-2 mb-6">
+    <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+    <h1 class="text-3xl font-bold">Registrar nuevo paciente</h1>
+  </div>
+
+  <!-- Alerta duplicado -->
+  <div id="alerta-duplicado" class="max-w-7xl mx-auto mb-4 hidden">
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      Ya existe un paciente con estos datos. Por favor verifica nombre, apellidos, teléfono o correo.
+    </div>
+  </div>
+
+  <form method="POST" id="form-paciente">
+    <!-- Contenedor 1: Datos personales -->
+    <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Sexo<span class="text-red-500">*</span></label>
+          <div class="flex items-center space-x-4">
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="radio" name="sexo" value="M" {% if is_edit and patient.sexo == 'M' %}checked{% endif %}> <span class="ml-2">Hombre</span>
+            </label>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="radio" name="sexo" value="F" {% if is_edit and patient.sexo == 'F' %}checked{% endif %}> <span class="ml-2">Mujer</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Fecha de nacimiento<span class="text-red-500">*</span></label>
+          <input type="date" name="fecha_nacimiento" value="{{ patient.fecha_nacimiento if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Nombre(s)<span class="text-red-500">*</span></label>
+          <input type="text" name="nombres" value="{{ patient.nombres if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Apellidos<span class="text-red-500">*</span></label>
+          <input type="text" name="apellidos" value="{{ patient.apellidos if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Teléfono<span class="text-red-500">*</span></label>
+          <input type="text" name="telefono" value="{{ patient.telefono if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Correo electrónico<span class="text-red-500">*</span></label>
+          <input type="email" name="correo" value="{{ patient.correo if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenedor 2 y 3: Dirección y Enfermedades -->
+    <div class="flex flex-wrap justify-between gap-4">
+      <!-- Dirección -->
+      <div class="w-full md:w-[60%] bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-lg font-bold mb-4">Dirección</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">Calle<span class="text-red-500">*</span></label>
+            <input type="text" name="calle" value="{{ patient.calle if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+          </div>
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">No. Ext.<span class="text-red-500">*</span></label>
+            <input type="text" name="numero_ext" value="{{ patient.numero_ext if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+          </div>
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">No. Int.</label>
+            <input type="text" name="numero_int" value="{{ patient.numero_int if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]">
+          </div>
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">Código Postal<span class="text-red-500">*</span></label>
+            <input type="text" name="codigo_postal" value="{{ patient.codigo_postal if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+          </div>
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">Municipio<span class="text-red-500">*</span></label>
+            <input type="text" name="municipio" value="{{ patient.municipio if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+          </div>
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">Estado<span class="text-red-500">*</span></label>
+            <select name="estado" class="w-full px-4 py-2 border rounded-[1rem]" required>
+              <option value="">Seleccione un estado</option>
+              {% for estado in estados %}
+              <option value="{{ estado }}" {% if is_edit and patient.estado == estado %}selected{% endif %}>{{ estado }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Enfermedades crónicas -->
+      <div class="w-full md:w-[37.5%] bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-lg font-bold mb-4">Enfermedades crónicas</h2>
+        <textarea name="condiciones_medicas" rows="8" class="w-full px-4 py-2 border rounded-[1rem]">{{ patient.condiciones_medicas if is_edit else '' }}</textarea>
+      </div>
+    </div>
+
+    <!-- Botones -->
+    <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
+      <button id="guardar-btn" type="submit" class="btn-guardar">Guardar</button>
+      <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+    </div>
+  </form>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const guardarBtn = document.getElementById("guardar-btn");
+    
+        const inputs = {
+            nombres: document.querySelector('[name="nombres"]'),
+            apellidos: document.querySelector('[name="apellidos"]'),
+            telefono: document.querySelector('[name="telefono"]'),
+            correo: document.querySelector('[name="correo"]'),
+        };
+    
+        const errores = {
+            nombres: true,
+            apellidos: true,
+            telefono: true,
+            correo: false,
+            duplicado: false,
+            direccion: true
+        };
+        
+    
+        const camposDireccion = ["calle", "numero_ext", "codigo_postal", "municipio", "estado"];
+        const direccionInputs = camposDireccion.map(c => document.querySelector(`[name="${c}"]`));
+    
+        // Validaciones en tiempo real
+        inputs.nombres.addEventListener("input", () => validarTexto(inputs.nombres, "nombres"));
+        inputs.apellidos.addEventListener("input", () => validarTexto(inputs.apellidos, "apellidos"));
+        inputs.telefono.addEventListener("input", () => validarNumero(inputs.telefono, "telefono"));
+        inputs.correo.addEventListener("input", () => {
+            validarCorreo(inputs.correo, "correo");
+            checkDuplicado();
+        });
+    
+        direccionInputs.forEach(input => input.addEventListener("input", validarFormulario));
+    
+        Object.entries(inputs).forEach(([campo, input]) => {
+            input.addEventListener("input", validarFormulario);
+            input.addEventListener("blur", () => {
+                if (campo === "nombres" || campo === "apellidos") validarTexto(input, campo);
+                if (campo === "telefono") validarNumero(input, campo);
+                if (campo === "correo") validarCorreo(input, campo);
+            });
+        });
+    
+        function validarTexto(input, campo) {
+            const valor = input.value.trim();
+            const soloLetras = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
+    
+            let mensaje = "";
+            let error = false;
+    
+            if (valor === "") {
+                mensaje = "Este campo es obligatorio";
+                error = true;
+            } else if (!soloLetras.test(valor)) {
+                mensaje = "Solo se permiten letras";
+                error = true;
+            }
+    
+            mostrarMensaje(campo, mensaje, error);
+            errores[campo] = error;
+            validarFormulario();
+        }
+    
+        function validarNumero(input, campo) {
+            const valor = input.value.trim();
+            const soloNumeros = /^[0-9]+$/;
+    
+            let mensaje = "";
+            let error = false;
+    
+            if (valor === "") {
+                mensaje = "Este campo es obligatorio";
+                error = true;
+            } else if (!soloNumeros.test(valor)) {
+                mensaje = "Solo se permiten números";
+                error = true;
+            }
+    
+            mostrarMensaje(campo, mensaje, error);
+            errores[campo] = error;
+            validarFormulario();
+        }
+    
+        function validarCorreo(input, campo) {
+            const valor = input.value.trim();
+            const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
+            let error = false;
+            let mensaje = "";
+        
+            if (valor !== "" && !regexCorreo.test(valor)) {
+                mensaje = "Correo electrónico inválido";
+                error = true;
+            }
+        
+            mostrarMensaje(campo, mensaje, error);
+            errores[campo] = error;
+            validarFormulario();
+        }        
+    
+        function mostrarMensaje(campo, mensaje, mostrar) {
+            const contenedor = document.querySelector(`[name="${campo}"]`).parentElement;
+            let msg = contenedor.querySelector(".error-msg");
+            if (!msg && mostrar) {
+                msg = document.createElement("p");
+                msg.className = "text-red-600 text-sm mt-1 error-msg";
+                contenedor.appendChild(msg);
+            }
+            if (msg) {
+                msg.textContent = mensaje;
+                msg.style.display = mostrar ? "block" : "none";
+            }
+        }
+    
+        function validarFormulario() {
+            // Verificar que todos los campos de dirección estén llenos
+            errores.direccion = camposDireccion.some(campo => {
+                const input = document.querySelector(`[name="${campo}"]`);
+                const vacio = input.value.trim() === "";
+                mostrarMensaje(campo, "Este campo es obligatorio", vacio);
+                return vacio;
+            });
+    
+            const hayErrores = Object.values(errores).some(v => v);
+            guardarBtn.disabled = hayErrores;
+            guardarBtn.classList.toggle("opacity-50", hayErrores);
+            guardarBtn.classList.toggle("cursor-not-allowed", hayErrores);
+        }
+    
+        async function checkDuplicado() {
+            const datos = {
+                nombres: inputs.nombres.value,
+                apellidos: inputs.apellidos.value,
+                telefono: inputs.telefono.value,
+                correo: inputs.correo.value
+            };
+    
+            if (!datos.nombres.trim() || !datos.apellidos.trim() || !datos.telefono.trim()) return;
+    
+            const res = await fetch("/api/check_patient", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(datos)
+            });
+    
+            const result = await res.json();
+            errores.duplicado = result.exists;
+    
+            const contenedor = inputs.correo.parentElement;
+            let msg = contenedor.querySelector(".duplicado-msg");
+    
+            if (result.exists) {
+                if (!msg) {
+                    msg = document.createElement("p");
+                    msg.className = "text-red-600 text-sm mt-1 duplicado-msg";
+                    msg.textContent = "Ya existe un paciente con estos datos.";
+                    contenedor.appendChild(msg);
+                }
+            } else if (msg) {
+                msg.remove();
+            }
+    
+            validarFormulario();
+        }
+    });
+    </script>
+
+{% endblock %}

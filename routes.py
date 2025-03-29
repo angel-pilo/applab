@@ -9,6 +9,17 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
 import json
 import hashlib
+from services import (
+    crear_paciente,
+    obtener_pacientes,
+    obtener_paciente_por_id,
+    actualizar_paciente,
+    eliminar_paciente,
+    activar_paciente,
+    paciente_duplicado,
+    obtener_hospitales
+)
+
 
 app_routes = Blueprint('app_routes', __name__)
 
@@ -34,11 +45,11 @@ role_map = {
 }
 
 # Decorador para restringir acceso según rol
-def require_role(role):
+def require_role(roles):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            if session.get("rol") != role:
+            if session.get("rol") not in roles:
                 return redirect(url_for("app_routes.login"))
             return f(*args, **kwargs)
         return wrapper
@@ -855,4 +866,114 @@ def check_doctor():
 
     if exists_by_data.data or exists_by_email.data:
         return jsonify({"exists": True})
+    return jsonify({"exists": False})
+
+# LISTAR
+@app_routes.route('/admin/pacientes')
+@require_role(['Admin', 'Mostrador'])
+def manage_patients():
+    pacientes = obtener_pacientes()
+    return render_template('admin/patients.html', pacientes=pacientes, rol=session.get("rol"))
+
+# CREAR
+@app_routes.route('/admin/add_patient', methods=['GET', 'POST'])
+@require_role(['Admin', 'Mostrador'])
+def add_patient():
+    hospitales = obtener_hospitales()
+    if request.method == 'POST':
+        data = request.form.to_dict()
+        data["activo"] = True
+
+        ok, result = crear_paciente_seguro(data)
+        if not ok:
+            flash(result, "error")
+            return render_template('admin/add_patient.html', is_edit=False, estados=estados, hospitales=hospitales, patient=data)
+
+        flash("Paciente registrado exitosamente.", "success")
+        return redirect(url_for('app_routes.manage_patients'))
+
+    return render_template('admin/add_patient.html', is_edit=False, estados=estados, hospitales=hospitales, patient={})
+
+# EDITAR
+@app_routes.route('/admin/edit_patient/<int:patient_id>', methods=['GET', 'POST'])
+@require_role(['Admin', 'Mostrador'])
+def edit_patient(patient_id):
+    hospitales = obtener_hospitales()
+    paciente = obtener_paciente_por_id(patient_id)
+
+    if request.method == 'POST':
+        data = request.form.to_dict()
+
+        ok, result = actualizar_paciente_seguro(patient_id, data)
+        if not ok:
+            flash(result, "error")
+            return render_template('admin/add_patient.html', is_edit=True, estados=estados, hospitales=hospitales, patient=data)
+
+        flash("Paciente actualizado correctamente.", "success")
+        return redirect(url_for('app_routes.manage_patients'))
+
+    return render_template('admin/add_patient.html', is_edit=True, estados=estados, hospitales=hospitales, patient=paciente)
+
+# ELIMINAR (solo Admin con validación de contraseña)
+@app_routes.route('/admin/delete_patient/<int:patient_id>', methods=['POST'])
+@require_role("Admin")
+def delete_patient(patient_id):
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+
+    password = request.form.get('password', '').strip()
+    if not password:
+        return jsonify({"message": "La contraseña es requerida."}), 400
+
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+    if not admin_user_query.data:
+        return jsonify({"message": "Usuario no encontrado."}), 404
+
+    admin_user = admin_user_query.data
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        eliminar_paciente(patient_id)
+        return jsonify({"message": "Paciente desactivado correctamente."}), 200
+    except Exception as e:
+        print(f"Error al desactivar paciente: {e}")
+        return jsonify({"message": "Error al desactivar paciente."}), 500
+
+# ACTIVAR (solo Admin con validación de contraseña)
+@app_routes.route('/admin/activate_patient/<int:patient_id>', methods=['POST'])
+@require_role("Admin")
+def activate_patient(patient_id):
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+
+    password = request.form.get('password', '').strip()
+    if not password:
+        return jsonify({"message": "La contraseña es requerida."}), 400
+
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+    if not admin_user_query.data:
+        return jsonify({"message": "Usuario no encontrado."}), 404
+
+    admin_user = admin_user_query.data
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        activar_paciente(patient_id)
+        return jsonify({"message": "Paciente activado correctamente."}), 200
+    except Exception as e:
+        print(f"Error al activar paciente: {e}")
+        return jsonify({"message": "Error al activar paciente."}), 500
+
+# VERIFICAR DUPLICADOS (AJAX)
+@app_routes.route('/api/check_patient', methods=['POST'])
+def check_patient():
+    data = request.get_json()
+    response = supabase.table("pacientes").select("id").or_(
+        f"nombres.ilike.%{data['nombres']}%,apellidos.ilike.%{data['apellidos']}%,telefono.eq.{data['telefono']},correo.eq.{data['correo']}"
+    ).execute()
+
+    if response.data:
+        return jsonify({"exists": True, "id": response.data[0]["id"]})
     return jsonify({"exists": False})

@@ -13,9 +13,9 @@
             <h2>INVENTARIO DE REACTIVOS</h2>
             <img src="{{ url_for('static', filename='icons/inventario.svg') }}" alt="Icono inventario" class="icon">
         </button>
-        <button class="card">
-            <h2>REPORTE FINANCIERO</h2>
-            <img src="{{ url_for('static', filename='icons/financiero.svg') }}" alt="Icono financiero" class="icon">
+        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_patients') }}'">
+            <h2>PACIENTES</h2>
+            <img src="{{ url_for('static', filename='icons/pacientes.svg') }}" alt="Icono pacientes" class="icon">
         </button>
         <button class="card">
             <h2>PROVEEDORES</h2>
@@ -40,4 +40,3 @@
     </div>
 </div>
 {% endblock %}
-
