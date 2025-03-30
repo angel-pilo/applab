@@ -335,3 +335,92 @@ def paciente_duplicado(nombres, apellidos, telefono, correo):
         print(f"Error en verificación de duplicado: {e}")
         return False
 
+# Crear proveedor (sin validación)
+def crear_proveedor(data):
+    try:
+        response = supabase.table('proveedores').insert(data).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al crear proveedor: {e}")
+        return None
+
+# Crear proveedor (con validación)
+def crear_proveedor_seguro(data):
+    if proveedor_duplicado(data['nombre'], data['telefono'], data['correo']):
+        return False, "Ya existe un proveedor con estos datos."
+    
+    proveedor = crear_proveedor(data)
+    return True, proveedor
+
+# Obtener todos los proveedores
+def obtener_proveedores():
+    try:
+        response = supabase.table('proveedores').select(
+            'id, nombre, tipo, telefono, correo, activo'
+        ).execute()
+        return response.data or []
+    except Exception as e:
+        print(f"Error al obtener proveedores: {e}")
+        return []
+
+# Obtener proveedor por ID
+def obtener_proveedor_por_id(proveedor_id):
+    try:
+        response = supabase.table('proveedores').select("*").eq("id", proveedor_id).single().execute()
+        return response.data
+    except Exception as e:
+        print(f"Error al obtener proveedor por ID: {e}")
+        return None
+
+# Actualizar proveedor (sin validación)
+def actualizar_proveedor(proveedor_id, data):
+    try:
+        response = supabase.table('proveedores').update(data).eq('id', proveedor_id).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al actualizar proveedor: {e}")
+        return None
+
+# Actualizar proveedor (con validación)
+def actualizar_proveedor_seguro(proveedor_id, data):
+    try:
+        respuesta = supabase.table("proveedores").select("id").or_(
+            f"nombre.ilike.%{data['nombre']}%,telefono.eq.{data['telefono']},correo.eq.{data['correo']}"
+        ).neq("id", proveedor_id).execute()
+
+        if respuesta.data:
+            return False, "Otro proveedor ya tiene estos datos."
+
+        proveedor = actualizar_proveedor(proveedor_id, data)
+        return True, proveedor
+    except Exception as e:
+        print(f"Error al validar duplicado en actualización: {e}")
+        return False, "Error en validación de datos."
+
+# Eliminar (desactivar)
+def desactivar_proveedor(proveedor_id):
+    try:
+        response = supabase.table('proveedores').update({'activo': False}).eq('id', proveedor_id).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al desactivar proveedor: {e}")
+        return None
+
+# Activar
+def activar_proveedor(proveedor_id):
+    try:
+        response = supabase.table('proveedores').update({'activo': True}).eq('id', proveedor_id).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al activar proveedor: {e}")
+        return None
+    
+def proveedor_duplicado(nombre, telefono, correo):
+    try:
+        response = supabase.table("proveedores").select("id").or_(
+            f"nombre.ilike.%{nombre}%,telefono.eq.{telefono},correo.eq.{correo}"
+        ).execute()
+        return len(response.data) > 0
+    except Exception as e:
+        print(f"Error en verificación de duplicado: {e}")
+        return False

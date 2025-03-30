@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Proveedor{% endblock %}
+
+{% block content %}
+
+<head>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<div class="flex-1 p-8 transition-all duration-300">
+  <div class="flex items-center space-x-2 mb-6">
+    <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+    <h1 class="text-3xl font-bold">Registrar nuevo proveedor</h1>
+  </div>
+
+  <!-- Alerta duplicado -->
+  <div id="alerta-duplicado" class="max-w-7xl mx-auto mb-4 hidden">
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      Ya existe un proveedor con estos datos. Por favor verifica nombre, teléfono o correo.
+    </div>
+  </div>
+
+  <form method="POST" id="form-proveedor">
+    <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Tipo de proveedor<span class="text-red-500">*</span></label>
+          <div class="flex gap-6">
+            <label class="inline-flex items-center">
+              <input type="radio" name="tipo" value="servicio" {% if proveedor.tipo == 'servicio' %}checked{% endif %}>
+              <span class="ml-2">Servicio</span>
+            </label>
+            <label class="inline-flex items-center">
+              <input type="radio" name="tipo" value="producto" {% if proveedor.tipo == 'producto' %}checked{% endif %}>
+              <span class="ml-2">Producto</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Nombre del proveedor<span class="text-red-500">*</span></label>
+          <input type="text" name="nombre" value="{{ proveedor.nombre }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el nombre del proveedor" required>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Teléfono</label>
+          <input type="text" name="telefono" value="{{ proveedor.telefono }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número de teléfono">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Correo electrónico</label>
+          <input type="email" name="correo" value="{{ proveedor.correo }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Correo del proveedor">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-gray-700 font-bold mb-2">Persona de contacto</label>
+          <input type="text" name="contacto" value="{{ proveedor.contacto }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Persona de contacto">
+        </div>
+      </div>
+    </div>
+
+    <!-- Dirección y Anotaciones -->
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between gap-4 mt-6">
+      <div class="w-full md:w-[43.5%] bg-white p-6 rounded-[1rem] shadow-md mb-6 md:mb-0">
+        <h2 class="text-lg font-bold mb-4">Dirección</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">Calle</label>
+            <input type="text" name="calle" value="{{ proveedor.calle }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Calle">
+          </div>
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">No. Ext.</label>
+            <input type="text" name="numero_ext" value="{{ proveedor.numero_ext }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número exterior">
+          </div>
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">No. Int.</label>
+            <input type="text" name="numero_int" value="{{ proveedor.numero_int }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número interior">
+          </div>
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">Código Postal</label>
+            <input type="text" name="codigo_postal" value="{{ proveedor.codigo_postal }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Código Postal">
+          </div>
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">Municipio</label>
+            <input type="text" name="municipio" value="{{ proveedor.municipio }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Municipio">
+          </div>
+          <div>
+            <label class="block text-gray-700 font-bold mb-2">Estado</label>
+            <select name="estado" class="w-full px-4 py-2 border rounded-[1rem]">
+              <option value="">Seleccione un estado</option>
+              {% for estado in estados %}
+                <option value="{{ estado }}" {% if proveedor.estado == estado %}selected{% endif %}>{{ estado }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="w-full md:w-[52%] bg-white p-6 rounded-[1rem] shadow-md">
+        <h2 class="text-lg font-bold mb-4">Anotaciones extra</h2>
+        <textarea name="anotaciones" rows="8" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Agrega notas adicionales si es necesario">{{ proveedor.anotaciones }}</textarea>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
+      <button id="guardar-btn" type="submit" class="btn-guardar">Guardar</button>
+      <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const nombreInput = document.querySelector('[name="nombre"]');
+    const telefonoInput = document.querySelector('[name="telefono"]');
+    const correoInput = document.querySelector('[name="correo"]');
+    const guardarBtn = document.getElementById("guardar-btn");
+
+    function checkDuplicado() {
+      const nombre = nombreInput.value.trim();
+      const telefono = telefonoInput.value.trim();
+      const correo = correoInput.value.trim();
+
+      if (!nombre && !telefono && !correo) return;
+
+      fetch("/api/check_proveedor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, telefono, correo })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const alerta = document.getElementById("alerta-duplicado");
+        if (data.exists) {
+          alerta.classList.remove("hidden");
+          guardarBtn.disabled = true;
+        } else {
+          alerta.classList.add("hidden");
+          guardarBtn.disabled = false;
+        }
+      })
+      .catch(() => {
+        console.error("Error verificando proveedor duplicado");
+      });
+    }
+
+    nombreInput.addEventListener("input", checkDuplicado);
+    telefonoInput.addEventListener("input", checkDuplicado);
+    correoInput.addEventListener("input", checkDuplicado);
+  });
+</script>
+
+{% endblock %}

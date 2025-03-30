@@ -977,3 +977,88 @@ def check_patient():
     if response.data:
         return jsonify({"exists": True, "id": response.data[0]["id"]})
     return jsonify({"exists": False})
+
+# PROVEEDORES
+@app_routes.route("/admin/proveedores")
+@require_role("Admin")
+def manage_proveedores():
+    proveedores = obtener_proveedores()
+    return render_template("admin/proveedores.html", proveedores=proveedores, rol=session.get("rol"))
+
+@app_routes.route("/admin/add_proveedor", methods=["GET", "POST"])
+@require_role("Admin")
+def add_proveedor():
+    if request.method == "POST":
+        data = request.form.to_dict()
+        data["activo"] = True
+
+        ok, result = crear_proveedor_seguro(data)
+        if not ok:
+            flash(result, "error")
+            return render_template("admin/add_proveedor.html", proveedor=data, is_edit=False, estados=estados)
+
+        flash("Proveedor registrado correctamente.", "success")
+        return redirect(url_for("app_routes.manage_proveedores"))
+
+    return render_template("admin/add_proveedor.html", proveedor={}, is_edit=False, estados=estados)
+
+@app_routes.route("/admin/edit_proveedor/<int:proveedor_id>", methods=["GET", "POST"])
+@require_role("Admin")
+def edit_proveedor(proveedor_id):
+    proveedor = obtener_proveedor_por_id(proveedor_id)
+    if not proveedor:
+        flash("Proveedor no encontrado", "error")
+        return redirect(url_for("app_routes.manage_proveedores"))
+
+    if request.method == "POST":
+        data = request.form.to_dict()
+
+        ok, result = actualizar_proveedor_seguro(proveedor_id, data)
+        if not ok:
+            flash(result, "error")
+            return render_template("admin/add_proveedor.html", proveedor=data, is_edit=True, estados=estados)
+
+        flash("Proveedor actualizado correctamente.", "success")
+        return redirect(url_for("app_routes.manage_proveedores"))
+
+    return render_template("admin/add_proveedor.html", proveedor=proveedor, is_edit=True, estados=estados)
+
+@app_routes.route("/admin/delete_proveedor/<int:proveedor_id>", methods=["POST"])
+@require_role("Admin")
+def delete_proveedor(proveedor_id):
+    password = request.form.get('password', '').strip()
+    if not password or 'user_id' not in session:
+        return jsonify({"message": "No autorizado."}), 403
+
+    admin = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute().data
+    if not bcrypt.checkpw(password.encode('utf-8'), admin['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    desactivar_proveedor(proveedor_id)
+    return jsonify({"message": "Proveedor desactivado correctamente."}), 200
+
+@app_routes.route("/admin/activate_proveedor/<int:proveedor_id>", methods=["POST"])
+@require_role("Admin")
+def activate_proveedor(proveedor_id):
+    password = request.form.get('password', '').strip()
+    if not password or 'user_id' not in session:
+        return jsonify({"message": "No autorizado."}), 403
+
+    admin = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute().data
+    if not bcrypt.checkpw(password.encode('utf-8'), admin['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    activar_proveedor(proveedor_id)
+    return jsonify({"message": "Proveedor activado correctamente."}), 200
+
+# VERIFICAR DUPLICADOS (AJAX)
+@app_routes.route('/api/check_proveedor', methods=['POST'])
+def check_proveedor():
+    data = request.get_json()
+    response = supabase.table("proveedores").select("id").or_(
+        f"nombre.ilike.%{data['nombre']}%,telefono.eq.{data['telefono']},correo.eq.{data['correo']}"
+    ).execute()
+
+    if response.data:
+        return jsonify({"exists": True, "id": response.data[0]["id"]})
+    return jsonify({"exists": False})

@@ -1,0 +1,39 @@
+<!-- Modal Eliminar Proveedor -->
+<div id="delete-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-[1000]">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+        <h2 class="text-xl font-bold mb-4">Confirmar Eliminación</h2>
+        <p>¿Estás seguro de que deseas eliminar este proveedor?</p>
+        <input type="hidden" id="delete-proveedor-id">
+        <div id="modal-message" class="mt-2 text-center text-sm"></div>
+
+        <div class="mt-4">
+            <label for="password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
+            <input type="password" id="password" class="mt-1 p-2 border rounded w-full">
+        </div>
+
+        <div class="mt-4 flex justify-end gap-2">
+            <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded" onclick="closeModal()">Cancelar</button>
+            <button class="bg-red-500 text-white px-4 py-2 rounded" onclick="deleteProveedor()">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Activar Proveedor -->
+<div id="activation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-[1000]">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+        <h2 class="text-xl font-bold mb-4">Confirmar Activación</h2>
+        <p>¿Estás seguro de que deseas activar este proveedor?</p>
+        <input type="hidden" id="activate-proveedor-id">
+        <div id="activation-modal-message" class="mt-2 text-center text-sm"></div>
+
+        <div class="mt-4">
+            <label for="activate-password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
+            <input type="password" id="activate-password" class="mt-1 p-2 border rounded w-full">
+        </div>
+
+        <div class="mt-4 flex justify-end gap-2">
+            <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded" onclick="closeModal()">Cancelar</button>
+            <button class="bg-green-500 text-white px-4 py-2 rounded" onclick="activateProveedor()">Activar</button>
+        </div>
+    </div>
+</div>

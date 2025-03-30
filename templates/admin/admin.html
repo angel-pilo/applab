@@ -17,7 +17,7 @@
             <h2>PACIENTES</h2>
             <img src="{{ url_for('static', filename='icons/pacientes.svg') }}" alt="Icono pacientes" class="icon">
         </button>
-        <button class="card">
+        <button class="card"  onclick="window.location.href='{{ url_for('app_routes.manage_proveedores') }}'">
             <h2>PROVEEDORES</h2>
             <img src="{{ url_for('static', filename='icons/proveedores.svg') }}" alt="Icono proveedores" class="icon">
         </button>
