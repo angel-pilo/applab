@@ -1,0 +1,313 @@
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valores Normales</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"></link>
+    <style>
+        .autocomplete-suggestions {
+            border: 1px solid #ddd;
+            max-height: 150px;
+            overflow-y: auto;
+            background-color: white;
+            position: absolute;
+            z-index: 1000;
+            width: 100%;
+        }
+        .autocomplete-suggestion {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .autocomplete-suggestion:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center min-h-screen">
+    <!--1er contenedor -->
+    <div class="w-full px-4 md:px-8 lg:px-16 xl:px-32 mt-8">
+        <div class="flex items-center mb-6">
+            <i class="fas fa-arrow-left text-2xl"></i>
+            <h1 class="text-3xl font-bold ml-2">Registrar nueva prueba</h1>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-bold mb-4">Información del reactivo</h2>
+            <div class="border-b border-gray-300 mb-4"></div>
+            <div class="flex flex-wrap gap-4">
+                <div class="w-full md:w-1/4">
+                    <label for="nombre" class="block text-sm font-bold mb-2">Nombre</label>
+                    <input type="text" id="nombre" placeholder="Ingresa el nombre de tu prueba" class="w-full p-2 border rounded-lg">
+                </div>
+                <div class="w-full md:w-1/4">
+                    <label for="tipo" class="block text-sm font-bold mb-2">Tipo de prueba</label>
+                    <select id="tipo" class="w-full p-2 border rounded-lg">
+                        <option>Sanguínea - Orina - Antígeno ...</option>
+                    </select>
+                </div>
+                <div class="w-full md:w-1/4 relative">
+                    <label for="reactivo" class="block text-sm font-bold mb-2">Nombre del reactivo</label>
+                    <input type="text" id="reactivo" placeholder="Reactivos necesarios para la prueba" class="w-full p-2 border rounded-lg">
+                    <div id="suggestions" class="autocomplete-suggestions hidden"></div>
+                    <div class="flex space-x-1 mt-2" id="selected-reactivos">
+                        <span class="bg-blue-100 text-blue-700 px-1 py-0.5 rounded-full flex items-center text-sm">
+                            Bilirrubinas <i class="fas fa-times ml-1 cursor-pointer text-red-500"></i>
+                        </span>
+                        <span class="bg-blue-100 text-blue-700 px-1 py-0.5 rounded-full flex items-center text-sm">
+                            Glucosa <i class="fas fa-times ml-1 cursor-pointer text-red-500"></i>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center mt-4">
+                <button class="ml-auto bg-white text-blue-500 border border-blue-500 px-4 py-2 rounded-lg shadow-md hover:bg-blue-50">Registrar reactivo</button>
+            </div>
+        </div>
+    </div>
+    <!--2do contenedor -->
+    <div class="w-full px-4 md:px-8 lg:px-16 xl:px-32 mt-8">
+        <div class="bg-white shadow-md rounded-2xl p-6">
+            <h1 class="text-2xl font-bold mb-4 border-b pb-2 text-center">Nuevo valor normal</h1>
+            <div class="flex flex-col md:flex-row items-start justify-start">
+                <div class="flex flex-col mb-4 md:mb-0">
+                    <label for="nombre" class="font-semibold mb-2">Nombre</label>
+                    <input type="text" id="nombre" placeholder="Ingresa el nombre de tu valor" class="border rounded-lg p-2 w-full md:w-80">
+                </div>
+                <div class="flex flex-col md:ml-4">
+                    <label class="font-semibold mb-2 md:mb-0">Separacion</label>
+                    <div class="flex flex-wrap items-center mb-4 mt-4 md:mt-4">
+                        <label class="mr-4">
+                            <input type="radio" name="separacion" class="mr-1"> Edades
+                        </label>
+                        <label class="mr-4">
+                            <input type="radio" name="separacion" class="mr-1"> Sexo
+                        </label>
+                        <label class="mr-4">
+                            <input type="radio" name="separacion" class="mr-1"> Edad/Sexo
+                        </label>
+                        <label class="mr-4">
+                            <input type="radio" name="separacion" class="mr-1"> Min/Max
+                        </label>
+                        <label class="mr-4">
+                            <input type="radio" name="separacion" class="mr-1"> Positivo/Negativo
+                        </label>
+                        <label class="mr-4">
+                            <input type="radio" name="separacion" class="mr-1"> Menor que
+                        </label>
+                    </div>
+                </div>
+                <button class="mt-8 md:mt-4 bg-white text-blue-500 border border-blue-500 rounded-lg px-4 py-2 hover:bg-blue-50 md:ml-4 self-center">Agregar</button>
+            </div>
+        </div>
+    </div>
+<!--3er contenedor -->
+<div class="w-full px-4 md:px-8 lg:px-16 xl:px-32 mt-8">
+    <div class="bg-white shadow-md rounded-2xl p-8">
+        <h1 class="text-center text-2xl font-bold mb-4">Valores normales</h1>
+        <div class="border-t border-black mb-4"></div>
+        <div class="space-y-6">
+            <!-- Bilirrubinas -->
+            <div class="flex flex-col items-center space-y-4" id="fila-bilirrubinas">
+                <div class="flex items-center space-x-4 w-full">
+                    <span class="w-1/4 font-semibold">Bilirrubinas</span>
+                    <span class="w-1/4">0 a 29 días de nacido</span>
+                    <span class="w-1/4">1 a 11 meses de edad</span>
+                    <span class="w-1/4">1 a 12 años de edad</span>
+                    <span class="w-1/4">13 a 14 años de edad</span>
+                    <span class="w-1/4">Hombre</span>
+                    <span class="w-1/4">Mujer</span>
+                    <span class="w-1/4">Unidades</span>
+                </div>
+                <div class="flex items-center space-x-4 mt-2 w-full">
+                    <span class="w-1/4">Edades/Sexo</span>
+                    <div class="w-1/4 flex items-center space-x-2">
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                        <span>a</span>
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                    </div>
+                    <div class="w-1/4 flex items-center space-x-2">
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                        <span>a</span>
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                    </div>
+                    <div class="w-1/4 flex items-center space-x-2">
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                        <span>a</span>
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                    </div>
+                    <div class="w-1/4 flex items-center space-x-2">
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                        <span>a</span>
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                    </div>
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2">
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2">
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2" placeholder="mg/dl">
+                </div>
+                <button class="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg" onclick="eliminarFila(this)">Eliminar</button>
+            </div>
+            <div class="border-t border-dashed border-gray-300" id="separacion-bilirrubinas"></div>
+
+            <!-- Cetonas -->
+            <div class="flex flex-col items-center space-y-4" id="fila-cetonas">
+                <div class="flex items-center space-x-4 w-full">
+                    <span class="w-1/4 font-semibold">Cetonas</span>
+                    <span class="w-1/4">0 a 29 días de nacido</span>
+                    <span class="w-1/4">1 a 11 meses de edad</span>
+                    <span class="w-1/4">1 a 12 años de edad</span>
+                    <span class="w-1/4">13 a 14 años de edad</span>
+                    <span class="w-1/4">Unidades</span>
+                </div>
+                <div class="flex items-center space-x-4 mt-2 w-full">
+                    <span class="w-1/4">Edades</span>
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2">
+                    <div class="w-1/4 flex items-center space-x-2">
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                        <span>a</span>
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                    </div>
+                    <div class="w-1/4 flex items-center space-x-2">
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                        <span>a</span>
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                    </div>
+                    <div class="w-1/4 flex items-center space-x-2">
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                        <span>a</span>
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                    </div>
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2" placeholder="mg/dl">
+                </div>
+                <button class="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg" onclick="eliminarFila(this)">Eliminar</button>
+            </div>
+            <div class="border-t border-dashed border-gray-300" id="separacion-cetonas"></div>
+
+            <!-- Cristales -->
+            <div class="flex flex-col items-center space-y-4" id="fila-cristales">
+                <div class="flex items-center space-x-4 w-full">
+                    <span class="w-1/4 font-semibold">Cristales</span>
+                    <span class="w-1/4">Hombre</span>
+                    <span class="w-1/4">Mujer</span>
+                    <span class="w-1/4">Unidades</span>
+                </div>
+                <div class="flex items-center space-x-4 mt-2 w-full">
+                    <span class="w-1/4">Sexo</span>
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2">
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2">
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2" placeholder="mg/dl">
+                </div>
+                <button class="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg" onclick="eliminarFila(this)">Eliminar</button>
+            </div>
+            <div class="border-t border-dashed border-gray-300" id="separacion-cristales"></div>
+
+            <!-- Urobilinógeno Min/Max -->
+            <div class="flex flex-col items-center space-y-4" id="fila-urobilinogeno-min-max">
+                <div class="flex items-center space-x-4 w-full">
+                    <span class="w-1/4 font-semibold">Urobilinógeno</span>
+                    <span class="w-1/4">Mínimo/Máximo</span>
+                    <span class="w-1/4">Unidades</span>
+                </div>
+                <div class="flex items-center space-x-4 mt-2 w-full">
+                    <span class="w-1/4">Min/Max</span>
+                    <div class="w-1/4 flex items-center space-x-2">
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                        <span>a</span>
+                        <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2">
+                    </div>
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2" placeholder="mg/dl">
+                </div>
+                <button class="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg" onclick="eliminarFila(this)">Eliminar</button>
+            </div>
+            <div class="border-t border-dashed border-gray-300" id="separacion-urobilinogeno-min-max"></div>
+
+            <!-- Urobilinógeno Positivo/Negativo -->
+            <div class="flex flex-col items-center space-y-4" id="fila-urobilinogeno-positivo-negativo">
+                <div class="flex items-center space-x-4 w-full">
+                    <span class="w-1/4 font-semibold">Urobilinógeno</span>
+                    <span class="w-1/4">Resultado</span>
+                    <span class="w-1/4">Unidades</span>
+                </div>
+                <div class="flex items-center space-x-4 mt-2 w-full">
+                    <span class="w-1/4">Positivo/Negativo</span>
+                    <select class="w-1/4 border border-gray-300 rounded-full p-2">
+                        <option>Positivo</option>
+                        <option>Negativo</option>
+                    </select>
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2" placeholder="mg/dl">
+                </div>
+                <button class="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg" onclick="eliminarFila(this)">Eliminar</button>
+            </div>
+            <div class="border-t border-dashed border-gray-300" id="separacion-urobilinogeno-positivo-negativo"></div>
+
+            <!-- Urobilinógeno Menor que -->
+            <div class="flex flex-col items-center space-y-4" id="fila-urobilinogeno-menor">
+                <div class="flex items-center space-x-4 w-full">
+                    <span class="w-1/4 font-semibold">Urobilinógeno</span>
+                    <span class="w-1/4">Menor que</span>
+                    <span class="w-1/4">Unidades</span>
+                </div>
+                <div class="flex items-center space-x-4 mt-2 w-full">
+                    <span class="w-1/4">Menor que</span>
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2">
+                    <input type="text" class="w-1/4 border border-gray-300 rounded-full p-2" placeholder="mg/dl">
+                </div>
+                <button class="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg" onclick="eliminarFila(this)">Eliminar</button>
+            </div>
+            <div class="border-t border-dashed border-gray-300" id="separacion-urobilinogeno-menor"></div>
+        </div>
+    </div>
+</div>
+
+
+    <script>
+        const reactivoInput = document.getElementById('reactivo');
+        const suggestionsBox = document.getElementById('suggestions');
+        const selectedReactivos = document.getElementById('selected-reactivos');
+
+        const reactivos = ['Bilirrubinas', 'Glucosa', 'Hemoglobina', 'Colesterol', 'Triglicéridos', 'Creatinina'];
+
+        reactivoInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            suggestionsBox.innerHTML = '';
+            if (query) {
+                const filteredReactivos = reactivos.filter(reactivo => reactivo.toLowerCase().includes(query));
+                filteredReactivos.forEach(reactivo => {
+                    const suggestionItem = document.createElement('div');
+                    suggestionItem.classList.add('autocomplete-suggestion');
+                    suggestionItem.textContent = reactivo;
+                    suggestionItem.addEventListener('click', function() {
+                        addReactivo(reactivo);
+                        reactivoInput.value = '';
+                        suggestionsBox.innerHTML = '';
+                        suggestionsBox.classList.add('hidden');
+                    });
+                    suggestionsBox.appendChild(suggestionItem);
+                });
+                suggestionsBox.classList.remove('hidden');
+            } else {
+                suggestionsBox.classList.add('hidden');
+            }
+        });
+
+        function addReactivo(reactivo) {
+            const reactivoSpan = document.createElement('span');
+            reactivoSpan.classList.add('bg-blue-100', 'text-blue-700', 'px-1', 'py-0.5', 'rounded-full', 'flex', 'items-center', 'text-sm');
+            reactivoSpan.innerHTML = `${reactivo} <i class="fas fa-times ml-1 cursor-pointer text-red-500"></i>`;
+            reactivoSpan.querySelector('i').addEventListener('click', function() {
+                reactivoSpan.remove();
+            });
+            selectedReactivos.appendChild(reactivoSpan);
+        }
+// Función para eliminar una fila completa, incluyendo los inputs
+function eliminarFila(button) {
+    const fila = button.closest('div'); // Obtener la fila
+    const separacion = document.getElementById('separacion-' + fila.id); // Obtener la línea de separación asociada a la fila
+    fila.remove(); // Eliminar la fila
+    if (separacion) {
+        separacion.remove(); // Eliminar la línea de separación
+    }
+}
+
+    </script>
+</body>
+</html>
