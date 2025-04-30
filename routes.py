@@ -1062,3 +1062,121 @@ def check_proveedor():
     if response.data:
         return jsonify({"exists": True, "id": response.data[0]["id"]})
     return jsonify({"exists": False})
+
+#Inventario
+# Ruta para mostrar todos los reactivos (Inventario)
+@app_routes.route("/admin/inventory")
+@require_role("Admin")
+def manage_inventory():
+    reactivos = obtener_reactivos()  # Llamada a la función que obtiene los reactivos de la base de datos
+    return render_template("admin/inventory.html", reactivos=reactivos)
+
+# Ruta para agregar un nuevo reactivo
+@app_routes.route("/admin/add_reactivo", methods=["GET", "POST"])
+@require_role("Admin")
+def add_reactivo():
+    proveedores = obtener_proveedores()  # Obtener proveedores para el dropdown
+
+    if request.method == "POST":
+        # Recoger datos del formulario
+        nombre = request.form['nombre']
+        tipo_reactivo = request.form['tipo_reactivo']
+        costo_unidad = request.form['costo_unidad']
+        precio_unidad = request.form['precio_unidad']
+        proveedor = request.form['proveedor']
+        fecha_entrada = request.form['fecha_entrada']
+        cantidad_inicial = request.form['cantidad_inicial']
+        numero_lote = request.form['numero_lote']
+        fecha_vencimiento = request.form['fecha_vencimiento']
+        ubicacion_inventario = request.form['ubicacion_inventario']
+        anotaciones = request.form['anotaciones']
+
+        # Validar duplicado de reactivo por nombre y proveedor
+        if reactivo_duplicado(nombre, proveedor):
+            flash("Ya existe un reactivo con ese nombre y proveedor.", "error")
+            return redirect(url_for("app_routes.add_reactivo"))
+
+        # Insertar el reactivo en la base de datos
+        supabase.table('reactivos').insert({
+            'nombre': nombre,
+            'tipo_reactivo': tipo_reactivo,
+            'costo_unidad': costo_unidad,
+            'precio_unidad': precio_unidad,
+            'proveedor_id': proveedor,  # Relación con el proveedor
+            'fecha_entrada': fecha_entrada,
+            'cantidad_inicial': cantidad_inicial,
+            'numero_lote': numero_lote,
+            'fecha_vencimiento': fecha_vencimiento,
+            'ubicacion_inventario': ubicacion_inventario,
+            'anotaciones': anotaciones
+        }).execute()
+
+        flash("Reactivo registrado correctamente", "success")
+        return redirect(url_for("app_routes.manage_inventory"))
+
+    return render_template("admin/add_reactivo.html", proveedores=proveedores)
+
+@app_routes.route("/admin/delete_reactivo/<int:reactivo_id>", methods=["POST"])
+@require_role("Admin")
+def delete_reactivo(reactivo_id):
+    password = request.form.get('password', '').strip()
+    if not password or 'user_id' not in session:
+        return jsonify({"message": "No autorizado."}), 403
+
+    # Verificar la contraseña del administrador
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user_query.data['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        # Desactivar el reactivo
+        supabase.table('reactivos').update({"activo": False}).eq('id', reactivo_id).execute()
+        return jsonify({"message": "Reactivo desactivado correctamente."}), 200
+    except Exception as e:
+        print(f"Error al eliminar reactivo: {e}")
+        return jsonify({"message": "Error al eliminar reactivo."}), 500
+
+
+@app_routes.route("/admin/activate_reactivo/<int:reactivo_id>", methods=["POST"])
+@require_role("Admin")
+def activate_reactivo(reactivo_id):
+    password = request.form.get('password', '').strip()
+    if not password or 'user_id' not in session:
+        return jsonify({"message": "No autorizado."}), 403
+
+    # Verificar la contraseña del administrador
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user_query.data['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        # Activar el reactivo
+        supabase.table('reactivos').update({"activo": True}).eq('id', reactivo_id).execute()
+        return jsonify({"message": "Reactivo activado correctamente."}), 200
+    except Exception as e:
+        print(f"Error al activar reactivo: {e}")
+        return jsonify({"message": "Error al activar reactivo."}), 500
+
+
+@app_routes.route("/admin/get_reactivo_details/<int:reactivo_id>", methods=["GET"])
+@require_role("Admin")
+def get_reactivo_details(reactivo_id):
+    try:
+        # Obtener el reactivo por ID desde la base de datos
+        reactivo = supabase.table('reactivos').select('*').eq('id', reactivo_id).single().execute().data
+        if reactivo:
+            # Devolver los detalles del reactivo en formato JSON
+            return jsonify({
+                "nombre": reactivo['nombre'],
+                "tipo_reactivo": reactivo['tipo_reactivo'],
+                "cantidad_inicial": reactivo['cantidad_inicial'],
+                "precio_unidad": reactivo['precio_unidad'],
+                "fecha_entrada": reactivo['fecha_entrada'],
+                "fecha_vencimiento": reactivo['fecha_vencimiento'],
+                "proveedor_nombre": reactivo['proveedor_id']  # Asegúrate de obtener el nombre del proveedor
+            }), 200
+        else:
+            return jsonify({"message": "Reactivo no encontrado"}), 404
+    except Exception as e:
+        print(f"Error al obtener detalles del reactivo: {e}")
+        return jsonify({"message": "Error al obtener detalles del reactivo"}), 500

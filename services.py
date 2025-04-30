@@ -424,3 +424,40 @@ def proveedor_duplicado(nombre, telefono, correo):
     except Exception as e:
         print(f"Error en verificación de duplicado: {e}")
         return False
+    
+#reactivos
+# Obtener todos los reactivos
+def obtener_reactivos():
+    try:
+        response = supabase.table('reactivos').select('*').execute()
+        return response.data if response.data else []
+    except Exception as e:
+        print(f"Error al obtener reactivos: {e}")
+        return []
+
+# Validar si ya existe un reactivo con el mismo nombre y proveedor
+def reactivo_duplicado(nombre, proveedor_id):
+    try:
+        response = supabase.table("reactivos").select("id").eq("nombre", nombre).eq("proveedor_id", proveedor_id).execute()
+        return len(response.data) > 0
+    except Exception as e:
+        print(f"Error al verificar duplicado de reactivo: {e}")
+        return False
+
+# Crear un nuevo reactivo
+def crear_reactivo(data):
+    try:
+        response = supabase.table('reactivos').insert(data).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al crear reactivo: {e}")
+        return None
+
+# Actualizar un reactivo
+def actualizar_reactivo(reactivo_id, data):
+    try:
+        response = supabase.table('reactivos').update(data).eq('id', reactivo_id).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error al actualizar reactivo: {e}")
+        return None

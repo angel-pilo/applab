@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Reactivo{% endblock %}
+
+{% block content %}
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<div class="flex-1 p-8 transition-all duration-300">
+  <div class="flex items-center space-x-2 mb-6">
+    <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+    <h1 class="text-3xl font-bold">Registrar nuevo reactivo</h1>
+  </div>
+
+  <form method="POST" id="form-reactivo">
+    <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Nombre del reactivo<span class="text-red-500">*</span></label>
+          <input type="text" name="nombre" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el nombre del reactivo" required>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Tipo de reactivo<span class="text-red-500">*</span></label>
+          <input type="text" name="tipo_reactivo" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Tipo de reactivo" required>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Costo por unidad</label>
+          <input type="number" name="costo_unidad" step="0.01" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Costo por unidad">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Precio por unidad</label>
+          <input type="number" name="precio_unidad" step="0.01" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Precio por unidad">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Proveedor<span class="text-red-500">*</span></label>
+          <select name="proveedor" class="w-full px-4 py-2 border rounded-[1rem]" required>
+            <option value="">Seleccionar proveedor</option>
+            {% for proveedor in proveedores %}
+                <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Fecha de entrada</label>
+          <input type="date" name="fecha_entrada" class="w-full px-4 py-2 border rounded-[1rem]" required>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Cantidad Inicial</label>
+          <input type="number" name="cantidad_inicial" class="w-full px-4 py-2 border rounded-[1rem]" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Información de existencia -->
+    <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md mt-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Número de lote</label>
+          <input type="text" name="numero_lote" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número de lote">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Fecha de vencimiento</label>
+          <input type="date" name="fecha_vencimiento" class="w-full px-4 py-2 border rounded-[1rem]">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Ubicación en inventario</label>
+          <input type="text" name="ubicacion_inventario" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ubicación en inventario">
+        </div>
+      </div>
+    </div>
+
+    <!-- Anotaciones Extra -->
+    <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md mt-6">
+      <label class="block text-gray-700 font-bold mb-2">Anotaciones Extra</label>
+      <textarea name="anotaciones" rows="8" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Agrega notas adicionales si es necesario"></textarea>
+    </div>
+
+    <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
+      <button id="guardar-btn" type="submit" class="btn-guardar">Guardar</button>
+      <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const nombreInput = document.querySelector('[name="nombre"]');
+    const telefonoInput = document.querySelector('[name="telefono"]');
+    const correoInput = document.querySelector('[name="correo"]');
+    const guardarBtn = document.getElementById("guardar-btn");
+
+    function checkDuplicado() {
+      const nombre = nombreInput.value.trim();
+      const telefono = telefonoInput.value.trim();
+      const correo = correoInput.value.trim();
+
+      if (!nombre && !telefono && !correo) return;
+
+      fetch("/api/check_proveedor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, telefono, correo })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const alerta = document.getElementById("alerta-duplicado");
+        if (data.exists) {
+          alerta.classList.remove("hidden");
+          guardarBtn.disabled = true;
+        } else {
+          alerta.classList.add("hidden");
+          guardarBtn.disabled = false;
+        }
+      })
+      .catch(() => {
+        console.error("Error verificando proveedor duplicado");
+      });
+    }
+
+    nombreInput.addEventListener("input", checkDuplicado);
+    telefonoInput.addEventListener("input", checkDuplicado);
+    correoInput.addEventListener("input", checkDuplicado);
+  });
+</script>
+
+{% endblock %}

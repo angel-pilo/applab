@@ -9,7 +9,7 @@
             <h2>VISUALIZACIÓN DE ROLES</h2>
             <img src="{{ url_for('static', filename='icons/visualizacion.svg') }}" alt="Icono visualización" class="icon">
         </button>
-        <button class="card">
+        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_inventory') }}'">
             <h2>INVENTARIO DE REACTIVOS</h2>
             <img src="{{ url_for('static', filename='icons/inventario.svg') }}" alt="Icono inventario" class="icon">
         </button>
