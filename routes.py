@@ -1075,46 +1075,88 @@ def manage_inventory():
 @app_routes.route("/admin/add_reactivo", methods=["GET", "POST"])
 @require_role("Admin")
 def add_reactivo():
-    proveedores = obtener_proveedores()  # Obtener proveedores para el dropdown
-
+    # Si es un POST, se procesa el formulario
     if request.method == "POST":
-        # Recoger datos del formulario
-        nombre = request.form['nombre']
-        tipo_reactivo = request.form['tipo_reactivo']
-        costo_unidad = request.form['costo_unidad']
-        precio_unidad = request.form['precio_unidad']
-        proveedor = request.form['proveedor']
-        fecha_entrada = request.form['fecha_entrada']
-        cantidad_inicial = request.form['cantidad_inicial']
-        numero_lote = request.form['numero_lote']
-        fecha_vencimiento = request.form['fecha_vencimiento']
-        ubicacion_inventario = request.form['ubicacion_inventario']
-        anotaciones = request.form['anotaciones']
+        # Obtener los datos del formulario
+        data = request.form.to_dict()
 
-        # Validar duplicado de reactivo por nombre y proveedor
-        if reactivo_duplicado(nombre, proveedor):
-            flash("Ya existe un reactivo con ese nombre y proveedor.", "error")
-            return redirect(url_for("app_routes.add_reactivo"))
+        # Aquí puedes agregar la lógica para crear un nuevo reactivo o actualizar uno existente
+        if 'id' in data:  # Si hay un ID, estamos editando un reactivo
+            ok, result = actualizar_reactivo(data['id'], data)
+            if ok:
+                flash("Reactivo actualizado correctamente.", "success")
+            else:
+                flash(result, "error")
+                return render_template("admin/add_reactivo.html", reactivo=data, proveedores=obtener_proveedores())
+        else:  # Si no hay un ID, estamos creando un nuevo reactivo
+            ok, result = crear_reactivo(data)
+            if ok:
+                flash("Reactivo registrado correctamente.", "success")
+            else:
+                flash(result, "error")
+                return render_template("admin/add_reactivo.html", proveedores=obtener_proveedores())
+        
+        return redirect(url_for('app_routes.manage_reactivos'))  # Redirige a la lista de reactivos
 
-        # Insertar el reactivo en la base de datos
-        supabase.table('reactivos').insert({
+    # Si es un GET, verificamos si estamos editando un reactivo existente
+    reactivo = None
+    if 'reactivo_id' in request.args:
+        reactivo_id = request.args.get('reactivo_id')
+        reactivo = obtener_reactivo_por_id(reactivo_id)
+    
+    # Pasar el reactivo a la plantilla para rellenar los campos del formulario
+    proveedores = obtener_proveedores()
+    return render_template("admin/add_reactivo.html", reactivo=reactivo, proveedores=proveedores)
+
+@app_routes.route('/admin/edit_reactivo/<int:reactivo_id>', methods=['GET', 'POST'])
+@require_role('Admin')
+def edit_reactivo(reactivo_id):
+    # Obtén los detalles del reactivo desde la base de datos
+    reactivo = supabase.table('reactivos').select('*').eq('id', reactivo_id).single().execute().data
+    
+    # Obtén la lista de proveedores desde la base de datos
+    proveedores = supabase.table('proveedores').select('*').execute().data
+    
+    # Verifica si el reactivo fue encontrado
+    if not reactivo:
+        flash("Reactivo no encontrado", "error")
+        return redirect(url_for('app_routes.inventory_reactivos'))
+    
+    # Si el método es POST, es cuando se va a editar el reactivo
+    if request.method == 'POST':
+        # Recibe los datos del formulario y actualiza el reactivo en la base de datos
+        nombre = request.form.get('nombre')
+        tipo_reactivo = request.form.get('tipo_reactivo')
+        costo_unidad = request.form.get('costo_unidad')
+        precio_unidad = request.form.get('precio_unidad')
+        proveedor_id = request.form.get('proveedor')  # El proveedor seleccionado
+        fecha_entrada = request.form.get('fecha_entrada')
+        cantidad_inicial = request.form.get('cantidad_inicial')
+        numero_lote = request.form.get('numero_lote')
+        fecha_vencimiento = request.form.get('fecha_vencimiento')
+        ubicacion_inventario = request.form.get('ubicacion_inventario')
+        anotaciones = request.form.get('anotaciones')
+        
+        # Actualiza el reactivo en la base de datos
+        supabase.table('reactivos').update({
             'nombre': nombre,
             'tipo_reactivo': tipo_reactivo,
             'costo_unidad': costo_unidad,
             'precio_unidad': precio_unidad,
-            'proveedor_id': proveedor,  # Relación con el proveedor
+            'proveedor_id': proveedor_id,
             'fecha_entrada': fecha_entrada,
             'cantidad_inicial': cantidad_inicial,
             'numero_lote': numero_lote,
             'fecha_vencimiento': fecha_vencimiento,
             'ubicacion_inventario': ubicacion_inventario,
             'anotaciones': anotaciones
-        }).execute()
+        }).eq('id', reactivo_id).execute()
+        
+        flash("Reactivo actualizado correctamente", "success")
+        return redirect(url_for('app_routes.inventory_reactivos'))
 
-        flash("Reactivo registrado correctamente", "success")
-        return redirect(url_for("app_routes.manage_inventory"))
-
-    return render_template("admin/add_reactivo.html", proveedores=proveedores)
+    # Si el método es GET, solo renderizamos el formulario de edición con los datos del reactivo
+    return render_template("admin/add_reactivo.html", reactivo=reactivo, proveedores=proveedores, is_edit=True)
 
 @app_routes.route("/admin/delete_reactivo/<int:reactivo_id>", methods=["POST"])
 @require_role("Admin")
@@ -1165,6 +1207,9 @@ def get_reactivo_details(reactivo_id):
         # Obtener el reactivo por ID desde la base de datos
         reactivo = supabase.table('reactivos').select('*').eq('id', reactivo_id).single().execute().data
         if reactivo:
+            # Obtener el proveedor asociado al reactivo
+            proveedor = supabase.table('proveedores').select('nombre').eq('id', reactivo['proveedor_id']).single().execute().data
+
             # Devolver los detalles del reactivo en formato JSON
             return jsonify({
                 "nombre": reactivo['nombre'],
@@ -1173,7 +1218,7 @@ def get_reactivo_details(reactivo_id):
                 "precio_unidad": reactivo['precio_unidad'],
                 "fecha_entrada": reactivo['fecha_entrada'],
                 "fecha_vencimiento": reactivo['fecha_vencimiento'],
-                "proveedor_nombre": reactivo['proveedor_id']  # Asegúrate de obtener el nombre del proveedor
+                "proveedor_nombre": proveedor['nombre'] if proveedor else "N/A"  # Retorna el nombre del proveedor
             }), 200
         else:
             return jsonify({"message": "Reactivo no encontrado"}), 404

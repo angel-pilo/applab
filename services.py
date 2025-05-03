@@ -453,6 +453,14 @@ def crear_reactivo(data):
         print(f"Error al crear reactivo: {e}")
         return None
 
+def obtener_reactivo_por_id(reactivo_id):
+    try:
+        response = supabase.table('reactivos').select('*').eq('id', reactivo_id).single().execute()
+        return response.data
+    except Exception as e:
+        print(f"Error al obtener el reactivo por ID: {e}")
+        return None
+
 # Actualizar un reactivo
 def actualizar_reactivo(reactivo_id, data):
     try:
@@ -461,3 +469,4 @@ def actualizar_reactivo(reactivo_id, data):
     except Exception as e:
         print(f"Error al actualizar reactivo: {e}")
         return None
+

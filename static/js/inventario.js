@@ -89,7 +89,7 @@ function selectReactivo(id, nombre, tipo, cantidad, precio) {
     document.getElementById("reactivo-type").innerText = tipo;
     document.getElementById("reactivo-quantity").innerText = cantidad;
     document.getElementById("reactivo-price").innerText = precio;
-    
+
     // Realizar una solicitud al backend para obtener los detalles completos del reactivo
     fetch(`/admin/get_reactivo_details/${id}`)
         .then(response => response.json())
