@@ -447,11 +447,17 @@ def reactivo_duplicado(nombre, proveedor_id):
 # Crear un nuevo reactivo
 def crear_reactivo(data):
     try:
+        # Insertar el nuevo reactivo en la base de datos
         response = supabase.table('reactivos').insert(data).execute()
-        return response.data[0] if response.data else None
+
+        if response.data and len(response.data) > 0:
+            return True, "Reactivo creado exitosamente"
+        else:
+            return False, "No se pudo crear el reactivo"
     except Exception as e:
         print(f"Error al crear reactivo: {e}")
-        return None
+        return False, f"Error al crear el reactivo: {e}"
+
 
 def obtener_reactivo_por_id(reactivo_id):
     try:
@@ -469,4 +475,3 @@ def actualizar_reactivo(reactivo_id, data):
     except Exception as e:
         print(f"Error al actualizar reactivo: {e}")
         return None
-

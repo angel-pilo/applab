@@ -37,7 +37,7 @@
                 <select id="proveedor" name="proveedor" class="w-full p-2 border rounded" required>
                   <option value="">Seleccionar proveedor</option>
                   {% for proveedor in proveedores %}
-                      <option value="{{ proveedor.id }}" {% if proveedor.id == reactivo.proveedor_id %}selected{% endif %}>{{ proveedor.nombre }}</option>
+                      <option value="{{ proveedor.id }}" {% if reactivo and proveedor.id == reactivo.proveedor_id %}selected{% endif %}>{{ proveedor.nombre }}</option>
                   {% endfor %}
                 </select>
             </div>

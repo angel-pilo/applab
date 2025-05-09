@@ -1075,38 +1075,39 @@ def manage_inventory():
 @app_routes.route("/admin/add_reactivo", methods=["GET", "POST"])
 @require_role("Admin")
 def add_reactivo():
-    # Si es un POST, se procesa el formulario
     if request.method == "POST":
-        # Obtener los datos del formulario
         data = request.form.to_dict()
 
-        # Aquí puedes agregar la lógica para crear un nuevo reactivo o actualizar uno existente
-        if 'id' in data:  # Si hay un ID, estamos editando un reactivo
+        # CORREGIR clave 'proveedor' → 'proveedor_id'
+        if 'proveedor' in data:
+            data['proveedor_id'] = data.pop('proveedor')
+
+        if 'id' in data:
             ok, result = actualizar_reactivo(data['id'], data)
             if ok:
                 flash("Reactivo actualizado correctamente.", "success")
             else:
                 flash(result, "error")
                 return render_template("admin/add_reactivo.html", reactivo=data, proveedores=obtener_proveedores())
-        else:  # Si no hay un ID, estamos creando un nuevo reactivo
+        else:
             ok, result = crear_reactivo(data)
             if ok:
-                flash("Reactivo registrado correctamente.", "success")
+                flash(result, "success")
             else:
                 flash(result, "error")
-                return render_template("admin/add_reactivo.html", proveedores=obtener_proveedores())
-        
-        return redirect(url_for('app_routes.manage_reactivos'))  # Redirige a la lista de reactivos
+                return render_template("admin/add_reactivo.html", reactivo=None, proveedores=obtener_proveedores())
 
-    # Si es un GET, verificamos si estamos editando un reactivo existente
+        return redirect(url_for('app_routes.manage_inventory'))
+
+    # Si es GET
     reactivo = None
     if 'reactivo_id' in request.args:
         reactivo_id = request.args.get('reactivo_id')
         reactivo = obtener_reactivo_por_id(reactivo_id)
-    
-    # Pasar el reactivo a la plantilla para rellenar los campos del formulario
+
     proveedores = obtener_proveedores()
     return render_template("admin/add_reactivo.html", reactivo=reactivo, proveedores=proveedores)
+
 
 @app_routes.route('/admin/edit_reactivo/<int:reactivo_id>', methods=['GET', 'POST'])
 @require_role('Admin')
@@ -1153,7 +1154,7 @@ def edit_reactivo(reactivo_id):
         }).eq('id', reactivo_id).execute()
         
         flash("Reactivo actualizado correctamente", "success")
-        return redirect(url_for('app_routes.inventory_reactivos'))
+        return redirect(url_for('app_routes.manage_inventory'))
 
     # Si el método es GET, solo renderizamos el formulario de edición con los datos del reactivo
     return render_template("admin/add_reactivo.html", reactivo=reactivo, proveedores=proveedores, is_edit=True)
