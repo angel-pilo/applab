@@ -22,48 +22,51 @@
             <input type="text" id="search-input" placeholder="Buscar reactivo" class="w-full p-2 border rounded" oninput="searchInventory()">
             <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
         </div>
-        <button class="btn-editar ml-4" style="border-radius: 1rem;" onclick="window.location.href='{{ url_for('app_routes.add_reactivo') }}'">Añadir prueba</button>
+        <button class="btn-editar ml-4" style="border-radius: 1rem;" onclick="window.location.href='{{ url_for('app_routes.add_reactivo') }}'">Añadir reactivo</button>
+    </div>
+    <!-- Mensaje que se muestra cuando no hay resultados -->
+    <div id="not-found-message" class="hidden text-red-500 mb-4 ">
+        No se encontraron reactivos que coincidan con la búsqueda.
     </div>
 
     <div class="flex">
         <div class="w-2/3">
-            <div class="overflow-y-auto max-h-[calc(10*4rem)] border rounded shadow">
-                <!-- Tabla de inventario -->
+            <div class="overflow-y-auto max-h-[calc(10*4rem)] border rounded-lg shadow-md">
                 <table class="min-w-full bg-white rounded-lg shadow-md">
                     <thead class="sticky-header">
                         <tr class="border-b">
-                            <th class="py-2 px-15 text-left text-red-500">ID <i class="fas fa-arrow-down"></i></th>
-                            <th class="py-2 px-15 text-left">Prueba</th>
-                            <th class="py-2 px-15 text-left">Tipo de producto</th>
-                            <th class="py-2 px-15 text-left">Existencia</th>
-                            <th class="py-2 px-15 text-left">Venta</th>
+                            <th class="py-2 px-4 text-left text-red-500">ID <i class="fas fa-arrow-down"></i></th>
+                            <th class="py-2 px-15 text-left">Nombre</th>
+                            <th class="py-2 px-15 text-left">Tipo de reactivo</th>
+                            <th class="py-2 px-15 text-left">Cantidad</th>
+                            <th class="py-2 px-15 text-left">Precio</th>
+                            <th class="py-2 px-15 text-left">Estado</th>
                             <th class="py-2 px-15 text-left">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% if reactivos %}
-                            {% for reactivo in reactivos %}
-                            <tr class="border-b cursor-pointer {% if not reactivo.activo %}bg-gray-100{% endif %}" onclick="selectReactivo({{ reactivo.id }}, '{{ reactivo.nombre }}', '{{ reactivo.tipo_reactivo }}', '{{ reactivo.cantidad_inicial }}', '{{ reactivo.precio_unidad }}')">
-                                <td class="py-2 px-4">{{ reactivo.id }}</td>
-                                <td class="py-2 px-15">{{ reactivo.nombre }}</td>
-                                <td class="py-2 px-15">{{ reactivo.tipo_reactivo }}</td>
-                                <td class="py-2 px-15">{{ reactivo.cantidad_inicial }}</td>
-                                <td class="py-2 px-15">{{ reactivo.precio_unidad }}</td>
-                                <td class="py-2 px-15">
-                                    {% if reactivo.activo %}
-                                        <button class="btn-editar" style="border-radius: 1rem;" onclick="window.location.href='{{ url_for('app_routes.edit_reactivo', reactivo_id=reactivo.id) }}'">Editar</button>
-                                        <button class="btn-eliminar" onclick="confirmDeleteReactivo('{{ reactivo.id }}')">Eliminar</button>
-                                    {% else %}
-                                        <button class="btn-activar"  onclick="confirmActivateReactivo('{{ reactivo.id }}')">Activar</button>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="6" class="py-2 px-4 text-center">No hay reactivos registrados.</td>
-                            </tr>
-                        {% endif %}
+                        {% for reactivo in reactivos %}
+                        <tr class="border-b cursor-pointer {% if not reactivo.activo %}bg-gray-100{% endif %}" 
+                            onclick="document.getElementById('reactivo-{{ reactivo.id }}').checked = true; selectReactivo({{ reactivo.id }}, '{{ reactivo.nombre }}', '{{ reactivo.tipo_reactivo }}', '{{ reactivo.cantidad_inicial }}', '{{ reactivo.precio_unidad }}')">
+                            <td class="py-2 px-4">
+                                <input type="radio" name="reactivo" value="{{ reactivo.id }}" class="mr-2" id="reactivo-{{ reactivo.id }}">
+                                #{{ reactivo.id }}
+                            </td>
+                            <td class="py-2 px-15">{{ reactivo.nombre }}</td>
+                            <td class="py-2 px-15">{{ reactivo.tipo_reactivo }}</td>
+                            <td class="py-2 px-15">{{ reactivo.cantidad_inicial }}</td>
+                            <td class="py-2 px-15">${{ reactivo.precio_unidad }}</td>
+                            <td class="py-2 px-15">{{ 'Activo' if reactivo.activo else 'Inactivo' }}</td>
+                            <td class="py-2 px-15">
+                                {% if reactivo.activo %}
+                                    <button class="btn-editar" style="border-radius: 1rem;" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_reactivo', reactivo_id=reactivo.id) }}'">Editar</button>
+                                    <button class="btn-eliminar" style="border-radius: 1rem;" onclick="event.stopPropagation(); confirmDeleteReactivo('{{ reactivo.id }}')">Eliminar</button>
+                                {% else %}
+                                    <button class="btn-activar" style="border-radius: 1rem;" onclick="event.stopPropagation(); confirmActivateReactivo('{{ reactivo.id }}')">Activar</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -73,13 +76,16 @@
         <div class="w-1/3 ml-4 mt-16">
             <div class="bg-white p-4 rounded-lg shadow-md" style="border-radius: 1rem;">
                 <h2 class="text-xl font-bold mb-4">Detalles</h2>
-                <p><strong>Nombre del reactivo:</strong> <span id="reactivo-name">Nombre</span></p>
-                <p><strong>Tipo de reactivo:</strong> <span id="reactivo-type">Tipo</span></p>
-                <p><strong>Cantidad en inventario:</strong> <span id="reactivo-quantity">Cantidad</span></p>
-                <p><strong>Precio por unidad:</strong> $<span id="reactivo-price">Precio</span></p>
-                <p><strong>Fecha de entrada:</strong> <span id="reactivo-entry-date">dd/mm/aaaa</span></p>
-                <p><strong>Fecha de vencimiento:</strong> <span id="reactivo-expiry-date">dd/mm/aaaa</span></p>
-                <p><strong>Proveedor:</strong> <span id="reactivo-supplier">Proveedor</span></p>
+                <div id="no-selection-message" class="text-gray-500">Seleccione un empleado para mostrar información previa.</div>
+                <div id="employee-details" class="hidden">
+                    <p><strong>Nombre del reactivo:</strong> <span id="reactivo-name"></span></p>
+                    <p><strong>Tipo de reactivo:</strong> <span id="reactivo-type"></span></p>
+                    <p><strong>Cantidad en inventario:</strong> <span id="reactivo-quantity"></span></p>
+                    <p><strong>Precio por unidad:</strong> $<span id="reactivo-price"></span></p>
+                    <p><strong>Fecha de entrada:</strong> <span id="reactivo-entry-date"></span></p>
+                    <p><strong>Fecha de vencimiento:</strong> <span id="reactivo-expiry-date"></span></p>
+                    <p><strong>Proveedor:</strong> <span id="reactivo-supplier"></span></p>
+                </div>
             </div>
         </div>
     </div>
@@ -92,7 +98,6 @@
         <p>¿Estás seguro de que deseas eliminar este reactivo?</p>
         <input type="hidden" id="delete-reactivo-id">
 
-        <!-- Mensajes de error o éxito -->
         <div id="modal-message" class="mt-2 text-center"></div>
 
         <div class="mt-4">

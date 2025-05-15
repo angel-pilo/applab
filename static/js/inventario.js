@@ -89,6 +89,8 @@ function selectReactivo(id, nombre, tipo, cantidad, precio) {
     document.getElementById("reactivo-type").innerText = tipo;
     document.getElementById("reactivo-quantity").innerText = cantidad;
     document.getElementById("reactivo-price").innerText = precio;
+    document.getElementById('no-selection-message').classList.add('hidden');
+    document.getElementById('employee-details').classList.remove('hidden');
 
     // Realizar una solicitud al backend para obtener los detalles completos del reactivo
     fetch(`/admin/get_reactivo_details/${id}`)
@@ -104,4 +106,40 @@ function selectReactivo(id, nombre, tipo, cantidad, precio) {
         .catch(error => {
             console.error("Error al cargar los detalles del reactivo:", error);
         });
+}
+
+//para la barra de busqueda.
+function normalizeText(text) {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function searchInventory() {
+    const searchValue = normalizeText(document.getElementById('search-input').value);
+    const searchWords = searchValue.split(" "); // Palabras clave
+    const rows = document.querySelectorAll('tbody tr');
+    let found = false;
+
+    rows.forEach(row => {
+        // Extraemos texto de las columnas relevantes: Nombre y Tipo
+        const nombre = normalizeText(row.querySelector('td:nth-child(2)').innerText);
+        const tipo = normalizeText(row.querySelector('td:nth-child(3)').innerText);
+
+        // Concatenamos para buscar entre ambos campos
+        const combinedTextWords = `${nombre} ${tipo}`.split(" ");
+
+        // Verificar que todas las palabras de búsqueda coincidan con inicio de alguna palabra
+        const matches = searchWords.every(word =>
+            combinedTextWords.some(fullWord => fullWord.startsWith(word))
+        );
+
+        if (matches) {
+            row.style.display = '';
+            found = true;
+        } else {
+            row.style.display = 'none';
+        }
+
+        document.getElementById('not-found-message').classList.toggle('hidden', found);
+    });
+
 }
