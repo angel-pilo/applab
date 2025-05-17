@@ -7,6 +7,7 @@ from supabase import Client, create_client
 from utils import *
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
+from datetime import datetime
 import json
 import hashlib
 from services import (
@@ -1226,3 +1227,34 @@ def get_reactivo_details(reactivo_id):
     except Exception as e:
         print(f"Error al obtener detalles del reactivo: {e}")
         return jsonify({"message": "Error al obtener detalles del reactivo"}), 500
+    
+    
+@app_routes.route("/orden")
+@require_role("Mostrador")  
+def manage_orden():
+    fecha_actual = datetime.now().strftime("%d/%m/%Y")  # Formato dd/mm/aaaa
+    hospitales = obtener_hospitales()
+    doctores = obtener_doctores()
+    return render_template("mostrador/orden.html", fecha_actual=fecha_actual, hospitales=hospitales, doctores=doctores)
+    
+@app_routes.route("/api/buscar_pacientes")
+@require_role("Mostrador")  # o quien tenga permiso
+def buscar_pacientes():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+
+    # Aquí puedes hacer la búsqueda en la base (ajusta según tu servicio)
+    pacientes = obtener_pacientes()  # traer todos o haz función con filtro
+    
+    # Filtrar pacientes cuyo nombre o apellido contenga el query (ignorar mayúsc/minús)
+    resultados = [
+        {
+            'id': p['id'],
+            'nombre_completo': f"{p['nombres']} {p['apellidos']}"
+        }
+        for p in pacientes
+        if query.lower() in p['nombres'].lower() or query.lower() in p['apellidos'].lower()
+    ][:10]  # limitar resultados a 10
+
+    return jsonify(resultados)

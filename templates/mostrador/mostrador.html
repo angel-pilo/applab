@@ -5,7 +5,7 @@
 {% block content %}
 <div class="flex justify-center items-center h-full">
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-10 p-6">
-        <button class="card">
+        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_orden') }}'">
             <h2>Generar orden</h2>
             <img src="{{ url_for('static', filename='icons/orden.svg') }}" alt="Icono orden" class="icon">
         </button>
@@ -13,7 +13,7 @@
             <h2>Resultados listos</h2>
             <img src="{{ url_for('static', filename='icons/listos.svg') }}" alt="Icono listos" class="icon">
         </button>
-        <button class="card">
+        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_patients') }}'">
             <h2>Pacientes</h2>
             <img src="{{ url_for('static', filename='icons/pacientes.svg') }}" alt="Icono pacientes" class="icon">
         </button>
