@@ -1226,3 +1226,133 @@ def get_reactivo_details(reactivo_id):
     except Exception as e:
         print(f"Error al obtener detalles del reactivo: {e}")
         return jsonify({"message": "Error al obtener detalles del reactivo"}), 500
+    
+# Vista principal de pruebas clínicas
+@app_routes.route('/admin/pruebas')
+@require_role("Admin")
+def pruebas_clinicas():
+    pruebas = obtener_pruebas()
+    return render_template('admin/pruebas.html', pruebas=pruebas)
+
+
+# Registrar nueva prueba clínica
+@app_routes.route('/admin/add_prueba', methods=['GET', 'POST'])
+@require_role("Admin")
+def add_prueba():
+    if request.method == 'POST':
+        nombre = request.form.get('nombre', '').strip()
+        tipo = request.form.get('tipo', '').strip()
+        reactivos = request.form.getlist('reactivos')  # Lista de reactivos seleccionados
+        valores_normales_json = request.form.get('valores_normales_json', '[]')
+
+        if not nombre or not tipo:
+            flash("Todos los campos son obligatorios.", "error")
+            return render_template('admin/add_prueba.html', is_edit=False)
+
+        # Crear prueba
+        nueva_prueba = crear_prueba(nombre, tipo)
+        if not nueva_prueba:
+            flash("Error al crear la prueba.", "error")
+            return render_template('admin/add_prueba.html', is_edit=False)
+
+        prueba_id = nueva_prueba[0]['id']  # asumiendo que retorna lista con dicts
+
+        # Asignar reactivos
+        asignar_reactivos_a_prueba(prueba_id, reactivos)
+
+        # Guardar valores normales
+        import json
+        valores_normales = json.loads(valores_normales_json)
+        for valor in valores_normales:
+            crear_valor_normal(prueba_id, valor.get('nombre', ''),
+                              valor.get('tipo_separacion', ''),
+                              valor.get('estructura', {}))
+
+        flash("Prueba registrada exitosamente", "success")
+        return redirect(url_for('app_routes.pruebas_clinicas'))
+
+    # GET
+    reactivos = obtener_todos_los_reactivos()
+    return render_template('admin/add_prueba.html', is_edit=False, reactivos=reactivos)
+
+
+# Editar prueba clínica existente
+@app_routes.route('/admin/edit_prueba/<int:prueba_id>', methods=['GET', 'POST'])
+@require_role("Admin")
+def edit_prueba(prueba_id):
+    if request.method == 'POST':
+        nombre = request.form.get('nombre', '').strip()
+        tipo = request.form.get('tipo', '').strip()
+        reactivos = request.form.getlist('reactivos')
+        valores_normales_json = request.form.get('valores_normales_json', '[]')
+
+        if not nombre or not tipo:
+            flash("Todos los campos son obligatorios.", "error")
+            return redirect(url_for('app_routes.edit_prueba', prueba_id=prueba_id))
+
+        actualizar_prueba(prueba_id, nombre, tipo)
+
+        actualizar_reactivos_de_prueba(prueba_id, reactivos)
+
+        import json
+        valores_normales = json.loads(valores_normales_json)
+        # Por simplicidad elimina los valores normales previos y crea nuevos (puedes optimizar)
+        eliminar_valores_normales_de_prueba(prueba_id)
+        for valor in valores_normales:
+            crear_valor_normal(prueba_id, valor.get('nombre', ''),
+                              valor.get('tipo_separacion', ''),
+                              valor.get('estructura', {}))
+
+        flash("Prueba actualizada correctamente", "success")
+        return redirect(url_for('app_routes.pruebas_clinicas'))
+
+    # GET
+    prueba = obtener_prueba_por_id(prueba_id)
+    if not prueba:
+        flash("Prueba no encontrada", "error")
+        return redirect(url_for('app_routes.pruebas_clinicas'))
+
+    reactivos = obtener_todos_los_reactivos()
+    return render_template('admin/add_prueba.html', is_edit=True, prueba=prueba, reactivos=reactivos)
+
+
+# Eliminar (desactivar) prueba clínica
+@app_routes.route('/admin/delete_prueba/<int:prueba_id>', methods=['POST'])
+@require_role("Admin")
+def delete_prueba(prueba_id):
+    password = request.form.get('password', '').strip()
+
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+
+    user = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute().data
+    if not user or not bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        supabase.table('pruebas_clinicas').update({'activo': False}).eq('id', prueba_id).execute()
+        return jsonify({"message": "Prueba desactivada correctamente."}), 200
+    except Exception as e:
+        print(f"Error al desactivar prueba: {e}")
+        return jsonify({"message": "Error al desactivar la prueba."}), 500
+
+
+# Activar prueba clínica
+@app_routes.route('/admin/activate_prueba/<int:prueba_id>', methods=['POST'])
+@require_role("Admin")
+def activate_prueba(prueba_id):
+    password = request.form.get('password', '').strip()
+
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+
+    user = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute().data
+    if not user or not bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        supabase.table('pruebas_clinicas').update({'activo': True}).eq('id', prueba_id).execute()
+        return jsonify({"message": "Prueba activada correctamente."}), 200
+    except Exception as e:
+        print(f"Error al activar prueba: {e}")
+        return jsonify({"message": "Error al activar la prueba."}), 500
