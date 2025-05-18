@@ -5,9 +5,9 @@
 {% block content %}
 <div class="flex justify-center items-center h-full">
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-6 p-6">
-        <button class="card">
-            <h2>VISUALIZACIÓN DE ROLES</h2>
-            <img src="{{ url_for('static', filename='icons/visualizacion.svg') }}" alt="Icono visualización" class="icon">
+        <button class="card" onclick="window.location.href='{{ url_for('app_routes.pruebas_clinicas') }}'">
+            <h2>Pruebas</h2>
+            <img src="{{ url_for('static', filename='icons/pruebas.svg') }}" alt="Icono pruebas" class="icon">
         </button>
         <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_inventory') }}'">
             <h2>INVENTARIO DE REACTIVOS</h2>
