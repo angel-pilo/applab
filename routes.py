@@ -1228,7 +1228,9 @@ def get_reactivo_details(reactivo_id):
         print(f"Error al obtener detalles del reactivo: {e}")
         return jsonify({"message": "Error al obtener detalles del reactivo"}), 500
     
-    
+
+
+#Mostrador
 @app_routes.route("/orden")
 @require_role("Mostrador")  
 def manage_orden():
@@ -1258,3 +1260,15 @@ def buscar_pacientes():
     ][:10]  # limitar resultados a 10
 
     return jsonify(resultados)
+
+
+#Enfermero
+@app_routes.route("/muestra")
+@require_role("Enfermero") 
+def manage_muestra():
+    return render_template("enfermero/muestra.html")
+
+@app_routes.route("/api/analisis/<folio>")
+def get_analisis(folio):
+    datos = consultar_analisis_por_folio(folio)  
+    return jsonify(datos)

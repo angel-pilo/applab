@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Faltantes de muestra{% endblock %}
+
+{% block content %}
+<head>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<div class="w-full max-w-5xl mx-auto px-6 py-8">
+  <!-- Encabezado -->
+  <div class="flex items-center space-x-2 mb-6">
+    <button class="text-2xl" onclick="window.history.back()">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <h1 class="text-3xl font-bold">Faltantes de muestra</h1>
+  </div>
+
+  <!-- Tabla -->
+  <div class="bg-white rounded-[1rem] shadow-md overflow-x-auto">
+    <table class="min-w-full text-base text-left">
+      <thead>
+        <tr class="border-b">
+          <th class="px-6 py-4 text-red-600 font-bold">Folio ⬇</th>
+          <th class="px-6 py-4 font-semibold text-gray-700">Nombre del paciente</th>
+          <th class="px-6 py-4 font-semibold text-gray-700">Lugar</th>
+          <th class="px-6 py-4 text-center font-semibold text-gray-700">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-b">
+          <td class="px-6 py-4 text-red-600 font-bold flex items-center gap-2">
+            <span class="h-3 w-3 rounded-full bg-red-600 inline-block"></span> #00007
+          </td>
+          <td class="px-6 py-4">María Fernanda López Hernández</td>
+          <td class="px-6 py-4">Consultorio Pediátrico 3</td>
+          <td class="px-6 py-4 flex gap-2 justify-center">
+            <button onclick="abrirModal('00007')" class="btn-cancelar px-4 py-1 rounded-[1rem]">Análisis</button>
+            <button class="btn-guardar px-4 py-1 rounded-[1rem]">Finalizar</button>
+          </td>
+        </tr>
+        <tr class="border-b">
+          <td class="px-6 py-4 text-green-600 font-bold flex items-center gap-2">
+            <span class="h-3 w-3 rounded-full bg-green-600 inline-block"></span> #00006
+          </td>
+          <td class="px-6 py-4">José Manuel Pérez Rodríguez</td>
+          <td class="px-6 py-4">Habitación E-104</td>
+          <td class="px-6 py-4 flex gap-2 justify-center">
+            <button onclick="abrirModal('00006')" class="btn-cancelar px-4 py-1 rounded-[1rem]">Análisis</button>
+            <button class="btn-disabled px-4 py-1 rounded-[1rem]" disabled>Finalizado</button>
+          </td>
+        </tr>
+        <tr class="border-b">
+          <td class="px-6 py-4 text-red-600 font-bold flex items-center gap-2">
+            <span class="h-3 w-3 rounded-full bg-red-600 inline-block"></span> #00005
+          </td>
+          <td class="px-6 py-4">Ana Sofía Ramírez García</td>
+          <td class="px-6 py-4">Consultorio General 1</td>
+          <td class="px-6 py-4 flex gap-2 justify-center">
+            <button onclick="abrirModal('00005')" class="btn-cancelar px-4 py-1 rounded-[1rem]">Análisis</button>
+            <button class="btn-guardar px-4 py-1 rounded-[1rem]">Finalizar</button>
+          </td>
+        </tr>
+        <tr>
+          <td class="px-6 py-4 text-red-600 font-bold flex items-center gap-2">
+            <span class="h-3 w-3 rounded-full bg-red-600 inline-block"></span> #00004
+          </td>
+          <td class="px-6 py-4">Juan Carlos Martínez Torres</td>
+          <td class="px-6 py-4">Terapia Intensiva</td>
+          <td class="px-6 py-4 flex gap-2 justify-center">
+            <button onclick="abrirModal('00004')" class="btn-cancelar px-4 py-1 rounded-[1rem]">Análisis</button>
+            <button class="btn-guardar px-4 py-1 rounded-[1rem]">Finalizar</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<!-- si queremos modificar el funcionamiento de modal ir a enfermero.js -->
+<div id="modal-analisis" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-[1rem] w-[90%] max-w-xl p-6 relative shadow-lg">
+    <h2 class="text-xl font-bold text-center mb-4">Análisis</h2>
+    
+    <table class="w-full text-sm text-left mb-6">
+      <thead>
+        <tr class="border-b">
+          <th class="pb-2">Análisis</th>
+          <th class="pb-2">Tipo de prueba</th>
+        </tr>
+      </thead>
+      <tbody id="analisis-body">
+        <!-- Se insertarán dinámicamente -->
+      </tbody>
+    </table>
+
+    <div class="flex justify-center">
+      <button onclick="cerrarModal()" class="btn-cancelar px-6 py-2 rounded-[1rem]">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const modal = document.getElementById("modal-analisis");
+  const analisisBody = document.getElementById("analisis-body");
+
+  function abrirModal(folio) {
+    analisisBody.innerHTML = "";
+
+    // Datos de ejemplo
+    const datosEjemplo = {
+      "00007": [
+        ["BH (Biometría Hemática)", "Sanguínea"],
+        ["EGO (Examen General de Orina)", "Orina"],
+        ["Coprológico", "Heces"],
+        ["Cultivo de Heridas", "Secreción de Herida"]
+      ],
+      "00005": [
+        ["Prueba COVID-19", "Hisopo Nasal"],
+        ["Grupo Sanguíneo", "Sangre"]
+      ],
+      "00006": [],
+      "00004": [
+        ["Prueba VIH", "Sangre"]
+      ]
+    };
+
+    const pruebas = datosEjemplo[folio] || [];
+
+    if (pruebas.length === 0) {
+      analisisBody.innerHTML = "<tr><td colspan='2' class='text-center text-gray-500'>Sin análisis registrados</td></tr>";
+    } else {
+      pruebas.forEach(([nombre, tipo]) => {
+        analisisBody.innerHTML += `
+          <tr class="border-b">
+            <td class="py-2">${nombre}</td>
+            <td class="py-2">${tipo}</td>
+          </tr>`;
+      });
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  function cerrarModal() {
+    modal.classList.add("hidden");
+  }
+</script>
+
+{% endblock %}
