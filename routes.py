@@ -1377,6 +1377,11 @@ def buscar_pacientes():
 
     return jsonify(resultados)
 
+@app_routes.route("/orden_pruebas")
+@require_role("Mostrador")  
+def manage_orden_pruebas():
+    return render_template("mostrador/orden_pruebas.html")
+
 
 #Enfermero
 @app_routes.route("/muestra")

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Pruebas{% endblock %}
+
+{% block content %}
+<head>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<div class="w-full max-w-7xl mx-auto px-6 py-8">
+  <!-- Encabezado -->
+  <div class="flex items-center space-x-2 mb-6">
+    <button class="text-2xl" onclick="window.history.back()">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <h1 class="text-3xl font-bold">Pruebas</h1>
+  </div>
+
+  <!-- Contenido dividido -->
+  <div class="flex items-start justify-between gap-8">
+    
+    <!-- Tabla de pruebas -->
+    <div class="bg-white rounded-[1rem] shadow-md overflow-x-auto max-w-[1200px] w-full">
+      <!-- Buscador y Filtro -->
+      <div class="flex items-center gap-4 p-4">
+        <input type="text" placeholder="Buscar" class="border rounded px-4 py-2 w-full max-w-md focus:outline-none focus:ring">
+        <button class="border px-4 py-2 rounded shadow hover:bg-gray-100">Filtro</button>
+      </div>
+
+      <table class="min-w-full text-base text-left">
+        <thead>
+          <tr class="border-t border-b">
+            <th class="px-6 py-2">
+              <input type="checkbox">
+            </th>
+            <th class="px-6 py-4 text-blue-600 font-semibold">ID ⬇</th>
+            <th class="px-6 py-4 font-semibold text-gray-700">Prueba</th>
+            <th class="px-6 py-4 font-semibold text-gray-700">Tipo de prueba</th>
+            <th class="px-6 py-4 font-semibold text-gray-700">Stock</th>
+            <th class="px-6 py-4 font-semibold text-gray-700">Venta</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set pruebas = [
+            ("203241008", "Hemograma completo", "Sanguínea", "015", "$230"),
+            ("203241034", "Examen general de orina (EGO)", "Orina", "010", "$100"),
+            ("203241056", "Examen general de heces (EGH)", "Heces", "120", "$229"),
+            ("203241008", "Glucosa en la sangre", "Sanguínea", "079", "$90"),
+            ("203241034", "Perfil lipídico", "Sanguínea", "025", "$150"),
+            ("203241008", "Hemoglobina glucosilada", "Sanguínea", "065", "$130"),
+            ("203241034", "Urea y creatinina", "Sanguínea", "045", "$70")
+          ] %}
+          {% for id, nombre, tipo, stock, venta in pruebas %}
+          <tr class="border-b hover:bg-gray-50">
+            <td class="px-6 py-2"><input type="checkbox"></td>
+            <td class="px-6 py-2">{{ id }}</td>
+            <td class="px-6 py-2">{{ nombre }}</td>
+            <td class="px-6 py-2">{{ tipo }}</td>
+            <td class="px-6 py-2">{{ stock }}</td>
+            <td class="px-6 py-2">{{ venta }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Panel Orden -->
+    <div class="bg-white border border-gray-200 shadow-lg rounded-[1rem] p-6 w-[500px] self-start">
+      <h2 class="text-lg font-bold mb-4">
+        Orden <span class="text-red-600">#0000</span>
+      </h2>
+      <table class="w-full text-base text-left mb-4">
+        <thead>
+          <tr class="border-b">
+            <th class="pb-2">Prueba</th>
+            <th class="pb-2 text-center">Cantidad</th>
+            <th class="pb-2 text-right">Precio final</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b">
+            <td class="py-2">Examen general de orina (EGO)</td>
+            <td class="py-2 text-center">
+              <select class="border rounded px-2 py-1 text-base">
+                <option>1</option><option selected>3</option>
+              </select>
+            </td>
+            <td class="py-2 text-right">$100</td>
+          </tr>
+          <tr class="border-b">
+            <td class="py-2">Examen general de heces (EGH)</td>
+            <td class="py-2 text-center">
+              <select class="border rounded px-2 py-1 text-base">
+                <option selected>1</option>
+              </select>
+            </td>
+            <td class="py-2 text-right">$229</td>
+          </tr>
+          <tr class="border-b">
+            <td class="py-2">Glucosa en la sangre</td>
+            <td class="py-2 text-center">
+              <select class="border rounded px-2 py-1 text-base">
+                <option selected>1</option>
+              </select>
+            </td>
+            <td class="py-2 text-right">$90</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="flex justify-between text-lg font-bold">
+        <span>Total</span>
+        <span>$419</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botones de acción -->
+  <div class="flex justify-end mt-8 gap-4">
+    <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">Continuar</button>
+    <button type="button" class="btn-cancelar px-6 py-2 rounded-[1rem]">Cancelar</button>
+  </div>
+</div>
+{% endblock %}

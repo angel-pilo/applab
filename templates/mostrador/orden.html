@@ -75,7 +75,7 @@
     </div>
 
     <div class="flex justify-end gap-4">
-      <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">Continuar</button>
+      <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]" onclick="window.location.href='{{ url_for('app_routes.manage_orden_pruebas') }}'">Continuar</button>
       <button type="button" class="btn-cancelar px-6 py-2 rounded-[1rem]" onclick="window.history.back()">Cancelar</button>
     </div>
   </form>
