@@ -20,7 +20,6 @@
 
   <!-- Contenido dividido -->
   <div class="flex items-start justify-between gap-8">
-    
     <!-- Tabla de pruebas -->
     <div class="bg-white rounded-[1rem] shadow-md overflow-x-auto max-w-[1200px] w-full">
       <!-- Buscador y Filtro -->
@@ -32,9 +31,7 @@
       <table class="min-w-full text-base text-left">
         <thead>
           <tr class="border-t border-b">
-            <th class="px-6 py-2">
-              <input type="checkbox">
-            </th>
+            <th class="px-6 py-2"><input type="checkbox"></th>
             <th class="px-6 py-4 text-blue-600 font-semibold">ID ⬇</th>
             <th class="px-6 py-4 font-semibold text-gray-700">Prueba</th>
             <th class="px-6 py-4 font-semibold text-gray-700">Tipo de prueba</th>
@@ -53,8 +50,8 @@
             ("203241034", "Urea y creatinina", "Sanguínea", "045", "$70")
           ] %}
           {% for id, nombre, tipo, stock, venta in pruebas %}
-          <tr class="border-b hover:bg-gray-50">
-            <td class="px-6 py-2"><input type="checkbox"></td>
+          <tr class="border-b hover:bg-gray-50" data-id="{{ id }}" data-nombre="{{ nombre }}" data-precio="{{ venta }}">
+            <td class="px-6 py-2"><input type="checkbox" class="seleccionar-prueba"></td>
             <td class="px-6 py-2">{{ id }}</td>
             <td class="px-6 py-2">{{ nombre }}</td>
             <td class="px-6 py-2">{{ tipo }}</td>
@@ -68,9 +65,7 @@
 
     <!-- Panel Orden -->
     <div class="bg-white border border-gray-200 shadow-lg rounded-[1rem] p-6 w-[500px] self-start">
-      <h2 class="text-lg font-bold mb-4">
-        Orden <span class="text-red-600">#0000</span>
-      </h2>
+      <h2 class="text-lg font-bold mb-4">Orden <span class="text-red-600">#0000</span></h2>
       <table class="w-full text-base text-left mb-4">
         <thead>
           <tr class="border-b">
@@ -79,47 +74,79 @@
             <th class="pb-2 text-right">Precio final</th>
           </tr>
         </thead>
-        <tbody>
-          <tr class="border-b">
-            <td class="py-2">Examen general de orina (EGO)</td>
-            <td class="py-2 text-center">
-              <select class="border rounded px-2 py-1 text-base">
-                <option>1</option><option selected>3</option>
-              </select>
-            </td>
-            <td class="py-2 text-right">$100</td>
-          </tr>
-          <tr class="border-b">
-            <td class="py-2">Examen general de heces (EGH)</td>
-            <td class="py-2 text-center">
-              <select class="border rounded px-2 py-1 text-base">
-                <option selected>1</option>
-              </select>
-            </td>
-            <td class="py-2 text-right">$229</td>
-          </tr>
-          <tr class="border-b">
-            <td class="py-2">Glucosa en la sangre</td>
-            <td class="py-2 text-center">
-              <select class="border rounded px-2 py-1 text-base">
-                <option selected>1</option>
-              </select>
-            </td>
-            <td class="py-2 text-right">$90</td>
-          </tr>
+        <tbody id="tabla-orden">
+          <!-- Se insertan desde JS -->
         </tbody>
       </table>
-      <div class="flex justify-between text-lg font-bold">
+      <div class="flex justify-between text-lg font-bold mt-4">
         <span>Total</span>
-        <span>$419</span>
+        <span id="total-orden">$0</span>
       </div>
     </div>
   </div>
 
   <!-- Botones de acción -->
   <div class="flex justify-end mt-8 gap-4">
-    <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">Continuar</button>
+    <form method="POST" action="{{ url_for('app_routes.reporte') }}">
+      <input type="hidden" id="datosSeleccionados" name="datosSeleccionados">
+      <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">Continuar</button>
+    </form>
     <button type="button" class="btn-cancelar px-6 py-2 rounded-[1rem]">Cancelar</button>
   </div>
 </div>
+
+<script>
+document.querySelectorAll('.seleccionar-prueba').forEach(checkbox => {
+  checkbox.addEventListener('change', () => {
+    const tablaOrden = document.getElementById('tabla-orden');
+    const totalOrden = document.getElementById('total-orden');
+    tablaOrden.innerHTML = '';
+    let total = 0;
+
+    document.querySelectorAll('.seleccionar-prueba:checked').forEach(cb => {
+      const row = cb.closest('tr');
+      const nombre = row.dataset.nombre;
+      const precioStr = row.dataset.precio.replace('$', '');
+      const precio = parseFloat(precioStr);
+
+      total += precio;
+
+      const fila = `
+        <tr class="border-b">
+          <td class="py-2">${nombre}</td>
+          <td class="py-2 text-center">
+            <select class="border rounded px-2 py-1 text-base">
+              <option>1</option>
+              <option selected>1</option>
+            </select>
+          </td>
+          <td class="py-2 text-right">$${precio.toFixed(2)}</td>
+        </tr>
+      `;
+      tablaOrden.innerHTML += fila;
+    });
+
+    totalOrden.textContent = `$${total.toFixed(2)}`;
+  });
+});
+
+const tablaSeleccion = document.getElementById("tabla-seleccion");  // la tabla lateral
+  const form = document.querySelector("form");
+  const hiddenInput = document.getElementById("datosSeleccionados");
+
+  form.addEventListener("submit", () => {
+    const rows = tablaSeleccion.querySelectorAll("tbody tr");
+    const datos = [];
+
+    rows.forEach(row => {
+      const prueba = row.children[0].textContent;
+      const cantidad = row.querySelector("select")?.value || "1";
+      const precio = row.children[2].textContent.replace("$", "");
+      datos.push({ prueba, cantidad, precio });
+    });
+
+    hiddenInput.value = JSON.stringify(datos);
+  });
+  
+</script>
 {% endblock %}

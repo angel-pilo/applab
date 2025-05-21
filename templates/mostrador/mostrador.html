@@ -4,12 +4,11 @@
 
 {% block content %}
 <div class="flex justify-center items-center h-full">
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-10 p-6">
+    <div class="grid grid-cols-2 sm:grid-cols-2 gap-10 p-6">
         <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_orden') }}'">
             <h2>Generar orden</h2>
             <img src="{{ url_for('static', filename='icons/orden.svg') }}" alt="Icono orden" class="icon">
-        </button>
-        <button class="card">
+       <button class="card" onclick="window.location.href='{{ url_for('app_routes.listos') }}'">
             <h2>Resultados listos</h2>
             <img src="{{ url_for('static', filename='icons/listos.svg') }}" alt="Icono listos" class="icon">
         </button>
@@ -17,14 +16,14 @@
             <h2>Pacientes</h2>
             <img src="{{ url_for('static', filename='icons/pacientes.svg') }}" alt="Icono pacientes" class="icon">
         </button>
-        <button class="card">
+        <!-- <button class="card">
             <h2>Corte de caja</h2>
             <img src="{{ url_for('static', filename='icons/corte.svg') }}" alt="Icono corte de caja" class="icon">
         </button>
         <button class="card">
             <h2>Ordenes recientes</h2>
             <img src="{{ url_for('static', filename='icons/reciente.svg') }}" alt="Icono ordenes recientes" class="icon">
-        </button>
+        </button> -->
         <button class="card">
             <h2>Configuración</h2>
             <img src="{{ url_for('static', filename='icons/configuracion.svg') }}" alt="Icono configuracion" class="icon">

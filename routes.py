@@ -1347,10 +1347,25 @@ def activate_prueba(prueba_id):
 
 
 #Mostrador
-@app_routes.route("/orden")
-@require_role("Mostrador")  
+@app_routes.route("/orden", methods=["GET", "POST"])
+@require_role("Mostrador")
 def manage_orden():
-    fecha_actual = datetime.now().strftime("%d/%m/%Y")  # Formato dd/mm/aaaa
+    if request.method == "POST":
+        # Aquí procesas los datos del formulario, por ejemplo:
+        nombre = request.form.get("nombre")
+        hospital_id = request.form.get("hospital")
+        cuarto = request.form.get("cuarto")
+        doctor_id = request.form.get("doctor")
+        observaciones = request.form.get("observaciones")
+
+        # Validaciones opcionales aquí...
+
+        # Guardar en la base de datos o pasar a la siguiente vista
+        # Redirige a la página de pruebas seleccionadas
+        return redirect(url_for("app_routes.manage_orden_pruebas"))
+
+    # GET normal
+    fecha_actual = datetime.now().strftime("%d/%m/%Y")
     hospitales = obtener_hospitales()
     doctores = obtener_doctores()
     return render_template("mostrador/orden.html", fecha_actual=fecha_actual, hospitales=hospitales, doctores=doctores)
@@ -1377,10 +1392,30 @@ def buscar_pacientes():
 
     return jsonify(resultados)
 
+
+@app_routes.route("/reporte", methods=["GET", "POST"])
+@require_role("Mostrador")
+def reporte():
+    if request.method == "POST":
+        datos = request.form.get("datosSeleccionados")
+        if datos:
+            session["pruebas_seleccionadas"] = datos
+        return redirect(url_for("app_routes.reporte"))
+
+    pruebas = session.get("pruebas_seleccionadas", "[]")
+    fecha_actual = datetime.now().strftime("%d/%m/%Y")  # si usas esto
+
+    return render_template("mostrador/reporte.html", pruebas_json=pruebas, fecha_actual=fecha_actual)
+
 @app_routes.route("/orden_pruebas")
 @require_role("Mostrador")  
 def manage_orden_pruebas():
     return render_template("mostrador/orden_pruebas.html")
+
+@app_routes.route("/listos")
+@require_role("Mostrador")  
+def listos():
+    return render_template("mostrador/listos.html")
 
 
 #Enfermero

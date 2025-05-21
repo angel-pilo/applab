@@ -287,3 +287,19 @@ body {
     color: white;
     box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); /* sombra más intensa al pasar el ratón */
 }
+
+.btn-whats {
+    background-color: white;
+    color: #25c761;
+    padding: 0.25rem 2rem;
+    border-radius: 1rem;
+    border: 2px solid #25c761;
+    transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* sombra sutil */
+}
+
+.btn-whats:hover {
+    background-color: #25c761;
+    color: white;
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); /* sombra más intensa al pasar el ratón */
+}
