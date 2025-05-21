@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Resultados{% endblock %}
+
+{% block content %}
+<head>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"/>
+  <style>
+    /* Custom scrollbar for the scrollable table container */
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 8px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background-color: #d1d5db; /* Tailwind gray-300 */
+      border-radius: 9999px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+  </style>
+
+</head>
+<div class="w-full max-w-7xl mx-auto px-6 py-8">
+      <!-- Encabezado -->
+  <div class="flex items-center space-x-2 mb-6">
+    <button class="text-2xl" onclick="window.history.back()">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <h1 class="text-3xl font-bold">Reporte Resultados</h1>
+  </div>
+    <header class="flex justify-between items-center mb-6">
+      <h1 class="text-xl font-semibold leading-tight">{{ paciente.nombre }}</h1>
+      <div class="text-lg font-extrabold">
+        Orden <span class="text-red-600">#{{ paciente.orden }}</span>
+      </div>
+    </header>
+
+    <form method="POST" action="">
+      {% for prueba in pruebas %}
+      <section class="bg-white rounded-xl shadow-md p-6 overflow-x-auto scrollbar-thin max-h-[400px] mb-8" style="scrollbar-width: thin;">
+        <table class="w-full border-collapse min-w-[700px]">
+          <thead>
+            <tr>
+              <th colspan="6" class="text-2xl font-bold text-left py-2 border-b border-black">{{ prueba.nombre }}</th>
+            </tr>
+            <tr class="text-xs text-gray-500 border-b border-black">
+              <th class="py-2 w-1/4"></th>
+              <th class="py-2 w-1/6 text-center">Resultados</th>
+              <th class="py-2 w-1/12 text-center">Unidades</th>
+              <th class="py-2 w-1/4 text-center">Valores normales</th>
+              <th class="py-2 w-1/12 text-center"></th>
+              <th class="py-2 w-1/12"></th>
+            </tr>
+          </thead>
+          <tbody class="text-sm text-gray-900">
+            {% for campo in prueba.campos %}
+            <tr class="border-b border-dashed border-gray-300" data-row="{{ campo.key }}">
+              <td class="py-2 pl-2">{{ campo.nombre }}</td>
+              <td class="py-2 text-center">
+                {% if campo.tipo == 'select' %}
+                  <select name="{{ campo.key }}" class="border border-gray-400 rounded-full px-4 py-1 text-sm text-center w-28 focus:outline-none focus:ring-1 focus:ring-yellow-300" aria-label="{{ campo.nombre }} resultado">
+                    <option disabled selected>Selecciona una opción</option>
+                    {% for opcion in campo.opciones %}
+                      <option>{{ opcion }}</option>
+                    {% endfor %}
+                  </select>
+                {% elif campo.tipo == 'input' %}
+                  <input type="text" name="{{ campo.key }}" value="" class="border border-gray-300 rounded-lg px-3 py-1 w-20 text-center text-sm focus:outline-none focus:ring-1 focus:ring-yellow-300" aria-label="{{ campo.nombre }} resultado" />
+                {% endif %}
+              </td>
+              <td class="py-2 text-center font-normal">
+                {% if campo.unidad and campo.unidad != '-' %}
+                  <input type="text" name="{{ campo.key }}_unidad" value="{{ campo.unidad }}" class="border border-transparent rounded px-1 text-center w-20 focus:outline-none focus:ring-1 focus:ring-yellow-300" aria-label="{{ campo.nombre }} unidades" readonly />
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="py-2 text-center font-normal">{{ campo.valores_normales }}</td>
+              <td class="py-2 text-center">
+                <input type="text" readonly class="border border-transparent rounded px-1 text-red-600 text-sm text-center w-36 focus:outline-none focus:ring-1 focus:ring-yellow-300 hidden" value="Fuera de valor normal" />
+              </td>
+              <td></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+      {% endfor %}
+    <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
+      <button id="guardar-btn" type="submit" class="btn-guardar">Guardar</button>
+      <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+    </div>
+    </form>
+</div>
+  <script>
+    // Helper function para comparar rangos "40 a 50"
+    function isValueInRange(value, rangeStr) {
+      if (!value || !rangeStr) return true;
+      const num = parseFloat(value.replace(",", "."));
+      if (isNaN(num)) return false;
+      const parts = rangeStr.split('a').map(s => s.trim());
+      if (parts.length === 2) {
+        const min = parseFloat(parts[0]);
+        const max = parseFloat(parts[1]);
+        if (!isNaN(min) && !isNaN(max)) {
+          return num >= min && num <= max;
+        }
+      }
+      return value === rangeStr;
+    }
+
+    document.querySelectorAll('tbody tr').forEach(row => {
+      const rowKey = row.getAttribute('data-row');
+      const resultadoInput = row.querySelector('select, input[type="text"]:not([readonly])');
+      const valorNormalCell = row.querySelector('td:nth-child(4)');
+      const alertaInput = row.querySelector('td:nth-child(5) input');
+
+      function checkValue() {
+        if (!resultadoInput || !valorNormalCell || !alertaInput) return;
+
+        const valorNormalText = valorNormalCell.textContent.trim();
+        let resultadoValue = resultadoInput.value.trim();
+
+        // Validación para campos select, si no se elige opción válida, oculta alerta
+        if (resultadoInput.tagName === "SELECT" && resultadoInput.selectedIndex === 0) {
+          alertaInput.classList.add("hidden");
+          return;
+        }
+
+        // Validar rango tipo "40 a 50"
+        if (valorNormalText.includes("a")) {
+          if (!isValueInRange(resultadoValue, valorNormalText)) {
+            alertaInput.classList.remove("hidden");
+          } else {
+            alertaInput.classList.add("hidden");
+          }
+          return;
+        }
+
+        // Validar contra valor exacto (Negativo, Positivo, etc)
+        if (valorNormalText && valorNormalText !== "-") {
+          if (resultadoValue !== valorNormalText) {
+            alertaInput.classList.remove("hidden");
+          } else {
+            alertaInput.classList.add("hidden");
+          }
+          return;
+        }
+
+        alertaInput.classList.add("hidden");
+      }
+
+      if (resultadoInput) {
+        if (resultadoInput.tagName === "SELECT") {
+          resultadoInput.addEventListener("change", checkValue);
+        } else {
+          resultadoInput.addEventListener("input", checkValue);
+        }
+      }
+    });
+  </script>
+{% endblock %}

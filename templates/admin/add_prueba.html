@@ -48,14 +48,16 @@
     }
 </style>
 
+
+
 <form method="POST" action="{{ url_for('app_routes.add_prueba') }}">
-    <!--1er contenedor -->
+    <!-- 1er contenedor -->
     <div class="w-full px-4 md:px-8 lg:px-16 xl:px-32 mt-8">
         <div class="flex items-center mb-6">
             <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
             <h1 class="text-3xl font-bold ml-2">Registrar nueva prueba</h1>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="bg-white p-8 rounded-2xl shadow-md w-full">
             <h2 class="text-xl font-bold mb-4">Información del reactivo</h2>
             <div class="border-b border-gray-300 mb-4"></div>
             <div class="flex flex-wrap gap-4">
@@ -72,23 +74,23 @@
                         <option value="antigeno">Antígeno</option>
                     </select>
                 </div>
-                
-            <div class="w-1/2 md:w-1/3 relative">
-                <label for="reactivo" class="block text-sm font-bold mb-2">Reactivos necesarios</label>
-                <input type="text" id="reactivo" autocomplete="off" placeholder="Busca y selecciona reactivos" class="w-full p-2 border rounded-lg" />
-                <div id="suggestions" class="autocomplete-suggestions hidden"></div>
-                <div id="selected-reactivos" class="flex space-x-1 mt-2 selected-reactivos"></div>
-                <input type="hidden" name="reactivos" id="reactivos_ids" value="" />
-            </div>
-            <div class="flex items-center mt-4">
-                <button type="submit" class="ml-auto bg-white text-blue-500 border border-blue-500 px-4 py-2 rounded-lg shadow-md hover:bg-blue-50">Registrar reactivo</button>
+                <div class="w-1/2 md:w-1/3 relative">
+                    <label for="reactivo" class="block text-sm font-bold mb-2">Reactivos necesarios</label>
+                    <input type="text" id="reactivo" autocomplete="off" placeholder="Busca y selecciona reactivos" class="w-full p-2 border rounded-lg" />
+                    <div id="suggestions" class="autocomplete-suggestions hidden"></div>
+                    <div id="selected-reactivos" class="flex space-x-1 mt-2 selected-reactivos"></div>
+                    <input type="hidden" name="reactivos" id="reactivos_ids" value="" />
+                </div>
+                <div class="flex items-center mt-4 w-full">
+                    <button type="submit" class="ml-auto bg-white text-blue-500 border border-blue-500 px-4 py-2 rounded-lg shadow-md hover:bg-blue-50">Registrar reactivo</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!--2do contenedor -->
+    <!-- 2do contenedor -->
     <div class="w-full px-4 md:px-8 lg:px-16 xl:px-32 mt-8">
-        <div class="bg-white shadow-md rounded-2xl p-6">
+        <div class="bg-white p-8 rounded-2xl shadow-md w-full">
             <h1 class="text-2xl font-bold mb-4 border-b pb-2 text-center">Nuevo valor normal</h1>
             <div class="flex flex-col md:flex-row items-start justify-start">
                 <div class="flex flex-col mb-4 md:mb-0">
@@ -126,9 +128,9 @@
         </div>
     </div>
 
-    <!--3er contenedor -->
+    <!-- 3er contenedor -->
     <div class="w-full px-4 md:px-8 lg:px-16 xl:px-32 mt-8">
-        <div class="bg-white shadow-md rounded-2xl p-8">
+        <div class="bg-white p-8 rounded-2xl shadow-md w-full">
             <h1 class="text-center text-2xl font-bold mb-4">Valores normales</h1>
             <div class="border-t border-black mb-4"></div>
             <div class="space-y-6" id="contenedor-valores"></div>

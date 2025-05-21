@@ -9,6 +9,14 @@
     <script src="https://kit.fontawesome.com/a076d05399.js"></script>
 </head>
 
+{% set pruebas = [
+    {"id": 1, "nombre": "Biometría Hemática", "tipo": "Sanguínea", "reactivo": "Reactivo BH", "activo": True},
+    {"id": 2, "nombre": "EGO", "tipo": "Orina", "reactivo": "Reactivo EGO", "activo": True},
+    {"id": 3, "nombre": "Coprológico", "tipo": "Heces", "reactivo": "Reactivo Coprológico", "activo": False},
+    {"id": 4, "nombre": "Grupo Sanguíneo", "tipo": "Sanguínea", "reactivo": "Reactivo Grupo", "activo": True},
+    {"id": 5, "nombre": "Cultivo de Heridas", "tipo": "Secreción", "reactivo": "Reactivo Cultivo", "activo": False}
+] %}
+
 <div class="container mx-auto p-4">
     <div class="flex items-center mb-4">
         <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
