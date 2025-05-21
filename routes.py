@@ -7,18 +7,9 @@ from supabase import Client, create_client
 from utils import *
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
+from datetime import datetime
 import json
 import hashlib
-from services import (
-    crear_paciente,
-    obtener_pacientes,
-    obtener_paciente_por_id,
-    actualizar_paciente,
-    eliminar_paciente,
-    activar_paciente,
-    paciente_duplicado,
-    obtener_hospitales
-)
 
 
 app_routes = Blueprint('app_routes', __name__)
@@ -598,13 +589,11 @@ def configuracion():
 def faltantes():
     return render_template("mostrador/faltantes.html")
 
+
 @app_routes.route("/pacientes")
 def pacientes():
     return render_template("enfermero/pacientes.html")
 
-@app_routes.route("/resultados")
-def resultados():
-    return render_template("quimico/resultados.html")
 
 @app_routes.route("/admin/doctores", methods=["GET"])
 @require_role("Admin")
@@ -1062,3 +1051,476 @@ def check_proveedor():
     if response.data:
         return jsonify({"exists": True, "id": response.data[0]["id"]})
     return jsonify({"exists": False})
+
+#Inventario
+# Ruta para mostrar todos los reactivos (Inventario)
+@app_routes.route("/admin/inventory")
+@require_role("Admin")
+def manage_inventory():
+    reactivos = obtener_reactivos()  # Llamada a la función que obtiene los reactivos de la base de datos
+    return render_template("admin/inventory.html", reactivos=reactivos)
+
+# Ruta para agregar un nuevo reactivo
+@app_routes.route("/admin/add_reactivo", methods=["GET", "POST"])
+@require_role("Admin")
+def add_reactivo():
+    if request.method == "POST":
+        data = request.form.to_dict()
+
+        # CORREGIR clave 'proveedor' → 'proveedor_id'
+        if 'proveedor' in data:
+            data['proveedor_id'] = data.pop('proveedor')
+
+        if 'id' in data:
+            ok, result = actualizar_reactivo(data['id'], data)
+            if ok:
+                flash("Reactivo actualizado correctamente.", "success")
+            else:
+                flash(result, "error")
+                return render_template("admin/add_reactivo.html", reactivo=data, proveedores=obtener_proveedores())
+        else:
+            ok, result = crear_reactivo(data)
+            if ok:
+                flash(result, "success")
+            else:
+                flash(result, "error")
+                return render_template("admin/add_reactivo.html", reactivo=None, proveedores=obtener_proveedores())
+
+        return redirect(url_for('app_routes.manage_inventory'))
+
+    # Si es GET
+    reactivo = None
+    if 'reactivo_id' in request.args:
+        reactivo_id = request.args.get('reactivo_id')
+        reactivo = obtener_reactivo_por_id(reactivo_id)
+
+    proveedores = obtener_proveedores()
+    return render_template("admin/add_reactivo.html", reactivo=reactivo, proveedores=proveedores)
+
+
+@app_routes.route('/admin/edit_reactivo/<int:reactivo_id>', methods=['GET', 'POST'])
+@require_role('Admin')
+def edit_reactivo(reactivo_id):
+    # Obtén los detalles del reactivo desde la base de datos
+    reactivo = supabase.table('reactivos').select('*').eq('id', reactivo_id).single().execute().data
+    
+    # Obtén la lista de proveedores desde la base de datos
+    proveedores = supabase.table('proveedores').select('*').execute().data
+    
+    # Verifica si el reactivo fue encontrado
+    if not reactivo:
+        flash("Reactivo no encontrado", "error")
+        return redirect(url_for('app_routes.inventory_reactivos'))
+    
+    # Si el método es POST, es cuando se va a editar el reactivo
+    if request.method == 'POST':
+        # Recibe los datos del formulario y actualiza el reactivo en la base de datos
+        nombre = request.form.get('nombre')
+        tipo_reactivo = request.form.get('tipo_reactivo')
+        costo_unidad = request.form.get('costo_unidad')
+        precio_unidad = request.form.get('precio_unidad')
+        proveedor_id = request.form.get('proveedor')  # El proveedor seleccionado
+        fecha_entrada = request.form.get('fecha_entrada')
+        cantidad_inicial = request.form.get('cantidad_inicial')
+        numero_lote = request.form.get('numero_lote')
+        fecha_vencimiento = request.form.get('fecha_vencimiento')
+        ubicacion_inventario = request.form.get('ubicacion_inventario')
+        anotaciones = request.form.get('anotaciones')
+        
+        # Actualiza el reactivo en la base de datos
+        supabase.table('reactivos').update({
+            'nombre': nombre,
+            'tipo_reactivo': tipo_reactivo,
+            'costo_unidad': costo_unidad,
+            'precio_unidad': precio_unidad,
+            'proveedor_id': proveedor_id,
+            'fecha_entrada': fecha_entrada,
+            'cantidad_inicial': cantidad_inicial,
+            'numero_lote': numero_lote,
+            'fecha_vencimiento': fecha_vencimiento,
+            'ubicacion_inventario': ubicacion_inventario,
+            'anotaciones': anotaciones
+        }).eq('id', reactivo_id).execute()
+        
+        flash("Reactivo actualizado correctamente", "success")
+        return redirect(url_for('app_routes.manage_inventory'))
+
+    # Si el método es GET, solo renderizamos el formulario de edición con los datos del reactivo
+    return render_template("admin/add_reactivo.html", reactivo=reactivo, proveedores=proveedores, is_edit=True)
+
+@app_routes.route("/admin/delete_reactivo/<int:reactivo_id>", methods=["POST"])
+@require_role("Admin")
+def delete_reactivo(reactivo_id):
+    password = request.form.get('password', '').strip()
+    if not password or 'user_id' not in session:
+        return jsonify({"message": "No autorizado."}), 403
+
+    # Verificar la contraseña del administrador
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user_query.data['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        # Desactivar el reactivo
+        supabase.table('reactivos').update({"activo": False}).eq('id', reactivo_id).execute()
+        return jsonify({"message": "Reactivo desactivado correctamente."}), 200
+    except Exception as e:
+        print(f"Error al eliminar reactivo: {e}")
+        return jsonify({"message": "Error al eliminar reactivo."}), 500
+
+
+@app_routes.route("/admin/activate_reactivo/<int:reactivo_id>", methods=["POST"])
+@require_role("Admin")
+def activate_reactivo(reactivo_id):
+    password = request.form.get('password', '').strip()
+    if not password or 'user_id' not in session:
+        return jsonify({"message": "No autorizado."}), 403
+
+    # Verificar la contraseña del administrador
+    admin_user_query = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute()
+    if not bcrypt.checkpw(password.encode('utf-8'), admin_user_query.data['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        # Activar el reactivo
+        supabase.table('reactivos').update({"activo": True}).eq('id', reactivo_id).execute()
+        return jsonify({"message": "Reactivo activado correctamente."}), 200
+    except Exception as e:
+        print(f"Error al activar reactivo: {e}")
+        return jsonify({"message": "Error al activar reactivo."}), 500
+
+
+@app_routes.route("/admin/get_reactivo_details/<int:reactivo_id>", methods=["GET"])
+@require_role("Admin")
+def get_reactivo_details(reactivo_id):
+    try:
+        # Obtener el reactivo por ID desde la base de datos
+        reactivo = supabase.table('reactivos').select('*').eq('id', reactivo_id).single().execute().data
+        if reactivo:
+            # Obtener el proveedor asociado al reactivo
+            proveedor = supabase.table('proveedores').select('nombre').eq('id', reactivo['proveedor_id']).single().execute().data
+
+            # Devolver los detalles del reactivo en formato JSON
+            return jsonify({
+                "nombre": reactivo['nombre'],
+                "tipo_reactivo": reactivo['tipo_reactivo'],
+                "cantidad_inicial": reactivo['cantidad_inicial'],
+                "precio_unidad": reactivo['precio_unidad'],
+                "fecha_entrada": reactivo['fecha_entrada'],
+                "fecha_vencimiento": reactivo['fecha_vencimiento'],
+                "proveedor_nombre": proveedor['nombre'] if proveedor else "N/A"  # Retorna el nombre del proveedor
+            }), 200
+        else:
+            return jsonify({"message": "Reactivo no encontrado"}), 404
+    except Exception as e:
+        print(f"Error al obtener detalles del reactivo: {e}")
+        return jsonify({"message": "Error al obtener detalles del reactivo"}), 500
+    
+# Vista principal de pruebas clínicas
+@app_routes.route('/admin/pruebas')
+@require_role("Admin")
+def pruebas_clinicas():
+    pruebas = obtener_pruebas()
+    return render_template('admin/pruebas.html', pruebas=pruebas)
+
+# Registrar nueva prueba clínica
+@app_routes.route('/admin/add_prueba', methods=['GET', 'POST'])
+@require_role("Admin")
+def add_prueba():
+    if request.method == 'POST':
+        nombre = request.form.get('nombre', '').strip()
+        tipo = request.form.get('tipo', '').strip()
+        reactivos = request.form.getlist('reactivos')  # Lista de reactivos seleccionados
+        valores_normales_json = request.form.get('valores_normales_json', '[]')
+
+        if not nombre or not tipo:
+            flash("Todos los campos son obligatorios.", "error")
+            return render_template('admin/add_prueba.html', is_edit=False)
+
+        # Crear prueba
+        nueva_prueba = crear_prueba(nombre, tipo)
+        if not nueva_prueba:
+            flash("Error al crear la prueba.", "error")
+            return render_template('admin/add_prueba.html', is_edit=False)
+
+        prueba_id = nueva_prueba[0]['id']  # asumiendo que retorna lista con dicts
+
+        # Asignar reactivos
+        asignar_reactivos_a_prueba(prueba_id, reactivos)
+
+        # Guardar valores normales
+        import json
+        valores_normales = json.loads(valores_normales_json)
+        for valor in valores_normales:
+            crear_valor_normal(prueba_id, valor.get('nombre', ''),
+                              valor.get('tipo_separacion', ''),
+                              valor.get('estructura', {}))
+
+        flash("Prueba registrada exitosamente", "success")
+        return redirect(url_for('app_routes.pruebas_clinicas'))
+
+    # GET
+    reactivos = obtener_todos_los_reactivos()
+    return render_template('admin/add_prueba.html', is_edit=False, reactivos=reactivos)
+
+
+# Editar prueba clínica existente
+@app_routes.route('/admin/edit_prueba/<int:prueba_id>', methods=['GET', 'POST'])
+@require_role("Admin")
+def edit_prueba(prueba_id):
+    if request.method == 'POST':
+        nombre = request.form.get('nombre', '').strip()
+        tipo = request.form.get('tipo', '').strip()
+        reactivos = request.form.getlist('reactivos')
+        valores_normales_json = request.form.get('valores_normales_json', '[]')
+
+        if not nombre or not tipo:
+            flash("Todos los campos son obligatorios.", "error")
+            return redirect(url_for('app_routes.edit_prueba', prueba_id=prueba_id))
+
+        actualizar_prueba(prueba_id, nombre, tipo)
+
+        actualizar_reactivos_de_prueba(prueba_id, reactivos)
+
+        import json
+        valores_normales = json.loads(valores_normales_json)
+        # Por simplicidad elimina los valores normales previos y crea nuevos (puedes optimizar)
+        eliminar_valores_normales_de_prueba(prueba_id)
+        for valor in valores_normales:
+            crear_valor_normal(prueba_id, valor.get('nombre', ''),
+                              valor.get('tipo_separacion', ''),
+                              valor.get('estructura', {}))
+
+        flash("Prueba actualizada correctamente", "success")
+        return redirect(url_for('app_routes.pruebas_clinicas'))
+
+    # GET
+    prueba = obtener_prueba_por_id(prueba_id)
+    if not prueba:
+        flash("Prueba no encontrada", "error")
+        return redirect(url_for('app_routes.pruebas_clinicas'))
+
+    reactivos = obtener_todos_los_reactivos()
+    return render_template('admin/add_prueba.html', is_edit=True, prueba=prueba, reactivos=reactivos)
+
+
+# Eliminar (desactivar) prueba clínica
+@app_routes.route('/admin/delete_prueba/<int:prueba_id>', methods=['POST'])
+@require_role("Admin")
+def delete_prueba(prueba_id):
+    password = request.form.get('password', '').strip()
+
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+
+    user = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute().data
+    if not user or not bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        supabase.table('pruebas_clinicas').update({'activo': False}).eq('id', prueba_id).execute()
+        return jsonify({"message": "Prueba desactivada correctamente."}), 200
+    except Exception as e:
+        print(f"Error al desactivar prueba: {e}")
+        return jsonify({"message": "Error al desactivar la prueba."}), 500
+
+
+# Activar prueba clínica
+@app_routes.route('/admin/activate_prueba/<int:prueba_id>', methods=['POST'])
+@require_role("Admin")
+def activate_prueba(prueba_id):
+    password = request.form.get('password', '').strip()
+
+    if 'user_id' not in session:
+        return jsonify({"message": "No estás autorizado."}), 403
+
+    user = supabase.table('usuarios').select('*').eq('id', session['user_id']).single().execute().data
+    if not user or not bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
+        return jsonify({"message": "Contraseña incorrecta."}), 401
+
+    try:
+        supabase.table('pruebas_clinicas').update({'activo': True}).eq('id', prueba_id).execute()
+        return jsonify({"message": "Prueba activada correctamente."}), 200
+    except Exception as e:
+        print(f"Error al activar prueba: {e}")
+        return jsonify({"message": "Error al activar la prueba."}), 500
+
+
+#Mostrador
+@app_routes.route("/orden", methods=["GET", "POST"])
+@require_role("Mostrador")
+def manage_orden():
+    if request.method == "POST":
+        # Aquí procesas los datos del formulario, por ejemplo:
+        nombre = request.form.get("nombre")
+        hospital_id = request.form.get("hospital")
+        cuarto = request.form.get("cuarto")
+        doctor_id = request.form.get("doctor")
+        observaciones = request.form.get("observaciones")
+
+        # Validaciones opcionales aquí...
+
+        # Guardar en la base de datos o pasar a la siguiente vista
+        # Redirige a la página de pruebas seleccionadas
+        return redirect(url_for("app_routes.manage_orden_pruebas"))
+
+    # GET normal
+    fecha_actual = datetime.now().strftime("%d/%m/%Y")
+    hospitales = obtener_hospitales()
+    doctores = obtener_doctores()
+    return render_template("mostrador/orden.html", fecha_actual=fecha_actual, hospitales=hospitales, doctores=doctores)
+    
+@app_routes.route("/api/buscar_pacientes")
+@require_role("Mostrador")  # o quien tenga permiso
+def buscar_pacientes():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+
+    # Aquí puedes hacer la búsqueda en la base (ajusta según tu servicio)
+    pacientes = obtener_pacientes()  # traer todos o haz función con filtro
+    
+    # Filtrar pacientes cuyo nombre o apellido contenga el query (ignorar mayúsc/minús)
+    resultados = [
+        {
+            'id': p['id'],
+            'nombre_completo': f"{p['nombres']} {p['apellidos']}"
+        }
+        for p in pacientes
+        if query.lower() in p['nombres'].lower() or query.lower() in p['apellidos'].lower()
+    ][:10]  # limitar resultados a 10
+
+    return jsonify(resultados)
+
+
+@app_routes.route("/reporte", methods=["GET", "POST"])
+@require_role("Mostrador")
+def reporte():
+    if request.method == "POST":
+        datos = request.form.get("datosSeleccionados")
+        if datos:
+            session["pruebas_seleccionadas"] = datos
+        return redirect(url_for("app_routes.reporte"))
+
+    pruebas = session.get("pruebas_seleccionadas", "[]")
+    fecha_actual = datetime.now().strftime("%d/%m/%Y")  # si usas esto
+
+    return render_template("mostrador/reporte.html", pruebas_json=pruebas, fecha_actual=fecha_actual)
+
+@app_routes.route("/orden_pruebas")
+@require_role("Mostrador")  
+def manage_orden_pruebas():
+    return render_template("mostrador/orden_pruebas.html")
+
+@app_routes.route("/listos")
+@require_role("Mostrador")  
+def listos():
+    return render_template("mostrador/listos.html")
+
+
+#Enfermero
+@app_routes.route("/muestra")
+@require_role("Enfermero") 
+def manage_muestra():
+    return render_template("enfermero/muestra.html")
+
+@app_routes.route("/api/analisis/<folio>")
+def get_analisis(folio):
+    datos = consultar_analisis_por_folio(folio)  
+    return jsonify(datos)
+
+#Quimico
+@app_routes.route("/resultados")
+@require_role("Quimico") 
+def resultados():
+    return render_template("quimico/resultados.html")
+
+# Ruta de prueba solo para front
+@app_routes.route('/quimico/captura_resultados/<folio>')
+def captura_resultados(folio):
+    paciente = {"nombre": "Paciente Demo", "orden": folio}
+
+    # Diccionario de nombres demo
+    nombres_pacientes = {
+        "00010": "María Fernanda López Hernández",
+        "00008": "José Manuel Pérez Rodríguez",
+        "00007": "Ana Sofía Ramírez García",
+        "00006": "Juan Carlos Martínez Torres",
+        "00005": "Valeria González Chávez",
+        "00011": "María José Hernández Gómez",
+        "00012": "Jorge Luis Vargas Martínez",
+        "00013": "Carmen Patricia Flores López",
+        "00014": "Carlos Eduardo Pérez Gutiérrez",
+        "00015": "Sofía Elena Jiménez Morales",
+    }
+
+    paciente = {
+        "nombre": nombres_pacientes.get(folio, "Paciente Demo"),
+        "orden": folio
+    }
+
+    # Define pruebas por folio
+    folio_pruebas = {
+        "00010": ["EGO", "BH (Biometría Hemática)"],  # <--- agrega las pruebas que lleva
+        "00008": ["EGO"],
+        "00007": ["Coprológico"],
+        "00006": ["Grupo Sanguíneo"],
+        "00005": ["Cultivo de Heridas"],
+        "00011": ["BH (Biometría Hemática)", "EGO"],
+        "00012": ["Coprológico"],
+        "00013": ["Grupo Sanguíneo"],
+        "00014": ["Cultivo de Heridas"],
+        "00015": ["Grupo Sanguíneo"]
+    }
+
+    # Diccionario de pruebas como arriba
+    catalogo_pruebas = {
+        "BH (Biometría Hemática)": {
+            "nombre": "BH (Biometría Hemática)",
+            "campos": [
+                {"key": "hemoglobina", "nombre": "Hemoglobina", "tipo": "input", "unidad": "g/dL", "valores_normales": "13.8 a 17.2"},
+                {"key": "hematocrito", "nombre": "Hematocrito", "tipo": "input", "unidad": "%", "valores_normales": "40 a 50"},
+                {"key": "eritrocitos", "nombre": "Eritrocitos", "tipo": "input", "unidad": "millones/µL", "valores_normales": "4.7 a 6.1"},
+            ]
+        },  
+        "EGO": {
+            "nombre": "EGO",
+            "campos": [
+                {"key": "bilirrubinas", "nombre": "Bilirrubinas", "tipo": "select", "opciones": ["Negativo", "Positivo", "Escasos"], "unidad": "-", "valores_normales": "Negativo"},
+                {"key": "cetonas", "nombre": "Cetonas", "tipo": "select", "opciones": ["Negativo", "Positivo", "Escasos"], "unidad": "-", "valores_normales": "Negativo"},
+                {"key": "cristales", "nombre": "Cristales", "tipo": "select", "opciones": ["Negativo", "Positivo", "Escasos"], "unidad": "-", "valores_normales": "Ausente o escasos"},
+                {"key": "urobilinogeno", "nombre": "Urobilinógeno", "tipo": "input", "unidad": "mg/dl", "valores_normales": "0.1 a 1.0"},
+            ]
+        },
+        "Coprológico": {
+            "nombre": "Coprológico",
+            "campos": [
+                {"key": "color", "nombre": "Color", "tipo": "select", "opciones": ["Amarillo", "Marrón", "Verde", "Negro"], "unidad": "-", "valores_normales": "Marrón"},
+                {"key": "consistencia", "nombre": "Consistencia", "tipo": "select", "opciones": ["Sólida", "Semi-sólida", "Líquida"], "unidad": "-", "valores_normales": "Sólida"},
+                {"key": "sangre_oculta", "nombre": "Sangre Oculta", "tipo": "select", "opciones": ["Negativo", "Positivo"], "unidad": "-", "valores_normales": "Negativo"},
+            ]
+        },
+        "Grupo Sanguíneo": {
+            "nombre": "Grupo Sanguíneo",
+            "campos": [
+                {"key": "grupo", "nombre": "Grupo", "tipo": "select", "opciones": ["A", "B", "AB", "O"], "unidad": "-", "valores_normales": "-"},
+                {"key": "rh", "nombre": "RH", "tipo": "select", "opciones": ["+", "-"], "unidad": "-", "valores_normales": "-"},
+            ]
+        },
+        "Cultivo de Heridas": {
+            "nombre": "Cultivo de Heridas",
+            "campos": [
+                {"key": "leucocitos", "nombre": "Leucocitos", "tipo": "select", "opciones": ["Ausentes", "Escasos", "Moderados", "Abundantes"], "unidad": "-", "valores_normales": "Ausentes"},
+                {"key": "bacterias", "nombre": "Bacterias", "tipo": "select", "opciones": ["Ausentes", "Presentes"], "unidad": "-", "valores_normales": "Ausentes"},
+                {"key": "flora", "nombre": "Flora", "tipo": "input", "unidad": "-", "valores_normales": "-"},
+            ]
+        },
+    }
+    # Obtén solo las pruebas del folio
+    pruebas = [catalogo_pruebas[n] for n in folio_pruebas.get(folio, [])]
+
+    return render_template(
+        "quimico/resultados_captura.html",
+        paciente=paciente,
+        pruebas=pruebas
+    )

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Pruebas Clínicas{% endblock %}
+
+{% block content %}
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+</head>
+
+{% set pruebas = [
+    {"id": 1, "nombre": "Biometría Hemática", "tipo": "Sanguínea", "reactivo": "Reactivo BH", "activo": True},
+    {"id": 2, "nombre": "EGO", "tipo": "Orina", "reactivo": "Reactivo EGO", "activo": True},
+    {"id": 3, "nombre": "Coprológico", "tipo": "Heces", "reactivo": "Reactivo Coprológico", "activo": False},
+    {"id": 4, "nombre": "Grupo Sanguíneo", "tipo": "Sanguínea", "reactivo": "Reactivo Grupo", "activo": True},
+    {"id": 5, "nombre": "Cultivo de Heridas", "tipo": "Secreción", "reactivo": "Reactivo Cultivo", "activo": False}
+] %}
+
+<div class="container mx-auto p-4">
+    <div class="flex items-center mb-4">
+        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+        <h1 class="text-4xl font-bold ml-4">Pruebas Clínicas</h1>
+    </div>
+</div>
+
+<div class="container mx-auto p-4 mt-8">
+    <div class="flex items-center mb-4">
+        <div class="relative w-1/2">
+            <input type="text" id="search-input" placeholder="Buscar prueba" class="w-full p-2 border rounded" oninput="searchItem('prueba')">
+            <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+        </div>
+        <button class="btn-editar" style="border-radius: 1rem;" onclick="window.location.href='{{ url_for('app_routes.add_prueba') }}'">
+            Registrar Prueba
+        </button>
+    </div>
+
+    <div class="overflow-y-auto max-h-[calc(10*4rem)] border rounded-lg shadow-md">
+        <table class="min-w-full bg-white rounded-lg shadow-md">
+            <thead class="sticky-header">
+                <tr class="border-b">
+                    <th class="py-2 px-4 text-left text-red-500">ID</th>
+                    <th class="py-2 px-4 text-left">Nombre</th>
+                    <th class="py-2 px-4 text-left">Tipo</th>
+                    <th class="py-2 px-4 text-left">Reactivo</th>
+                    <th class="py-2 px-4 text-left">Estado</th>
+                    <th class="py-2 px-4 text-left">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if pruebas %}
+                    {% for prueba in pruebas %}
+                    <tr class="border-b {% if not prueba.activo %}bg-gray-100{% endif %}">
+                        <td class="py-2 px-4">#{{ prueba.id }}</td>
+                        <td class="py-2 px-4">{{ prueba.nombre }}</td>
+                        <td class="py-2 px-4">{{ prueba.tipo }}</td>
+                        <td class="py-2 px-4">{{ prueba.reactivo }}</td>
+                        <td class="py-2 px-4">{{ 'Activo' if prueba.activo else 'Inactivo' }}</td>
+                        <td class="py-2 px-4">
+                            {% if prueba.activo %}
+                                <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_prueba', prueba_id=prueba.id) }}'">Editar</button>
+                                <button class="btn-eliminar" onclick="confirmDelete('{{ prueba.id }}')">Eliminar</button>
+                            {% else %}
+                                <button onclick="confirmActivate({{ prueba.id }})" class="btn-activar">Activar</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="py-2 px-4 text-center">No hay pruebas registradas.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Eliminar -->
+<div id="delete-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-bold mb-4">Confirmar Eliminación</h2>
+        <p>¿Estás seguro de que deseas eliminar esta prueba?</p>
+        <input type="hidden" id="delete-prueba-id">
+        <div id="modal-message" class="mt-2 text-center"></div>
+        <div class="mt-4">
+            <label for="password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
+            <input type="password" id="password" class="mt-1 p-2 border rounded w-full">
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" onclick="closeModal()">Cancelar</button>
+            <button class="bg-red-500 text-white px-4 py-2" onclick="deletePrueba()">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Activar -->
+<div id="activation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-bold mb-4">Confirmar Activación</h2>
+        <p>¿Deseas activar esta prueba clínica?</p>
+        <input type="hidden" id="activate-prueba-id">
+        <div id="activation-modal-message" class="mt-2 text-center"></div>
+        <div class="mt-4">
+            <label for="activate-password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
+            <input type="password" id="activate-password" class="mt-1 p-2 border rounded w-full">
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" onclick="closeModal()">Cancelar</button>
+            <button class="bg-green-500 text-white px-4 py-2" onclick="activatePrueba()">Activar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(id) {
+    document.getElementById('delete-prueba-id').value = id;
+    document.getElementById('delete-modal').classList.remove('hidden');
+}
+function confirmActivate(id) {
+    document.getElementById('activate-prueba-id').value = id;
+    document.getElementById('activation-modal').classList.remove('hidden');
+}
+function closeModal() {
+    document.getElementById('delete-modal').classList.add('hidden');
+    document.getElementById('activation-modal').classList.add('hidden');
+}
+function deletePrueba() {
+    const id = document.getElementById('delete-prueba-id').value;
+    const password = document.getElementById('password').value;
+
+    fetch(`/admin/delete_prueba/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ password })
+    }).then(res => res.json()).then(data => {
+        document.getElementById('modal-message').textContent = data.message;
+        if (res.ok) location.reload();
+    });
+}
+function activatePrueba() {
+    const id = document.getElementById('activate-prueba-id').value;
+    const password = document.getElementById('activate-password').value;
+
+    fetch(`/admin/activate_prueba/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ password })
+    }).then(res => res.json()).then(data => {
+        document.getElementById('activation-modal-message').textContent = data.message;
+        if (res.ok) location.reload();
+    });
+}
+</script>
+{% endblock %}
