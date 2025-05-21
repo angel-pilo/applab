@@ -47,7 +47,8 @@
             <td class="px-6 py-4">{{ nombre }}</td>
             <td class="px-6 py-4">{{ lugar }}</td>
             <td class="px-6 py-4 flex gap-2 justify-center">
-              <button class="btn-cancelar px-4 py-1 rounded-[1rem]">Agregar Resultados</button>
+                <a href="{{ url_for('app_routes.captura_resultados', folio=folio) }}"
+                 class="btn-cancelar px-4 py-1 rounded-[1rem]">Agregar Resultados</a>
               {% if color == "green" %}
                 <button class="btn-disabled px-4 py-1 rounded-[1rem]" disabled>Finalizado</button>
               {% else %}

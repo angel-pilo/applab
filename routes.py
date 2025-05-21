@@ -1434,3 +1434,93 @@ def get_analisis(folio):
 @require_role("Quimico") 
 def resultados():
     return render_template("quimico/resultados.html")
+
+# Ruta de prueba solo para front
+@app_routes.route('/quimico/captura_resultados/<folio>')
+def captura_resultados(folio):
+    paciente = {"nombre": "Paciente Demo", "orden": folio}
+
+    # Diccionario de nombres demo
+    nombres_pacientes = {
+        "00010": "María Fernanda López Hernández",
+        "00008": "José Manuel Pérez Rodríguez",
+        "00007": "Ana Sofía Ramírez García",
+        "00006": "Juan Carlos Martínez Torres",
+        "00005": "Valeria González Chávez",
+        "00011": "María José Hernández Gómez",
+        "00012": "Jorge Luis Vargas Martínez",
+        "00013": "Carmen Patricia Flores López",
+        "00014": "Carlos Eduardo Pérez Gutiérrez",
+        "00015": "Sofía Elena Jiménez Morales",
+    }
+
+    paciente = {
+        "nombre": nombres_pacientes.get(folio, "Paciente Demo"),
+        "orden": folio
+    }
+
+    # Define pruebas por folio
+    folio_pruebas = {
+        "00010": ["EGO", "BH (Biometría Hemática)"],  # <--- agrega las pruebas que lleva
+        "00008": ["EGO"],
+        "00007": ["Coprológico"],
+        "00006": ["Grupo Sanguíneo"],
+        "00005": ["Cultivo de Heridas"],
+        "00011": ["BH (Biometría Hemática)", "EGO"],
+        "00012": ["Coprológico"],
+        "00013": ["Grupo Sanguíneo"],
+        "00014": ["Cultivo de Heridas"],
+        "00015": ["Grupo Sanguíneo"]
+    }
+
+    # Diccionario de pruebas como arriba
+    catalogo_pruebas = {
+        "BH (Biometría Hemática)": {
+            "nombre": "BH (Biometría Hemática)",
+            "campos": [
+                {"key": "hemoglobina", "nombre": "Hemoglobina", "tipo": "input", "unidad": "g/dL", "valores_normales": "13.8 a 17.2"},
+                {"key": "hematocrito", "nombre": "Hematocrito", "tipo": "input", "unidad": "%", "valores_normales": "40 a 50"},
+                {"key": "eritrocitos", "nombre": "Eritrocitos", "tipo": "input", "unidad": "millones/µL", "valores_normales": "4.7 a 6.1"},
+            ]
+        },  
+        "EGO": {
+            "nombre": "EGO",
+            "campos": [
+                {"key": "bilirrubinas", "nombre": "Bilirrubinas", "tipo": "select", "opciones": ["Negativo", "Positivo", "Escasos"], "unidad": "-", "valores_normales": "Negativo"},
+                {"key": "cetonas", "nombre": "Cetonas", "tipo": "select", "opciones": ["Negativo", "Positivo", "Escasos"], "unidad": "-", "valores_normales": "Negativo"},
+                {"key": "cristales", "nombre": "Cristales", "tipo": "select", "opciones": ["Negativo", "Positivo", "Escasos"], "unidad": "-", "valores_normales": "Ausente o escasos"},
+                {"key": "urobilinogeno", "nombre": "Urobilinógeno", "tipo": "input", "unidad": "mg/dl", "valores_normales": "0.1 a 1.0"},
+            ]
+        },
+        "Coprológico": {
+            "nombre": "Coprológico",
+            "campos": [
+                {"key": "color", "nombre": "Color", "tipo": "select", "opciones": ["Amarillo", "Marrón", "Verde", "Negro"], "unidad": "-", "valores_normales": "Marrón"},
+                {"key": "consistencia", "nombre": "Consistencia", "tipo": "select", "opciones": ["Sólida", "Semi-sólida", "Líquida"], "unidad": "-", "valores_normales": "Sólida"},
+                {"key": "sangre_oculta", "nombre": "Sangre Oculta", "tipo": "select", "opciones": ["Negativo", "Positivo"], "unidad": "-", "valores_normales": "Negativo"},
+            ]
+        },
+        "Grupo Sanguíneo": {
+            "nombre": "Grupo Sanguíneo",
+            "campos": [
+                {"key": "grupo", "nombre": "Grupo", "tipo": "select", "opciones": ["A", "B", "AB", "O"], "unidad": "-", "valores_normales": "-"},
+                {"key": "rh", "nombre": "RH", "tipo": "select", "opciones": ["+", "-"], "unidad": "-", "valores_normales": "-"},
+            ]
+        },
+        "Cultivo de Heridas": {
+            "nombre": "Cultivo de Heridas",
+            "campos": [
+                {"key": "leucocitos", "nombre": "Leucocitos", "tipo": "select", "opciones": ["Ausentes", "Escasos", "Moderados", "Abundantes"], "unidad": "-", "valores_normales": "Ausentes"},
+                {"key": "bacterias", "nombre": "Bacterias", "tipo": "select", "opciones": ["Ausentes", "Presentes"], "unidad": "-", "valores_normales": "Ausentes"},
+                {"key": "flora", "nombre": "Flora", "tipo": "input", "unidad": "-", "valores_normales": "-"},
+            ]
+        },
+    }
+    # Obtén solo las pruebas del folio
+    pruebas = [catalogo_pruebas[n] for n in folio_pruebas.get(folio, [])]
+
+    return render_template(
+        "quimico/resultados_captura.html",
+        paciente=paciente,
+        pruebas=pruebas
+    )
