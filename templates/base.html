@@ -1,25 +1,52 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Dashboard{% endblock %}</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>{% block title %}Dashboard{% endblock %}</title>
+
+  <!-- Config Tailwind CDN (breakpoints personalizados y sin dark mode) -->
+  <script>
+    // Importante: este objeto debe declararse ANTES del script de Tailwind
+    tailwind = {
+      theme: {
+        extend: {
+          screens: {
+            xs: '480px',   // móvil extra
+            '3xl': '1600px' // monitores grandes
+          },
+          boxShadow: {
+            card: '0 8px 24px -12px rgba(0,0,0,.2)'
+          }
+        }
+      },
+      corePlugins: {
+        // desactiva dark mode por ahora (si lo tenías habilitado en CSS)
+      }
+    }
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Iconos -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+
+  <!-- Tu CSS debe ir DESPUÉS de Tailwind para sobreescribir estilos si quieres -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body class="font-sans">
-    <div class="flex flex-col min-h-screen">
-        <div class="flex flex-1">
-            {% include 'partials/sidebar.html' %}
-            <div class="flex-1 flex flex-col">
-                {% include 'partials/navbar.html' %}
-                <div id="main-content" class="content-wrapper flex-1 p-4">
-                    {% block content %}{% endblock %}
-                </div>
-            </div>
+  <div class="flex flex-col min-h-screen">
+    <div class="flex flex-1">
+      {% include 'partials/sidebar.html' %}
+      <div class="flex-1 flex flex-col">
+        {% include 'partials/navbar.html' %}
+        <div id="main-content" class="content-wrapper flex-1 p-4">
+          {% block content %}{% endblock %}
         </div>
-        {% include 'partials/footer.html' %}
+      </div>
     </div>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% include 'partials/footer.html' %}
+  </div>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

@@ -3,40 +3,233 @@
 {% block title %}Dashboard Admin{% endblock %}
 
 {% block content %}
-<div class="flex justify-center items-center h-full">
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-6 p-6">
-        <button class="card" onclick="window.location.href='{{ url_for('app_routes.pruebas_clinicas') }}'">
-            <h2>PRUEBAS</h2>
-            <img src="{{ url_for('static', filename='icons/prueba.svg') }}" alt="Icono pruebas" class="icon">
-        </button>
-        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_inventory') }}'">
-            <h2>INVENTARIO DE REACTIVOS</h2>
-            <img src="{{ url_for('static', filename='icons/inventario.svg') }}" alt="Icono inventario" class="icon">
-        </button>
-        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_patients') }}'">
-            <h2>PACIENTES</h2>
-            <img src="{{ url_for('static', filename='icons/pacientes.svg') }}" alt="Icono pacientes" class="icon">
-        </button>
-        <button class="card"  onclick="window.location.href='{{ url_for('app_routes.manage_proveedores') }}'">
-            <h2>PROVEEDORES</h2>
-            <img src="{{ url_for('static', filename='icons/proveedores.svg') }}" alt="Icono proveedores" class="icon">
-        </button>
-        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_doctores') }}'">
-            <h2>DOCTORES</h2>
-            <img src="{{ url_for('static', filename='icons/doctores.svg') }}" alt="Icono doctores" class="icon">
-        </button>        
-        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_hospitals') }}'">
-            <h2>HOSPITALES</h2>
-            <img src="{{ url_for('static', filename='icons/hospitales.svg') }}" alt="Icono hospitales" class="icon">
-        </button>
-        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_employees') }}'">
-            <h2>EMPLEADOS</h2>
-            <img src="{{ url_for('static', filename='icons/empleados.svg') }}" alt="Icono empleados" class="icon">
-        </button>
-        <button class="card">
-            <h2>CONFIGURACIÓN</h2>
-            <img src="{{ url_for('static', filename='icons/configuracion.svg') }}" alt="Icono configuracion" class="icon">
-        </button>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Encabezado -->
+  <div class="mb-6 flex items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-gray-900">Panel de Administración</h1>
+      <p class="text-sm text-gray-500">Accesos rápidos a los módulos principales</p>
     </div>
+    <a href="#"
+       class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium
+              bg-gray-900 text-white hover:opacity-90 transition-opacity">
+      <i class="fas fa-cog text-base"></i>
+      Configuración
+    </a>
+  </div>
+
+  <!-- Grid responsive -->
+  <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+
+    <!-- PRUEBAS -->
+    <a href="{{ url_for('app_routes.pruebas_clinicas') }}"
+       class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+              transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+       aria-label="Pruebas">
+      <!-- Badge -->
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full
+                    bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">
+        {{ pruebas_count|default(0) }}
+      </span>
+      <!-- Marca de agua -->
+      <div class="absolute -right-4 -top-4 opacity-10">
+        <i class="fas fa-clipboard-list text-8xl text-indigo-600"></i>
+      </div>
+      <!-- Contenido -->
+      <div class="relative flex items-center gap-4">
+        <div class="shrink-0 grid place-items-center w-12 h-12 rounded-xl ring-1 ring-indigo-200 bg-indigo-50">
+          <i class="fas fa-clipboard-list text-xl text-indigo-600"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">Pruebas</h3>
+          <p class="text-sm text-gray-500">Entrar
+            <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span>
+          </p>
+        </div>
+      </div>
+    </a>
+
+    <!-- INVENTARIO DE REACTIVOS (badge = bajo stock) -->
+    <a href="{{ url_for('app_routes.manage_inventory') }}"
+       class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+              transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+       aria-label="Inventario de Reactivos">
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full
+                    bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2"
+            title="Reactivos con stock bajo">
+        {{ inventory_low_count|default(0) }}
+      </span>
+      <div class="absolute -right-4 -top-4 opacity-10">
+        <i class="fas fa-vials text-8xl text-emerald-600"></i>
+      </div>
+      <div class="relative flex items-center gap-4">
+        <div class="shrink-0 grid place-items-center w-12 h-12 rounded-xl ring-1 ring-emerald-200 bg-emerald-50">
+          <i class="fas fa-vials text-xl text-emerald-600"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">Inventario de Reactivos</h3>
+          <p class="text-sm text-gray-500">Entrar
+            <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span>
+          </p>
+        </div>
+      </div>
+    </a>
+
+    <!-- PACIENTES -->
+    <a href="{{ url_for('app_routes.manage_patients') }}"
+       class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+              transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+       aria-label="Pacientes">
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full
+                    bg-sky-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">
+        {{ pacientes_count|default(0) }}
+      </span>
+      <div class="absolute -right-4 -top-4 opacity-10">
+        <i class="fas fa-id-card text-8xl text-sky-600"></i>
+      </div>
+      <div class="relative flex items-center gap-4">
+        <div class="shrink-0 grid place-items-center w-12 h-12 rounded-xl ring-1 ring-sky-200 bg-sky-50">
+          <i class="fas fa-id-card text-xl text-sky-600"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">Pacientes</h3>
+          <p class="text-sm text-gray-500">Entrar
+            <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span>
+          </p>
+        </div>
+      </div>
+    </a>
+
+    <!-- PROVEEDORES -->
+    <a href="{{ url_for('app_routes.manage_proveedores') }}"
+       class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+              transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+       aria-label="Proveedores">
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full
+                    bg-amber-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">
+        {{ proveedores_count|default(0) }}
+      </span>
+      <div class="absolute -right-4 -top-4 opacity-10">
+        <i class="fas fa-truck text-8xl text-amber-600"></i>
+      </div>
+      <div class="relative flex items-center gap-4">
+        <div class="shrink-0 grid place-items-center w-12 h-12 rounded-xl ring-1 ring-amber-200 bg-amber-50">
+          <i class="fas fa-truck text-xl text-amber-600"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">Proveedores</h3>
+          <p class="text-sm text-gray-500">Entrar
+            <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span>
+          </p>
+        </div>
+      </div>
+    </a>
+
+    <!-- DOCTORES -->
+    <a href="{{ url_for('app_routes.manage_doctores') }}"
+       class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+              transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+       aria-label="Doctores">
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full
+                    bg-violet-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">
+        {{ doctores_count|default(0) }}
+      </span>
+      <div class="absolute -right-4 -top-4 opacity-10">
+        <i class="fas fa-stethoscope text-8xl text-violet-600"></i>
+      </div>
+      <div class="relative flex items-center gap-4">
+        <div class="shrink-0 grid place-items-center w-12 h-12 rounded-xl ring-1 ring-violet-200 bg-violet-50">
+          <i class="fas fa-stethoscope text-xl text-violet-600"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">Doctores</h3>
+          <p class="text-sm text-gray-500">Entrar
+            <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span>
+          </p>
+        </div>
+      </div>
+    </a>
+
+    <!-- HOSPITALES -->
+    <a href="{{ url_for('app_routes.manage_hospitals') }}"
+       class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+              transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+       aria-label="Hospitales">
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full
+                    bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">
+        {{ hospitales_count|default(0) }}
+      </span>
+      <div class="absolute -right-4 -top-4 opacity-10">
+        <i class="fas fa-hospital text-8xl text-rose-600"></i>
+      </div>
+      <div class="relative flex items-center gap-4">
+        <div class="shrink-0 grid place-items-center w-12 h-12 rounded-xl ring-1 ring-rose-200 bg-rose-50">
+          <i class="fas fa-hospital text-xl text-rose-600"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">Hospitales</h3>
+          <p class="text-sm text-gray-500">Entrar
+            <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span>
+          </p>
+        </div>
+      </div>
+    </a>
+
+    <!-- EMPLEADOS -->
+    <a href="{{ url_for('app_routes.manage_employees') }}"
+       class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+              transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+       aria-label="Empleados">
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full
+                    bg-cyan-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">
+        {{ empleados_count|default(0) }}
+      </span>
+      <div class="absolute -right-4 -top-4 opacity-10">
+        <i class="fas fa-users text-8xl text-cyan-600"></i>
+      </div>
+      <div class="relative flex items-center gap-4">
+        <div class="shrink-0 grid place-items-center w-12 h-12 rounded-xl ring-1 ring-cyan-200 bg-cyan-50">
+          <i class="fas fa-users text-xl text-cyan-600"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">Empleados</h3>
+          <p class="text-sm text-gray-500">Entrar
+            <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span>
+          </p>
+        </div>
+      </div>
+    </a>
+
+    <!-- CONFIGURACIÓN (ej. pendientes de revisión) -->
+    <a href="#"
+       class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+              transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+       aria-label="Configuración">
+      <div class="absolute -right-4 -top-4 opacity-10">
+        <i class="fas fa-cog text-8xl text-slate-600"></i>
+      </div>
+      <div class="relative flex items-center gap-4">
+        <div class="shrink-0 grid place-items-center w-12 h-12 rounded-xl ring-1 ring-slate-200 bg-slate-50">
+          <i class="fas fa-cog text-xl text-slate-600"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">Configuración</h3>
+          <p class="text-sm text-gray-500">Entrar
+            <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span>
+          </p>
+        </div>
+      </div>
+    </a>
+
+  </div>
 </div>
 {% endblock %}
