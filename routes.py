@@ -151,6 +151,54 @@ def logout():
 def admin_dashboard():
     return render_template("admin/admin.html")
 
+@app_routes.route("/backlog")
+@require_role("Admin")
+def backlog():
+    # Dummy: lista de eventos (solo frontend por ahora)
+    events = [
+        {
+            "when": "2025-09-22 10:14",
+            "module": "Pruebas",
+            "icon": "fas fa-clipboard-check",
+            "severity": "info",
+            "title": "Resultado validado",
+            "detail": "Prueba #A-293014 validada por QFB Martínez"
+        },
+        {
+            "when": "2025-09-22 09:31",
+            "module": "Inventario",
+            "icon": "fas fa-vial",
+            "severity": "warning",
+            "title": "Stock bajo detectado",
+            "detail": "Reactivo Hematoxilina: 5 u (mín. 10)"
+        },
+        {
+            "when": "2025-09-21 18:02",
+            "module": "Pacientes",
+            "icon": "fas fa-id-card",
+            "severity": "success",
+            "title": "Paciente registrado",
+            "detail": "María P. (ID: P-1209) por Mostrador"
+        },
+        {
+            "when": "2025-09-21 16:45",
+            "module": "Proveedores",
+            "icon": "fas fa-truck",
+            "severity": "info",
+            "title": "Orden de compra creada",
+            "detail": "OC-7781 a QuimiLab SA de CV"
+        },
+        {
+            "when": "2025-09-21 12:20",
+            "module": "Doctores",
+            "icon": "fas fa-stethoscope",
+            "severity": "success",
+            "title": "Doctor agregado",
+            "detail": "Dr. Luis R. (CMP 33210)"
+        },
+    ]
+    return render_template("backlog.html", events=events)
+
 @app_routes.route("/admin/employees", methods=["GET", "POST"])
 @require_role("Admin")
 def manage_employees():

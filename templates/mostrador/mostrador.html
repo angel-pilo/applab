@@ -1,36 +1,218 @@
 {% extends "base.html" %}
-
-{% block title %}Dashboard mostrador{% endblock %}
+{% block title %}Dashboard Mostrador{% endblock %}
 
 {% block content %}
-<div class="flex justify-center items-center h-full">
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-10 p-6">
-        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_orden') }}'">
-            <h2>Generar orden</h2>
-            <img src="{{ url_for('static', filename='icons/orden.svg') }}" alt="Icono orden" class="icon">
-        </button>
-        <button class="card">
-            <h2>Resultados listos</h2>
-            <img src="{{ url_for('static', filename='icons/listos.svg') }}" alt="Icono listos" class="icon">
-        </button>
-        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_patients') }}'">
-            <h2>Pacientes</h2>
-            <img src="{{ url_for('static', filename='icons/pacientes.svg') }}" alt="Icono pacientes" class="icon">
-        </button>
-        <button class="card">
-            <h2>Corte de caja</h2>
-            <img src="{{ url_for('static', filename='icons/corte.svg') }}" alt="Icono corte de caja" class="icon">
-        </button>
-        <button class="card">
-            <h2>Ordenes recientes</h2>
-            <img src="{{ url_for('static', filename='icons/reciente.svg') }}" alt="Icono ordenes recientes" class="icon">
-        </button>
-        <button class="card">
-            <h2>Configuración</h2>
-            <img src="{{ url_for('static', filename='icons/configuracion.svg') }}" alt="Icono configuracion" class="icon">
-        </button>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+  <!-- Header -->
+  <div class="mb-2 flex items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-gray-900">Mostrador</h1>
+      <p class="text-sm text-gray-500">Atiende pacientes, genera órdenes y gestiona pagos</p>
     </div>
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('app_routes.manage_patients') }}"
+         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-sky-600 text-white hover:bg-sky-700 transition">
+        <i class="fas fa-user-plus"></i> Registrar paciente
+      </a>
+      <a href="{{ url_for('app_routes.manage_orden') }}"
+         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition">
+        <i class="fas fa-file-medical"></i> Nueva orden
+      </a>
+    </div>
+  </div>
+
+  <!-- Grid de accesos (mejorado) -->
+  <section>
+    <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+
+      <!-- Generar orden -->
+      <a href="{{ url_for('app_routes.manage_orden') }}"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+         aria-label="Generar orden">
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-file-medical text-8xl text-indigo-600"></i>
+        </div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-indigo-200 bg-indigo-50">
+            <i class="fas fa-file-medical text-indigo-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Generar orden</h3>
+            <p class="text-sm text-gray-500">Crear nueva orden / estudio</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- Resultados listos -->
+      <a href="#"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+         aria-label="Resultados listos">
+        <!-- Badge (dummy, opcional) -->
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full
+                      bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">11</span>
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-file-export text-8xl text-emerald-600"></i>
+        </div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-emerald-200 bg-emerald-50">
+            <i class="fas fa-file-export text-emerald-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Resultados listos</h3>
+            <p class="text-sm text-gray-500">Entrega/descarga de informes</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- Pacientes -->
+      <a href="{{ url_for('app_routes.manage_patients') }}"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+         aria-label="Pacientes">
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-id-card text-8xl text-sky-600"></i>
+        </div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-sky-200 bg-sky-50">
+            <i class="fas fa-id-card text-sky-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Pacientes</h3>
+            <p class="text-sm text-gray-500">Altas, edición y búsqueda</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- Corte de caja -->
+      <a href="#"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+         aria-label="Corte de caja">
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-cash-register text-8xl text-amber-600"></i>
+        </div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-amber-200 bg-amber-50">
+            <i class="fas fa-cash-register text-amber-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Corte de caja</h3>
+            <p class="text-sm text-gray-500">Pagos, arqueo y CFDI</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- Órdenes recientes -->
+      <a href="#"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+         aria-label="Órdenes recientes">
+        <!-- Badge (dummy, opcional) -->
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full
+                      bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">24h</span>
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-stream text-8xl text-rose-600"></i>
+        </div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-rose-200 bg-rose-50">
+            <i class="fas fa-stream text-rose-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Órdenes recientes</h3>
+            <p class="text-sm text-gray-500">Últimas órdenes creadas</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- Configuración (sin badge) -->
+      <a href="#"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+         aria-label="Configuración">
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-cog text-8xl text-slate-600"></i>
+        </div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-slate-200 bg-slate-50">
+            <i class="fas fa-cog text-slate-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Configuración</h3>
+            <p class="text-sm text-gray-500">Preferencias del mostrador</p>
+          </div>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- Cola rápida (opcional; placeholder) -->
+  <section class="rounded-2xl ring-1 ring-gray-200 bg-white p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-semibold text-gray-900">
+        <i class="fas fa-people-arrows text-indigo-600 mr-2"></i> Cola rápida (hoy)
+      </h3>
+      <div class="flex gap-2">
+        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200">Actualizar</button>
+        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200">Filtrar</button>
+      </div>
+    </div>
+    <div class="overflow-x-auto -mx-3">
+      <table class="min-w-full text-sm mx-3">
+        <thead>
+          <tr class="text-left text-gray-500">
+            <th class="py-2">Turno</th>
+            <th class="py-2">Paciente</th>
+            <th class="py-2">Hora</th>
+            <th class="py-2">Estado</th>
+            <th class="py-2 text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          <!-- Datos dummy; puedes quitarlos si no los usarás aún -->
+          <tr class="hover:bg-gray-50">
+            <td class="py-2 font-medium text-gray-900">A-001</td>
+            <td class="py-2">María Pérez</td>
+            <td class="py-2 text-gray-600">08:10</td>
+            <td class="py-2">
+              <span class="inline-flex items-center rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 px-2 py-0.5">En espera</span>
+            </td>
+            <td class="py-2 text-right">
+              <div class="inline-flex gap-1">
+                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
+                <a class="px-2 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-700" href="#"><i class="fas fa-check" title="Check-in"></i></a>
+                <a class="px-2 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" href="#"><i class="fas fa-file-medical" title="Orden"></i></a>
+              </div>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="py-2 font-medium text-gray-900">A-002</td>
+            <td class="py-2">Juan López</td>
+            <td class="py-2 text-gray-600">08:20</td>
+            <td class="py-2">
+              <span class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 px-2 py-0.5">Atendiendo</span>
+            </td>
+            <td class="py-2 text-right">
+              <div class="inline-flex gap-1">
+                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
+                <a class="px-2 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-700" href="#"><i class="fas fa-check" title="Check-in"></i></a>
+                <a class="px-2 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" href="#"><i class="fas fa-file-medical" title="Orden"></i></a>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
 </div>
 {% endblock %}
- 
-
