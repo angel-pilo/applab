@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Backlog{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-gray-900">Backlog</h1>
+      <p class="text-sm text-gray-500">Historial de movimientos del sistema</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{{ url_for('app_routes.admin_dashboard') if 'app_routes.admin_dashboard' else '#' }}"
+         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 transition">
+        <i class="fas fa-arrow-left"></i> Volver
+      </a>
+      <button type="button"
+              class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-gray-900 text-white hover:opacity-90 transition"
+              onclick="clearBacklogFilters()">
+        <i class="fas fa-broom"></i> Limpiar filtros
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtros (frontend-only) -->
+  <form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" onsubmit="event.preventDefault(); applyBacklogFilters();">
+    <div class="flex flex-col">
+      <label class="text-xs font-medium text-gray-600 mb-1">Buscar</label>
+      <input id="f-q" type="text" class="rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500"
+             placeholder="Paciente, doctor, OC, ID de prueba..." />
+    </div>
+    <div class="flex flex-col">
+      <label class="text-xs font-medium text-gray-600 mb-1">Módulo</label>
+      <select id="f-module" class="rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500">
+        <option value="">Todos</option>
+        <option>Pruebas</option>
+        <option>Inventario</option>
+        <option>Pacientes</option>
+        <option>Proveedores</option>
+        <option>Doctores</option>
+        <option>Hospitales</option>
+        <option>Empleados</option>
+      </select>
+    </div>
+    <div class="flex flex-col">
+      <label class="text-xs font-medium text-gray-600 mb-1">Severidad</label>
+      <select id="f-sev" class="rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500">
+        <option value="">Todas</option>
+        <option value="success">Éxito</option>
+        <option value="info">Info</option>
+        <option value="warning">Alerta</option>
+        <option value="danger">Crítico</option>
+      </select>
+    </div>
+    <div class="flex gap-2 items-end">
+      <button type="submit"
+              class="inline-flex items-center justify-center w-full rounded-xl px-3 py-2 text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition">
+        <i class="fas fa-sliders-h mr-2"></i> Aplicar
+      </button>
+    </div>
+  </form>
+
+  <!-- Lista / Timeline -->
+  <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y">
+    {% for e in events %}
+    {# Mapear color/severidad #}
+    {% set sev_color = {
+      "success": "bg-emerald-50 ring-emerald-200 text-emerald-700",
+      "info":    "bg-indigo-50  ring-indigo-200  text-indigo-700",
+      "warning": "bg-amber-50   ring-amber-200   text-amber-700",
+      "danger":  "bg-rose-50    ring-rose-200    text-rose-700"
+    }[e.severity] if e.severity in ['success','info','warning','danger'] else 'bg-gray-50 ring-gray-200 text-gray-700' %}
+
+    <div class="p-4 flex items-start gap-4 backlog-item"
+         data-module="{{ e.module }}"
+         data-sev="{{ e.severity }}"
+         data-text="{{ (e.title ~ ' ' ~ e.detail ~ ' ' ~ e.when ~ ' ' ~ e.module)|lower }}">
+      <div class="w-10 h-10 grid place-items-center rounded-full ring-1 {{ sev_color }}">
+        <i class="{{ e.icon }}"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm font-semibold text-gray-900">{{ e.title }}</span>
+          <span class="text-[11px] uppercase tracking-wide rounded-full px-2 py-0.5 ring-1 {{ sev_color }}">{{ e.severity }}</span>
+        </div>
+        <p class="text-sm text-gray-600 mt-0.5">{{ e.detail }}</p>
+        <div class="mt-1 flex items-center gap-3 text-xs text-gray-500">
+          <span><i class="far fa-clock mr-1"></i>{{ e.when }}</span>
+          <span><i class="far fa-folder-open mr-1"></i>{{ e.module }}</span>
+        </div>
+      </div>
+      <div class="opacity-60 hover:opacity-100 transition">
+        <button class="px-2 py-1 text-xs rounded-lg bg-gray-100 hover:bg-gray-200"
+                title="Ver detalle (placeholder)">Detalle</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Paginación (placeholder) -->
+  <div class="flex items-center justify-between">
+    <span class="text-sm text-gray-500">Mostrando {{ events|length }} movimientos</span>
+    <div class="inline-flex rounded-lg overflow-hidden ring-1 ring-gray-200">
+      <button class="px-3 py-1.5 text-sm hover:bg-gray-100"><i class="fas fa-angle-left"></i></button>
+      <button class="px-3 py-1.5 text-sm bg-gray-100">1</button>
+      <button class="px-3 py-1.5 text-sm hover:bg-gray-100">2</button>
+      <button class="px-3 py-1.5 text-sm hover:bg-gray-100"><i class="fas fa-angle-right"></i></button>
+    </div>
+  </div>
+
+</div>
+
+{# JS mínimo para filtros del lado del cliente #}
+<script>
+function applyBacklogFilters() {
+  const q = (document.getElementById('f-q').value || '').trim().toLowerCase();
+  const mod = document.getElementById('f-module').value;
+  const sev = document.getElementById('f-sev').value;
+
+  document.querySelectorAll('.backlog-item').forEach(row => {
+    const t = row.dataset.text || '';
+    const m = row.dataset.module || '';
+    const s = row.dataset.sev || '';
+
+    const okQ = !q || t.includes(q);
+    const okM = !mod || m === mod;
+    const okS = !sev || s === sev;
+
+    row.style.display = (okQ && okM && okS) ? '' : 'none';
+  });
+}
+
+function clearBacklogFilters() {
+  document.getElementById('f-q').value = '';
+  document.getElementById('f-module').value = '';
+  document.getElementById('f-sev').value = '';
+  applyBacklogFilters();
+}
+</script>
+{% endblock %}
