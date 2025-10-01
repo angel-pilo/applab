@@ -1,20 +1,277 @@
 {% extends "base.html" %}
-
 {% block title %}Dashboard Enfermero{% endblock %}
 
 {% block content %}
-<div class="flex justify-center items-center h-full">
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-12 p-6">
-        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_muestra') }}'">
-            <h2>Faltantes de muestra</h2>
-            <img src="{{ url_for('static', filename='icons/muestra.svg') }}" alt="Icono mustra" class="icon">
-        </button>
-        <button class="card">
-            <h2>Configuración</h2>
-            <img src="{{ url_for('static', filename='icons/configuracion.svg') }}" alt="Icono configuracion" class="icon">
-        </button>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+  <!-- Header -->
+  <div class="mb-2 flex items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-gray-900">Enfermería</h1>
+      <p class="text-sm text-gray-500">Toma, recepción y control de muestras</p>
     </div>
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('app_routes.manage_muestra') }}"
+         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition">
+        <i class="fas fa-vial"></i> Faltantes de muestra
+      </a>
+      <a href="#"
+         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition">
+        <i class="fas fa-qrcode"></i> Imprimir etiquetas
+      </a>
+    </div>
+  </div>
+
+  <!-- KPIs superiores (dummy) -->
+  <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <!-- Faltantes -->
+    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 grid place-items-center rounded-xl bg-indigo-50 ring-1 ring-indigo-200">
+          <i class="fas fa-vial text-indigo-600 text-xl"></i>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">Faltantes de muestra</p>
+          <p class="text-2xl font-bold text-gray-900">9</p>
+        </div>
+      </div>
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">+2</span>
+    </div>
+
+    <!-- Recolectadas hoy -->
+    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 grid place-items-center rounded-xl bg-emerald-50 ring-1 ring-emerald-200">
+          <i class="fas fa-vials text-emerald-600 text-xl"></i>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">Recolectadas (hoy)</p>
+          <p class="text-2xl font-bold text-gray-900">37</p>
+        </div>
+      </div>
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">↑</span>
+    </div>
+
+    <!-- Incidencias bioseguridad -->
+    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 grid place-items-center rounded-xl bg-rose-50 ring-1 ring-rose-200">
+          <i class="fas fa-exclamation-triangle text-rose-600 text-xl"></i>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">Incidencias (hoy)</p>
+          <p class="text-2xl font-bold text-gray-900">1</p>
+        </div>
+      </div>
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">!</span>
+    </div>
+
+    <!-- En traslado -->
+    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 grid place-items-center rounded-xl bg-amber-50 ring-1 ring-amber-200">
+          <i class="fas fa-truck text-amber-600 text-xl"></i>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">Muestras en traslado</p>
+          <p class="text-2xl font-bold text-gray-900">4</p>
+        </div>
+      </div>
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">→</span>
+    </div>
+  </section>
+
+  <!-- Accesos rápidos -->
+  <section>
+    <h2 class="text-lg font-semibold text-gray-900 mb-3">Accesos de enfermería</h2>
+    <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+
+      <!-- Faltantes de muestra -->
+      <a href="{{ url_for('app_routes.manage_muestra') }}"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">9</span>
+        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-vial text-8xl text-indigo-600"></i></div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-indigo-200 bg-indigo-50">
+            <i class="fas fa-vial text-indigo-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Faltantes de muestra</h3>
+            <p class="text-sm text-gray-500">Órdenes sin muestra registrada</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- Registro de toma -->
+      <a href="#"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">Hoy</span>
+        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-syringe text-8xl text-emerald-600"></i></div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-emerald-200 bg-emerald-50">
+            <i class="fas fa-syringe text-emerald-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Registro de toma</h3>
+            <p class="text-sm text-gray-500">Captura de hora, tipo y observaciones</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- Etiquetas / QR -->
+      <a href="#"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-slate-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">QR</span>
+        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-qrcode text-8xl text-slate-600"></i></div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-slate-200 bg-slate-50">
+            <i class="fas fa-qrcode text-slate-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Etiquetas / QR</h3>
+            <p class="text-sm text-gray-500">Imprimir y pegar en contenedores</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- Bioseguridad -->
+      <a href="#"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">1</span>
+        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-shield-virus text-8xl text-rose-600"></i></div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-rose-200 bg-rose-50">
+            <i class="fas fa-shield-virus text-rose-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Bioseguridad</h3>
+            <p class="text-sm text-gray-500">Incidencias y bitácora</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- Envío / Traslado -->
+      <a href="#"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
+        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-truck text-8xl text-amber-600"></i></div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-amber-200 bg-amber-50">
+            <i class="fas fa-truck text-amber-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Envío / Traslado</h3>
+            <p class="text-sm text-gray-500">Cadena de custodia y recepción</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- Configuración (sin badge) -->
+      <a href="#"
+         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">
+        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-cog text-8xl text-slate-600"></i></div>
+        <div class="relative flex items-center gap-4">
+          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-slate-200 bg-slate-50">
+            <i class="fas fa-cog text-slate-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Configuración</h3>
+            <p class="text-sm text-gray-500">Preferencias de enfermería</p>
+          </div>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- Bandeja: Faltantes de muestra (dummy) -->
+  <section class="rounded-2xl ring-1 ring-gray-200 bg-white p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-semibold text-gray-900">
+        <i class="fas fa-vial text-indigo-600 mr-2"></i> Faltantes de muestra (hoy)
+      </h3>
+      <div class="flex gap-2">
+        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200">Actualizar</button>
+        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200">Filtrar</button>
+      </div>
+    </div>
+    <div class="overflow-x-auto -mx-3">
+      <table class="min-w-full text-sm mx-3">
+        <thead>
+          <tr class="text-left text-gray-500">
+            <th class="py-2">Orden</th>
+            <th class="py-2">Paciente</th>
+            <th class="py-2">Prueba</th>
+            <th class="py-2">Prioridad</th>
+            <th class="py-2">Tiempo</th>
+            <th class="py-2 text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          <!-- Datos dummy; quita o sustituye al conectar a BD -->
+          <tr class="hover:bg-gray-50">
+            <td class="py-2 font-medium text-gray-900">ORD-2101</td>
+            <td class="py-2">María Pérez</td>
+            <td class="py-2">Biometría hemática</td>
+            <td class="py-2">
+              <span class="inline-flex items-center rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-200 px-2 py-0.5">Alta</span>
+            </td>
+            <td class="py-2 text-gray-600">18m</td>
+            <td class="py-2 text-right">
+              <div class="inline-flex gap-1">
+                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
+                <a class="px-2 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" href="#"><i class="fas fa-check" title="Registrar toma"></i></a>
+                <a class="px-2 py-1 rounded-lg bg-slate-600 text-white hover:bg-slate-700" href="#"><i class="fas fa-qrcode" title="Etiquetas"></i></a>
+              </div>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="py-2 font-medium text-gray-900">ORD-2102</td>
+            <td class="py-2">Juan López</td>
+            <td class="py-2">QS (perfil)</td>
+            <td class="py-2">
+              <span class="inline-flex items-center rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 px-2 py-0.5">Media</span>
+            </td>
+            <td class="py-2 text-gray-600">10m</td>
+            <td class="py-2 text-right">
+              <div class="inline-flex gap-1">
+                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
+                <a class="px-2 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" href="#"><i class="fas fa-check" title="Registrar toma"></i></a>
+                <a class="px-2 py-1 rounded-lg bg-slate-600 text-white hover:bg-slate-700" href="#"><i class="fas fa-qrcode" title="Etiquetas"></i></a>
+              </div>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="py-2 font-medium text-gray-900">ORD-2103</td>
+            <td class="py-2">Luisa Díaz</td>
+            <td class="py-2">Glucosa</td>
+            <td class="py-2">
+              <span class="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 px-2 py-0.5">Normal</span>
+            </td>
+            <td class="py-2 text-gray-600">7m</td>
+            <td class="py-2 text-right">
+              <div class="inline-flex gap-1">
+                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
+                <a class="px-2 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" href="#"><i class="fas fa-check" title="Registrar toma"></i></a>
+                <a class="px-2 py-1 rounded-lg bg-slate-600 text-white hover:bg-slate-700" href="#"><i class="fas fa-qrcode" title="Etiquetas"></i></a>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
 </div>
 {% endblock %}
-
-
