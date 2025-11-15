@@ -1399,17 +1399,61 @@ def activate_prueba(prueba_id):
 @require_role("Mostrador")
 def manage_orden():
     if request.method == "POST":
-        # Aquí procesas los datos del formulario, por ejemplo:
-        nombre = request.form.get("nombre")
-        hospital_id = request.form.get("hospital")
-        cuarto = request.form.get("cuarto")
-        doctor_id = request.form.get("doctor")
-        observaciones = request.form.get("observaciones")
+        nombre = (request.form.get("nombre") or "").strip()
+        patient_id = (request.form.get("patient_id") or "").strip()
+        hospital_id = (request.form.get("hospital") or "").strip()
+        cuarto = (request.form.get("cuarto") or "").strip()
+        doctor_id = (request.form.get("doctor") or "").strip()
+        observaciones = (request.form.get("observaciones") or "").strip()
 
-        # Validaciones opcionales aquí...
+        errors = []
+        if not nombre or not patient_id:
+            errors.append("Selecciona un paciente desde la lista de sugerencias.")
+        if not hospital_id:
+            errors.append("Selecciona un hospital.")
+        if not cuarto:
+            errors.append("Ingresa el número/nombre de cuarto.")
+        if not doctor_id:
+            errors.append("Selecciona un doctor.")
+        import re
+        if cuarto and not re.match(r'^[A-Za-z0-9\-# ]{1,15}$', cuarto):
+            errors.append("El campo 'Cuarto' solo permite letras, números, espacio, -, # (máx. 15).")
 
-        # Guardar en la base de datos o pasar a la siguiente vista
-        # Redirige a la página de pruebas seleccionadas
+        def as_int_or_none(v):
+            try:
+                return int(v)
+            except Exception:
+                return None
+
+        if patient_id and not existe_paciente_activo(as_int_or_none(patient_id)):
+            errors.append("El paciente seleccionado no existe o está inactivo.")
+        if hospital_id and not existe_hospital_activo(as_int_or_none(hospital_id)):
+            errors.append("El hospital seleccionado no existe o está inactivo.")
+        if doctor_id and not existe_doctor_activo(as_int_or_none(doctor_id)):
+            errors.append("El doctor seleccionado no existe o está inactivo.")
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            # Volvemos a pintar la vista con los catálogos y la fecha
+            fecha_actual = datetime.now().strftime("%d/%m/%Y")
+            hospitales = obtener_hospitales()
+            doctores = obtener_doctores()
+            return render_template(
+                "mostrador/orden.html",
+                fecha_actual=fecha_actual,
+                hospitales=hospitales,
+                doctores=doctores
+            )
+
+        # OK: puedes guardar en sesión para siguiente paso
+        session["orden_actual"] = {
+            "patient_id": int(patient_id),
+            "hospital_id": int(hospital_id),
+            "cuarto": cuarto,
+            "doctor_id": int(doctor_id),
+            "observaciones": observaciones
+        }
         return redirect(url_for("app_routes.manage_orden_pruebas"))
 
     # GET normal
@@ -1417,6 +1461,53 @@ def manage_orden():
     hospitales = obtener_hospitales()
     doctores = obtener_doctores()
     return render_template("mostrador/orden.html", fecha_actual=fecha_actual, hospitales=hospitales, doctores=doctores)
+
+@app_routes.route("/api/validar_orden", methods=["POST"])
+@require_role("Mostrador")
+def api_validar_orden():
+    data = request.get_json() or {}
+    nombre = (data.get("nombre") or "").strip()
+    patient_id = (data.get("patient_id") or "").strip()
+    hospital_id = (data.get("hospital") or "").strip()
+    cuarto = (data.get("cuarto") or "").strip()
+    doctor_id = (data.get("doctor") or "").strip()
+
+    errors = []
+
+    # Reglas de obligatoriedad
+    if not nombre or not patient_id:
+        errors.append("Selecciona un paciente desde la lista de sugerencias.")
+    if not hospital_id:
+        errors.append("Selecciona un hospital.")
+    if not cuarto:
+        errors.append("Ingresa el número/nombre de cuarto.")
+    if not doctor_id:
+        errors.append("Selecciona un doctor.")
+
+    # Reglas de formato simples para 'cuarto'
+    if cuarto and not __import__('re').match(r'^[A-Za-z0-9\-# ]{1,15}$', cuarto):
+        errors.append("El campo 'Cuarto' solo permite letras, números, espacio, -, # (máx. 15).")
+
+    # Reglas contra BD (solo si hay datos)
+    # Casting seguro a int cuando apliquen IDs
+    def as_int_or_none(v):
+        try:
+            return int(v)
+        except Exception:
+            return None
+
+    if patient_id and not existe_paciente_activo(as_int_or_none(patient_id)):
+        errors.append("El paciente seleccionado no existe o está inactivo.")
+
+    if hospital_id and not existe_hospital_activo(as_int_or_none(hospital_id)):
+        errors.append("El hospital seleccionado no existe o está inactivo.")
+
+    if doctor_id and not existe_doctor_activo(as_int_or_none(doctor_id)):
+        errors.append("El doctor seleccionado no existe o está inactivo.")
+
+    ok = len(errors) == 0
+    return jsonify({"ok": ok, "errors": errors}), (200 if ok else 400)
+
     
 @app_routes.route("/api/buscar_pacientes")
 @require_role("Mostrador")  # o quien tenga permiso

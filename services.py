@@ -616,3 +616,32 @@ def obtener_todos_los_reactivos():
         print(f"Error al obtener reactivos: {e}")
         return []
 
+
+#para validar para orden
+def existe_paciente_activo(paciente_id):
+    try:
+        res = supabase.table('pacientes').select('id, activo').eq('id', paciente_id).single().execute()
+        if not res.data:
+            return False
+        # si no existe campo 'activo' lo consideramos True por compatibilidad
+        return res.data.get('activo', True) is True
+    except Exception:
+        return False
+
+def existe_hospital_activo(hospital_id):
+    try:
+        res = supabase.table('hospitales').select('id, activo').eq('id', hospital_id).single().execute()
+        if not res.data:
+            return False
+        return res.data.get('activo', True) is True
+    except Exception:
+        return False
+
+def existe_doctor_activo(doctor_id):
+    try:
+        res = supabase.table('doctores').select('id, activo').eq('id', doctor_id).single().execute()
+        if not res.data:
+            return False
+        return res.data.get('activo', True) is True
+    except Exception:
+        return False
