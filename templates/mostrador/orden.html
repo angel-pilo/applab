@@ -57,7 +57,7 @@
         <label for="hospital" class="block text-gray-700 font-semibold mb-2">Hospital u Origen</label>
         <select id="hospital" name="hospital" class="w-full px-4 py-2 border rounded-[1rem]" required>
           <option value="" disabled selected>Ingresa el nombre del hospital</option>
-          {% for hospital in hospitales %}
+          {% for hospital in hospitales if hospital.activo %}
             <option value="{{ hospital.id }}">{{ hospital.nombre }}</option>
           {% endfor %}
         </select>
