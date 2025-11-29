@@ -17,7 +17,7 @@ ROLE_MENU = {
         {"text": "Resultados listos","icon": "fa-file-export",  "url": "#"},
         {"text": "Pacientes",        "icon": "fa-id-card",      "url": "app_routes.manage_patients"},
         {"text": "Corte de caja",    "icon": "fa-cash-register","url": "#"},
-        {"text": "Órdenes recientes","icon": "fa-stream",       "url": "#"},
+        {"text": "Órdenes recientes","icon": "fa-stream",       "url": "app_routes.recientes"},
         {"text": "Configuración",    "icon": "fa-cog",          "url": "#"},
     ],
 
