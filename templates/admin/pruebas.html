@@ -3,11 +3,6 @@
 {% block title %}Pruebas Clínicas{% endblock %}
 
 {% block content %}
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
-    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
-    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
-</head>
 
 {% set pruebas = [
     {"id": 1, "nombre": "Biometría Hemática", "tipo": "Sanguínea", "reactivo": "Reactivo BH", "activo": True},
