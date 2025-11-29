@@ -20,10 +20,16 @@
       Fecha <span class="text-red-600">{{ fecha_actual }}</span>
     </p>
     <div class="text-right">
-      <p class="text-xl font-semibold">
+      <p class="text-xl text-right font-semibold">
         Orden
         <span class="text-red-600">
-          #{{ "%04d"|format(orden_id) if orden_id else "0000" }}
+          {% if orden_id %}
+            #{{ "%04d"|format(orden_id) }}
+          {% elif folio_sugerido %}
+            #{{ "%04d"|format(folio_sugerido) }}
+          {% else %}
+            #0000
+          {% endif %}
         </span>
       </p>
       <p class="text-lg font-semibold mt-1">
@@ -128,12 +134,14 @@
 
       <!-- Botón Editar (regresa a orden_pruebas) -->
       <div class="flex justify-end mt-4">
+        {% if estado|lower == 'borrador' %}
         <button
           type="button"
           class="btn-cancelar px-6 py-2 rounded-[1rem]"
           onclick="window.location.href='{{ url_for('app_routes.manage_orden_pruebas') }}'">
           Editar
         </button>
+        {% endif %}
       </div>
     </div>
 

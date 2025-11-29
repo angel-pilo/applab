@@ -1416,6 +1416,7 @@ def manage_orden():
             errors.append("Ingresa el número/nombre de cuarto.")
         if not doctor_id:
             errors.append("Selecciona un doctor.")
+
         import re
         if cuarto and not re.match(r'^[A-Za-z0-9\-# ]{1,15}$', cuarto):
             errors.append("El campo 'Cuarto' solo permite letras, números, espacio, -, # (máx. 15).")
@@ -1436,15 +1437,17 @@ def manage_orden():
         if errors:
             for e in errors:
                 flash(e, "error")
-            # Volvemos a pintar la vista con los catálogos y la fecha
+            # Volvemos a pintar la vista con los catálogos, fecha y folio sugerido
             fecha_actual = datetime.now().strftime("%d/%m/%Y")
             hospitales = obtener_hospitales()
             doctores = obtener_doctores()
+            folio_sugerido = obtener_siguiente_folio_orden()
             return render_template(
                 "mostrador/orden.html",
                 fecha_actual=fecha_actual,
                 hospitales=hospitales,
-                doctores=doctores
+                doctores=doctores,
+                folio_sugerido=folio_sugerido,
             )
 
         # OK: puedes guardar en sesión para siguiente paso
@@ -1453,7 +1456,7 @@ def manage_orden():
             "hospital_id": int(hospital_id),
             "cuarto": cuarto,
             "doctor_id": int(doctor_id),
-            "observaciones": observaciones
+            "observaciones": observaciones,
         }
         return redirect(url_for("app_routes.manage_orden_pruebas"))
 
@@ -1461,7 +1464,15 @@ def manage_orden():
     fecha_actual = datetime.now().strftime("%d/%m/%Y")
     hospitales = obtener_hospitales()
     doctores = obtener_doctores()
-    return render_template("mostrador/orden.html", fecha_actual=fecha_actual, hospitales=hospitales, doctores=doctores)
+    folio_sugerido = obtener_siguiente_folio_orden()
+    return render_template(
+        "mostrador/orden.html",
+        fecha_actual=fecha_actual,
+        hospitales=hospitales,
+        doctores=doctores,
+        folio_sugerido=folio_sugerido,
+    )
+
 
 @app_routes.route("/api/validar_orden", methods=["POST"])
 @require_role("Mostrador")
@@ -1536,6 +1547,9 @@ def buscar_pacientes():
 @app_routes.route("/reporte", methods=["GET", "POST"])
 @require_role("Mostrador")
 def reporte():
+    # ---------------------------------
+    # 1) POST: viene de orden_pruebas (JSON de pruebas)
+    # ---------------------------------
     if request.method == "POST":
         datos_raw = request.form.get("datosSeleccionados", "")
         if datos_raw:
@@ -1546,13 +1560,129 @@ def reporte():
             session["pruebas_seleccionadas"] = datos
         return redirect(url_for("app_routes.reporte"))
 
-    # Orden en sesión
+    # ---------------------------------
+    # 2) GET con ?orden_id=... => ver nota de una orden guardada (Recientes)
+    # ---------------------------------
+    orden_id_param = request.args.get("orden_id", type=int)
+    if orden_id_param:
+        orden_db = obtener_orden_por_id(orden_id_param)
+        if not orden_db:
+            flash("No se encontró la orden seleccionada.", "error")
+            return redirect(url_for("app_routes.recientes"))
+
+        # Guardamos el id en sesión para que Abonar funcione
+        session["orden_id_db"] = orden_id_param
+
+        # Usamos la orden de BD como 'orden' para el template
+        orden = orden_db
+
+        # Paciente / hospital / doctor desde la orden de BD
+        paciente = (
+            obtener_paciente_por_id(orden_db.get("paciente_id"))
+            if orden_db.get("paciente_id")
+            else None
+        )
+        hospital = (
+            obtener_hospital_por_id(orden_db.get("hospital_id"))
+            if orden_db.get("hospital_id")
+            else None
+        )
+        doctor = (
+            obtener_doctor_por_id(orden_db.get("doctor_id"))
+            if orden_db.get("doctor_id")
+            else None
+        )
+
+        # Detalle de pruebas desde la tabla orden_pruebas_detalle
+        detalle = obtener_detalle_pruebas_por_orden(orden_id_param)
+        pruebas = []
+        total_pruebas = 0.0
+
+        for d in detalle:
+            # cantidad
+            try:
+                cantidad = int(d.get("cantidad", 1) or 1)
+            except (TypeError, ValueError):
+                cantidad = 1
+
+            # 1) Intentar usar subtotal directo
+            raw_subtotal = d.get("subtotal")
+            try:
+                subtotal = float(raw_subtotal) if raw_subtotal is not None else 0.0
+            except (TypeError, ValueError):
+                subtotal = 0.0
+
+            # 2) Si subtotal no sirve, recalcular con precio_unitario * cantidad
+            if subtotal == 0.0:
+                raw_unit = d.get("precio_unitario") or d.get("precio") or 0
+                try:
+                    unitario = float(raw_unit)
+                except (TypeError, ValueError):
+                    unitario = 0.0
+                subtotal = unitario * cantidad
+
+            pruebas.append(
+                {
+                    "prueba": d.get("nombre_prueba"),
+                    "cantidad": cantidad,
+                    # nuestro template espera 'precio' = total de la línea
+                    "precio": subtotal,
+                }
+            )
+            total_pruebas += subtotal
+
+        # Abonos y estado desde BD
+        abonos = obtener_abonos_orden(orden_id_param)
+        total_abonos = float(orden_db.get("total_abonos", 0) or 0)
+        estado = orden_db.get("estado", "pendiente")
+        total_restante = max(total_pruebas - total_abonos, 0.0)
+
+        # Fecha: usamos creado_en si existe, si no, hoy
+        creado_en = orden_db.get("creado_en")
+        if creado_en:
+            try:
+                if isinstance(creado_en, str):
+                    # soporta ISO con Z o sin Z
+                    if "T" in creado_en:
+                        dt = datetime.fromisoformat(creado_en.replace("Z", "+00:00"))
+                    else:
+                        dt = datetime.fromisoformat(creado_en)
+                else:
+                    dt = creado_en
+                fecha_actual = dt.strftime("%d/%m/%Y")
+            except Exception:
+                fecha_actual = datetime.now().strftime("%d/%m/%Y")
+        else:
+            fecha_actual = datetime.now().strftime("%d/%m/%Y")
+
+        # En este caso, ya es una orden guardada → no necesitamos folio_sugerido
+        folio_sugerido = None
+
+        return render_template(
+            "mostrador/reporte.html",
+            fecha_actual=fecha_actual,
+            orden=orden,
+            paciente=paciente,
+            hospital=hospital,
+            doctor=doctor,
+            pruebas=pruebas,
+            total_pruebas=total_pruebas,
+            orden_id=orden_id_param,
+            estado=estado,
+            abonos=abonos,
+            total_abonos=total_abonos,
+            total_restante=total_restante,
+            folio_sugerido=folio_sugerido,
+        )
+
+    # ---------------------------------
+    # 3) GET sin orden_id => flujo normal (orden en construcción desde sesión)
+    # ---------------------------------
     orden = session.get("orden_actual")
     if not orden:
         flash("No hay datos de la orden. Vuelve a generarla.", "error")
         return redirect(url_for("app_routes.manage_orden"))
 
-    # Pruebas seleccionadas (desde orden_pruebas)
     pruebas = session.get("pruebas_seleccionadas", [])
     if isinstance(pruebas, str):
         try:
@@ -1560,12 +1690,22 @@ def reporte():
         except Exception:
             pruebas = []
 
-    # Paciente / hospital / doctor desde BD
-    paciente = obtener_paciente_por_id(orden["patient_id"]) if orden.get("patient_id") else None
-    hospital = obtener_hospital_por_id(orden["hospital_id"]) if orden.get("hospital_id") else None
-    doctor = obtener_doctor_por_id(orden["doctor_id"]) if orden.get("doctor_id") else None
+    paciente = (
+        obtener_paciente_por_id(orden["patient_id"])
+        if orden.get("patient_id")
+        else None
+    )
+    hospital = (
+        obtener_hospital_por_id(orden["hospital_id"])
+        if orden.get("hospital_id")
+        else None
+    )
+    doctor = (
+        obtener_doctor_por_id(orden["doctor_id"])
+        if orden.get("doctor_id")
+        else None
+    )
 
-    # Total de pruebas (suma de subtotales)
     total_pruebas = 0.0
     for p in pruebas:
         try:
@@ -1575,20 +1715,23 @@ def reporte():
 
     fecha_actual = datetime.now().strftime("%d/%m/%Y")
 
-    # Orden guardada en BD (si ya se imprimió/guardó)
+    # Aquí SÍ primero obtenemos orden_db
     orden_id_db = session.get("orden_id_db")
     orden_db = obtener_orden_por_id(orden_id_db) if orden_id_db else None
 
     if orden_db:
-        orden_id = orden_db["id"]                       # folio real
+        orden_id = orden_db["id"]
         estado = orden_db.get("estado", "pendiente")
         abonos = obtener_abonos_orden(orden_id)
         total_abonos = float(orden_db.get("total_abonos", 0) or 0)
+        folio_sugerido = None  # ya hay orden en BD
     else:
         orden_id = None
         estado = "borrador"
         abonos = []
         total_abonos = 0.0
+        # solo sugerimos folio cuando aún no está guardada
+        folio_sugerido = obtener_siguiente_folio_orden()
 
     total_restante = max(total_pruebas - total_abonos, 0.0)
 
@@ -1606,6 +1749,7 @@ def reporte():
         abonos=abonos,
         total_abonos=total_abonos,
         total_restante=total_restante,
+        folio_sugerido=folio_sugerido,
     )
 
 
@@ -1699,7 +1843,21 @@ def manage_orden_pruebas():
         return redirect(url_for("app_routes.manage_orden"))
 
     pruebas = obtener_pruebas()  # usa la función ya existente en services.py
-    return render_template("mostrador/orden_pruebas.html", pruebas=pruebas)
+    folio_sugerido = obtener_siguiente_folio_orden()
+    return render_template("mostrador/orden_pruebas.html", pruebas=pruebas, folio_sugerido=folio_sugerido)
+
+
+@app_routes.route("/recientes", methods=["GET"])
+@require_role("Mostrador")
+def recientes():
+    ordenes = listar_ordenes_resumen()  
+
+    for o in ordenes:
+        total_pruebas = float(o.get("total_pruebas", 0) or 0)
+        total_abonos = float(o.get("total_abonos", 0) or 0)
+        o["total_restante"] = max(total_pruebas - total_abonos, 0.0)
+
+    return render_template("mostrador/recientes.html", ordenes=ordenes)
 
 @app_routes.route("/listos")
 @require_role("Mostrador")  

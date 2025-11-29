@@ -685,7 +685,8 @@ def existe_doctor_activo(doctor_id):
         return False
 
 
-def guardar_orden_en_bd(orden: dict, pruebas: list[dict], empleado_id: int | None = None) -> int:
+def guardar_orden_en_bd(orden: dict, pruebas: list, empleado_id: int) -> int:
+    # Total de todas las pruebas (precio ya viene como total por renglón)
     total_pruebas = 0.0
     for p in pruebas:
         try:
@@ -693,57 +694,79 @@ def guardar_orden_en_bd(orden: dict, pruebas: list[dict], empleado_id: int | Non
         except (TypeError, ValueError):
             continue
 
+    # 1) Insertar la orden
     data_orden = {
-        "paciente_id": int(orden["patient_id"]),
-        "doctor_id": int(orden["doctor_id"]),
-        "hospital_id": int(orden["hospital_id"]),
-        "cuarto": orden["cuarto"],
-        "observaciones": orden.get("observaciones") or None,
+        "paciente_id": orden.get("patient_id"),
+        "hospital_id": orden.get("hospital_id"),
+        "doctor_id": orden.get("doctor_id"),
+        "cuarto": orden.get("cuarto"),
+        "observaciones": orden.get("observaciones"),
         "total_pruebas": total_pruebas,
         "total_abonos": 0,
         "estado": "pendiente",
+        # nombre real de la columna en la tabla ordenes
         "creado_por_empleado_id": empleado_id,
     }
 
-    resp = supabase.table("ordenes").insert(data_orden).execute()
-    if not resp.data:
-        raise RuntimeError("No se pudo insertar la orden.")
+    res_orden = supabase.table("ordenes").insert(data_orden).execute()
+    if not res_orden.data:
+        raise RuntimeError(f"No se pudo insertar la orden: {res_orden}")
+    orden_id = res_orden.data[0]["id"]
 
-    orden_id = resp.data[0]["id"]
-
+    # 2) Insertar el detalle de pruebas
     detalles = []
     for p in pruebas:
+        # cantidad
         try:
             cantidad = int(p.get("cantidad", 1))
         except (TypeError, ValueError):
             cantidad = 1
 
+        # subtotal = total de ese renglón que viene de orden_pruebas
         try:
-            precio_unit = float(p.get("precio_unitario", p.get("precio", 0)))
+            subtotal = float(p.get("precio", 0) or 0)
         except (TypeError, ValueError):
-            precio_unit = 0.0
+            subtotal = 0.0
 
+        # precio_unitario = subtotal / cantidad
+        precio_unitario = subtotal / cantidad if cantidad else subtotal
+
+        # --- NUEVO: prueba_id y tipo_prueba ---
+        raw_prueba_id = p.get("prueba_id")
         try:
-            precio_total = float(p.get("precio", precio_unit * cantidad))
+            # viene como string desde el front, lo convertimos a int
+            prueba_id = int(raw_prueba_id) if raw_prueba_id not in (None, "", "null") else None
         except (TypeError, ValueError):
-            precio_total = precio_unit * cantidad
+            prueba_id = None
 
-        detalles.append(
-            {
-                "orden_id": orden_id,
-                "prueba_id": int(p["prueba_id"]) if p.get("prueba_id") else None,
-                "nombre_prueba": p.get("prueba"),
-                "tipo_prueba": p.get("tipo_prueba"),
-                "cantidad": cantidad,
-                "precio_unitario": precio_unit,
-                "precio_total": precio_total,
-            }
-        )
+        tipo_prueba = p.get("tipo_prueba") or None
+        # --------------------------------------
+
+        detalle = {
+            "orden_id": orden_id,
+            "nombre_prueba": p.get("prueba"),
+            "cantidad": cantidad,
+            "precio_unitario": precio_unitario,
+            # nombre de la columna NOT NULL con el total de la línea
+            "precio_total": subtotal,
+        }
+
+        # ahora sí guardamos el id real de la prueba
+        if prueba_id is not None:
+            detalle["prueba_id"] = prueba_id
+
+        # y también el tipo de prueba
+        if tipo_prueba:
+            detalle["tipo_prueba"] = tipo_prueba
+
+        detalles.append(detalle)
 
     if detalles:
         supabase.table("orden_pruebas_detalle").insert(detalles).execute()
 
     return orden_id
+
+
 
 def obtener_orden_por_id(orden_id: int):
     try:
@@ -814,3 +837,96 @@ def registrar_abono(orden_id: int, cantidad: float, empleado_id: int | None = No
     ).execute()
 
     recalcular_totales_y_estado_orden(orden_id)
+
+def listar_ordenes_resumen(limit: int = 50):
+    """
+    Regresa una lista de órdenes con datos listos para el template 'recientes.html'.
+    """
+    try:
+        resp = (
+            supabase
+            .table("ordenes")
+            .select("*")
+            .order("creado_en", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        ordenes_raw = resp.data or []
+    except Exception as e:
+        print(f"Error al obtener ordenes: {e}")
+        return []
+
+    ordenes = []
+    for o in ordenes_raw:
+        paciente = obtener_paciente_por_id(o.get("paciente_id")) if o.get("paciente_id") else None
+        hospital = obtener_hospital_por_id(o.get("hospital_id")) if o.get("hospital_id") else None
+        doctor = obtener_doctor_por_id(o.get("doctor_id")) if o.get("doctor_id") else None
+
+        total_pruebas = float(o.get("total_pruebas") or 0)
+        total_abonos = float(o.get("total_abonos") or 0)
+        total_restante = max(total_pruebas - total_abonos, 0.0)
+
+        # Formatear fecha (asumiendo creado_en es timestamptz de Supabase)
+        creado_en = o.get("creado_en")
+        if creado_en:
+            try:
+                dt = datetime.fromisoformat(creado_en.replace("Z", "+00:00"))
+                fecha_str = dt.strftime("%d/%m/%Y")
+            except Exception:
+                fecha_str = creado_en[:10]
+        else:
+            fecha_str = ""
+
+        ordenes.append(
+            {
+                "id": o["id"],
+                "fecha": fecha_str,
+                "paciente_nombre": f"{paciente['nombres']} {paciente['apellidos']}" if paciente else None,
+                "hospital_nombre": hospital["nombre"] if hospital else None,
+                "doctor_nombre": f"{doctor['nombres']} {doctor['apellidos']}" if doctor else None,
+                "total_pruebas": total_pruebas,
+                "total_abonos": total_abonos,
+                "total_restante": total_restante,
+                "estado": o.get("estado", "pendiente"),
+            }
+        )
+
+    return ordenes
+
+def obtener_detalle_pruebas_por_orden(orden_id: int):
+    try:
+        resp = (
+            supabase.table("orden_pruebas_detalle")
+            .select("*")
+            .eq("orden_id", orden_id)
+            .order("id", desc=False)
+            .execute()
+        )
+        return resp.data or []
+    except Exception as e:
+        print(f"Error al obtener detalle de pruebas para orden {orden_id}: {e}")
+        return []
+
+def obtener_siguiente_folio_orden():
+    """
+    Regresa el siguiente folio sugerido para órdenes (último id + 1).
+    Solo es decorativo, el id real lo asigna la BD al insertar.
+    """
+    try:
+        resp = (
+            supabase.table("ordenes")
+            .select("id")
+            .order("id", desc=True)
+            .limit(1)
+            .execute()
+        )
+        datos = resp.data or []
+        if datos:
+            ultimo_id = int(datos[0]["id"])
+            return ultimo_id + 1
+        # Si no hay órdenes aún, empezamos en 1
+        return 1
+    except Exception as e:
+        print(f"Error al obtener siguiente folio de orden: {e}")
+        # En caso de error, devolvemos None o 0
+        return None

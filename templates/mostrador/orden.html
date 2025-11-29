@@ -21,7 +21,13 @@
 
   <div class="flex justify-between mb-6 items-center">
     <span class="text-lg font-semibold">Fecha <span class="text-red-600">{{ fecha_actual }}</span></span>
-    <span class="text-lg font-bold text-red-600">#0000</span>
+    <span class="text-lg font-bold text-red-600"> <!-- Esto es para simular folio sin meter en la base de datos -->
+      {% if folio_sugerido %}
+        #{{ "%04d"|format(folio_sugerido) }}  
+      {% else %}
+        #0000
+      {% endif %}
+    </span>
   </div>
 
   <form method="POST" action="">
