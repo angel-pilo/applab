@@ -10,7 +10,6 @@
 </head>
 
 <div class="w-full max-w-7xl mx-auto px-6 py-8">
-  <!-- Encabezado -->
   <div class="flex items-center space-x-2 mb-6">
     <button class="text-2xl" onclick="window.history.back()">
       <i class="fas fa-arrow-left"></i>
@@ -18,59 +17,55 @@
     <h1 class="text-3xl font-bold">Pruebas</h1>
   </div>
 
-  <!-- Contenido dividido -->
-  <div class="flex items-start justify-between gap-8">
-    
-    <!-- Tabla de pruebas -->
+  <div class="flex flex-col lg:flex-row items-start justify-between gap-8">
     <div class="bg-white rounded-[1rem] shadow-md overflow-x-auto max-w-[1200px] w-full">
-      <!-- Buscador y Filtro -->
       <div class="flex items-center gap-4 p-4">
-        <input type="text" placeholder="Buscar" class="border rounded px-4 py-2 w-full max-w-md focus:outline-none focus:ring">
-        <button class="border px-4 py-2 rounded shadow hover:bg-gray-100">Filtro</button>
+        <input type="text" id="buscador-pruebas" placeholder="Buscar"
+               class="border rounded px-4 py-2 w-full max-w-md focus:outline-none focus:ring">
+        <button type="button" class="border px-4 py-2 rounded shadow hover:bg-gray-100">Filtro</button>
       </div>
 
       <table class="min-w-full text-base text-left">
         <thead>
           <tr class="border-t border-b">
             <th class="px-6 py-2">
-              <input type="checkbox">
+              <input type="checkbox" id="select-all">
             </th>
             <th class="px-6 py-4 text-blue-600 font-semibold">ID ⬇</th>
             <th class="px-6 py-4 font-semibold text-gray-700">Prueba</th>
             <th class="px-6 py-4 font-semibold text-gray-700">Tipo de prueba</th>
-            <th class="px-6 py-4 font-semibold text-gray-700">Stock</th>
-            <th class="px-6 py-4 font-semibold text-gray-700">Venta</th>
+            <th class="px-6 py-4 font-semibold text-gray-700 text-right">Venta</th>
           </tr>
         </thead>
-        <tbody>
-          {% set pruebas = [
-            ("203241008", "Hemograma completo", "Sanguínea", "015", "$230"),
-            ("203241034", "Examen general de orina (EGO)", "Orina", "010", "$100"),
-            ("203241056", "Examen general de heces (EGH)", "Heces", "120", "$229"),
-            ("203241008", "Glucosa en la sangre", "Sanguínea", "079", "$90"),
-            ("203241034", "Perfil lipídico", "Sanguínea", "025", "$150"),
-            ("203241008", "Hemoglobina glucosilada", "Sanguínea", "065", "$130"),
-            ("203241034", "Urea y creatinina", "Sanguínea", "045", "$70")
-          ] %}
-          {% for id, nombre, tipo, stock, venta in pruebas %}
-          <tr class="border-b hover:bg-gray-50">
-            <td class="px-6 py-2"><input type="checkbox"></td>
-            <td class="px-6 py-2">{{ id }}</td>
-            <td class="px-6 py-2">{{ nombre }}</td>
-            <td class="px-6 py-2">{{ tipo }}</td>
-            <td class="px-6 py-2">{{ stock }}</td>
-            <td class="px-6 py-2">{{ venta }}</td>
+        <tbody id="tabla-pruebas">
+          {% for prueba in pruebas %}
+          <tr class="border-b hover:bg-gray-50"
+              data-id="{{ prueba.id }}"
+              data-nombre="{{ prueba.nombre }}"
+              data-tipo="{{ prueba.tipo }}"
+              data-precio="{{ prueba.precio or 0 }}">
+            <td class="px-6 py-2">
+              <input type="checkbox" class="seleccionar-prueba">
+            </td>
+            <td class="px-6 py-2">{{ prueba.id }}</td>
+            <td class="px-6 py-2">{{ prueba.nombre }}</td>
+            <td class="px-6 py-2">{{ prueba.tipo }}</td>
+            <td class="px-6 py-2 text-right">
+              ${{ "%.2f"|format(prueba.precio or 0) }}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
 
-    <!-- Panel Orden -->
-    <div class="bg-white border border-gray-200 shadow-lg rounded-[1rem] p-6 w-[500px] self-start">
-      <h2 class="text-lg font-bold mb-4">
-        Orden <span class="text-red-600">#0000</span>
-      </h2>
+    <div class="bg-white border border-gray-200 shadow-lg rounded-[1rem] p-6 w-full lg:w-[420px] self-start">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold">Orden
+          <span class="text-red-600">#{{ "%04d"|format(orden_id) if orden_id else "0000" }}</span>
+        </h2>
+      </div>
+
       <table class="w-full text-base text-left mb-4">
         <thead>
           <tr class="border-b">
@@ -79,47 +74,131 @@
             <th class="pb-2 text-right">Precio final</th>
           </tr>
         </thead>
-        <tbody>
-          <tr class="border-b">
-            <td class="py-2">Examen general de orina (EGO)</td>
-            <td class="py-2 text-center">
-              <select class="border rounded px-2 py-1 text-base">
-                <option>1</option><option selected>3</option>
-              </select>
-            </td>
-            <td class="py-2 text-right">$100</td>
-          </tr>
-          <tr class="border-b">
-            <td class="py-2">Examen general de heces (EGH)</td>
-            <td class="py-2 text-center">
-              <select class="border rounded px-2 py-1 text-base">
-                <option selected>1</option>
-              </select>
-            </td>
-            <td class="py-2 text-right">$229</td>
-          </tr>
-          <tr class="border-b">
-            <td class="py-2">Glucosa en la sangre</td>
-            <td class="py-2 text-center">
-              <select class="border rounded px-2 py-1 text-base">
-                <option selected>1</option>
-              </select>
-            </td>
-            <td class="py-2 text-right">$90</td>
-          </tr>
-        </tbody>
+        <tbody id="tabla-orden"></tbody>
       </table>
-      <div class="flex justify-between text-lg font-bold">
+      <div class="flex justify-between text-lg font-bold mt-4">
         <span>Total</span>
-        <span>$419</span>
+        <span id="total-orden">$0.00</span>
       </div>
     </div>
   </div>
 
-  <!-- Botones de acción -->
   <div class="flex justify-end mt-8 gap-4">
-    <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">Continuar</button>
-    <button type="button" class="btn-cancelar px-6 py-2 rounded-[1rem]">Cancelar</button>
+    <form id="form-orden-pruebas" method="POST" action="{{ url_for('app_routes.reporte') }}">
+      <input type="hidden" id="datosSeleccionados" name="datosSeleccionados">
+      <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">Continuar</button>
+    </form>
+    <button type="button" class="btn-cancelar px-6 py-2 rounded-[1rem]" onclick="window.history.back()">Cancelar</button>
   </div>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const checkboxes = Array.from(document.querySelectorAll(".seleccionar-prueba"));
+    const tablaOrden = document.getElementById("tabla-orden");
+    const totalOrdenEl = document.getElementById("total-orden");
+    const form = document.getElementById("form-orden-pruebas");
+    const hiddenInput = document.getElementById("datosSeleccionados");
+    const selectAll = document.getElementById("select-all");
+
+    if (selectAll) {
+      selectAll.addEventListener("change", (e) => {
+        const checked = e.target.checked;
+        checkboxes.forEach(cb => {
+          cb.checked = checked;
+        });
+        construirTablaOrden();
+      });
+    }
+
+    checkboxes.forEach(cb => {
+      cb.addEventListener("change", construirTablaOrden);
+    });
+
+    function construirTablaOrden() {
+      tablaOrden.innerHTML = "";
+      let total = 0;
+
+      checkboxes.forEach(cb => {
+        if (!cb.checked) return;
+
+        const row = cb.closest("tr");
+        const nombre = row.dataset.nombre;
+        const tipo = row.dataset.tipo || "";
+        const pruebaId = row.dataset.id;
+        const precioUnitario = parseFloat(row.dataset.precio || "0") || 0;
+
+        const tr = document.createElement("tr");
+        tr.className = "border-b";
+        tr.dataset.pruebaId = pruebaId;
+        tr.dataset.nombrePrueba = nombre;
+        tr.dataset.tipoPrueba = tipo;
+        tr.dataset.precioUnitario = precioUnitario.toString();
+
+        tr.innerHTML = `
+          <td class="py-2">${nombre}</td>
+          <td class="py-2 text-center">
+            <select class="border rounded px-2 py-1 text-base cantidad-select">
+              ${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${n === 1 ? "selected" : ""}>${n}</option>`).join("")}
+            </select>
+          </td>
+          <td class="py-2 text-right precio-final">$${precioUnitario.toFixed(2)}</td>
+        `;
+
+        tablaOrden.appendChild(tr);
+        total += precioUnitario;
+      });
+
+      totalOrdenEl.textContent = `$${total.toFixed(2)}`;
+    }
+
+    tablaOrden.addEventListener("change", (event) => {
+      if (!event.target.classList.contains("cantidad-select")) return;
+
+      const select = event.target;
+      const fila = select.closest("tr");
+      const precioUnitario = parseFloat(fila.dataset.precioUnitario || "0") || 0;
+      const cantidad = parseInt(select.value || "1", 10) || 1;
+      const subtotal = precioUnitario * cantidad;
+
+      const celdaPrecio = fila.querySelector(".precio-final");
+      celdaPrecio.textContent = `$${subtotal.toFixed(2)}`;
+
+      recalcularTotal();
+    });
+
+    function recalcularTotal() {
+      let total = 0;
+      tablaOrden.querySelectorAll(".precio-final").forEach(td => {
+        const valor = parseFloat(td.textContent.replace("$", "").trim() || "0") || 0;
+        total += valor;
+      });
+      totalOrdenEl.textContent = `$${total.toFixed(2)}`;
+    }
+
+    form.addEventListener("submit", () => {
+      const datos = [];
+      tablaOrden.querySelectorAll("tr").forEach(fila => {
+        const nombre = fila.dataset.nombrePrueba || "";
+        const tipo = fila.dataset.tipoPrueba || "";
+        const pruebaId = fila.dataset.pruebaId || null;
+        const select = fila.querySelector(".cantidad-select");
+        const cantidad = select ? select.value : "1";
+        const precioFinal = fila.querySelector(".precio-final").textContent.replace("$", "").trim();
+        const precioUnitario = fila.dataset.precioUnitario || "0";
+
+        datos.push({
+          prueba_id: pruebaId,
+          prueba: nombre,
+          tipo_prueba: tipo,
+          cantidad: cantidad,
+          precio: precioFinal,
+          precio_unitario: precioUnitario
+        });
+      });
+
+      hiddenInput.value = JSON.stringify(datos);
+    });
+  });
+</script>
 {% endblock %}

@@ -1165,7 +1165,7 @@ def edit_reactivo(reactivo_id):
         # Recibe los datos del formulario y actualiza el reactivo en la base de datos
         nombre = request.form.get('nombre')
         tipo_reactivo = request.form.get('tipo_reactivo')
-        costo_unidad = request.form.get('costo_unidad')
+        costo_unidad = request.form.get('costo_unidad') 
         precio_unidad = request.form.get('precio_unidad')
         proveedor_id = request.form.get('proveedor')  # El proveedor seleccionado
         fecha_entrada = request.form.get('fecha_entrada')
@@ -1395,13 +1395,120 @@ def activate_prueba(prueba_id):
 
 
 #Mostrador
-@app_routes.route("/orden")
-@require_role("Mostrador")  
+@app_routes.route("/orden", methods=["GET", "POST"])
+@require_role("Mostrador")
 def manage_orden():
-    fecha_actual = datetime.now().strftime("%d/%m/%Y")  # Formato dd/mm/aaaa
+    if request.method == "POST":
+        session.pop("orden_id_db", None)
+        nombre = (request.form.get("nombre") or "").strip()
+        patient_id = (request.form.get("patient_id") or "").strip()
+        hospital_id = (request.form.get("hospital") or "").strip()
+        cuarto = (request.form.get("cuarto") or "").strip()
+        doctor_id = (request.form.get("doctor") or "").strip()
+        observaciones = (request.form.get("observaciones") or "").strip()
+
+        errors = []
+        if not nombre or not patient_id:
+            errors.append("Selecciona un paciente desde la lista de sugerencias.")
+        if not hospital_id:
+            errors.append("Selecciona un hospital.")
+        if not cuarto:
+            errors.append("Ingresa el número/nombre de cuarto.")
+        if not doctor_id:
+            errors.append("Selecciona un doctor.")
+        import re
+        if cuarto and not re.match(r'^[A-Za-z0-9\-# ]{1,15}$', cuarto):
+            errors.append("El campo 'Cuarto' solo permite letras, números, espacio, -, # (máx. 15).")
+
+        def as_int_or_none(v):
+            try:
+                return int(v)
+            except Exception:
+                return None
+
+        if patient_id and not existe_paciente_activo(as_int_or_none(patient_id)):
+            errors.append("El paciente seleccionado no existe o está inactivo.")
+        if hospital_id and not existe_hospital_activo(as_int_or_none(hospital_id)):
+            errors.append("El hospital seleccionado no existe o está inactivo.")
+        if doctor_id and not existe_doctor_activo(as_int_or_none(doctor_id)):
+            errors.append("El doctor seleccionado no existe o está inactivo.")
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            # Volvemos a pintar la vista con los catálogos y la fecha
+            fecha_actual = datetime.now().strftime("%d/%m/%Y")
+            hospitales = obtener_hospitales()
+            doctores = obtener_doctores()
+            return render_template(
+                "mostrador/orden.html",
+                fecha_actual=fecha_actual,
+                hospitales=hospitales,
+                doctores=doctores
+            )
+
+        # OK: puedes guardar en sesión para siguiente paso
+        session["orden_actual"] = {
+            "patient_id": int(patient_id),
+            "hospital_id": int(hospital_id),
+            "cuarto": cuarto,
+            "doctor_id": int(doctor_id),
+            "observaciones": observaciones
+        }
+        return redirect(url_for("app_routes.manage_orden_pruebas"))
+
+    # GET normal
+    fecha_actual = datetime.now().strftime("%d/%m/%Y")
     hospitales = obtener_hospitales()
     doctores = obtener_doctores()
     return render_template("mostrador/orden.html", fecha_actual=fecha_actual, hospitales=hospitales, doctores=doctores)
+
+@app_routes.route("/api/validar_orden", methods=["POST"])
+@require_role("Mostrador")
+def api_validar_orden():
+    data = request.get_json() or {}
+    nombre = (data.get("nombre") or "").strip()
+    patient_id = (data.get("patient_id") or "").strip()
+    hospital_id = (data.get("hospital") or "").strip()
+    cuarto = (data.get("cuarto") or "").strip()
+    doctor_id = (data.get("doctor") or "").strip()
+
+    errors = []
+
+    # Reglas de obligatoriedad
+    if not nombre or not patient_id:
+        errors.append("Selecciona un paciente desde la lista de sugerencias.")
+    if not hospital_id:
+        errors.append("Selecciona un hospital.")
+    if not cuarto:
+        errors.append("Ingresa el número/nombre de cuarto.")
+    if not doctor_id:
+        errors.append("Selecciona un doctor.")
+
+    # Reglas de formato simples para 'cuarto'
+    if cuarto and not __import__('re').match(r'^[A-Za-z0-9\-# ]{1,15}$', cuarto):
+        errors.append("El campo 'Cuarto' solo permite letras, números, espacio, -, # (máx. 15).")
+
+    # Reglas contra BD (solo si hay datos)
+    # Casting seguro a int cuando apliquen IDs
+    def as_int_or_none(v):
+        try:
+            return int(v)
+        except Exception:
+            return None
+
+    if patient_id and not existe_paciente_activo(as_int_or_none(patient_id)):
+        errors.append("El paciente seleccionado no existe o está inactivo.")
+
+    if hospital_id and not existe_hospital_activo(as_int_or_none(hospital_id)):
+        errors.append("El hospital seleccionado no existe o está inactivo.")
+
+    if doctor_id and not existe_doctor_activo(as_int_or_none(doctor_id)):
+        errors.append("El doctor seleccionado no existe o está inactivo.")
+
+    ok = len(errors) == 0
+    return jsonify({"ok": ok, "errors": errors}), (200 if ok else 400)
+
     
 @app_routes.route("/api/buscar_pacientes")
 @require_role("Mostrador")  # o quien tenga permiso
@@ -1425,10 +1532,179 @@ def buscar_pacientes():
 
     return jsonify(resultados)
 
+
+@app_routes.route("/reporte", methods=["GET", "POST"])
+@require_role("Mostrador")
+def reporte():
+    if request.method == "POST":
+        datos_raw = request.form.get("datosSeleccionados", "")
+        if datos_raw:
+            try:
+                datos = json.loads(datos_raw)
+            except Exception:
+                datos = []
+            session["pruebas_seleccionadas"] = datos
+        return redirect(url_for("app_routes.reporte"))
+
+    # Orden en sesión
+    orden = session.get("orden_actual")
+    if not orden:
+        flash("No hay datos de la orden. Vuelve a generarla.", "error")
+        return redirect(url_for("app_routes.manage_orden"))
+
+    # Pruebas seleccionadas (desde orden_pruebas)
+    pruebas = session.get("pruebas_seleccionadas", [])
+    if isinstance(pruebas, str):
+        try:
+            pruebas = json.loads(pruebas)
+        except Exception:
+            pruebas = []
+
+    # Paciente / hospital / doctor desde BD
+    paciente = obtener_paciente_por_id(orden["patient_id"]) if orden.get("patient_id") else None
+    hospital = obtener_hospital_por_id(orden["hospital_id"]) if orden.get("hospital_id") else None
+    doctor = obtener_doctor_por_id(orden["doctor_id"]) if orden.get("doctor_id") else None
+
+    # Total de pruebas (suma de subtotales)
+    total_pruebas = 0.0
+    for p in pruebas:
+        try:
+            total_pruebas += float(p.get("precio", 0))
+        except (TypeError, ValueError):
+            continue
+
+    fecha_actual = datetime.now().strftime("%d/%m/%Y")
+
+    # Orden guardada en BD (si ya se imprimió/guardó)
+    orden_id_db = session.get("orden_id_db")
+    orden_db = obtener_orden_por_id(orden_id_db) if orden_id_db else None
+
+    if orden_db:
+        orden_id = orden_db["id"]                       # folio real
+        estado = orden_db.get("estado", "pendiente")
+        abonos = obtener_abonos_orden(orden_id)
+        total_abonos = float(orden_db.get("total_abonos", 0) or 0)
+    else:
+        orden_id = None
+        estado = "borrador"
+        abonos = []
+        total_abonos = 0.0
+
+    total_restante = max(total_pruebas - total_abonos, 0.0)
+
+    return render_template(
+        "mostrador/reporte.html",
+        fecha_actual=fecha_actual,
+        orden=orden,
+        paciente=paciente,
+        hospital=hospital,
+        doctor=doctor,
+        pruebas=pruebas,
+        total_pruebas=total_pruebas,
+        orden_id=orden_id,
+        estado=estado,
+        abonos=abonos,
+        total_abonos=total_abonos,
+        total_restante=total_restante,
+    )
+
+
+
+@app_routes.route("/reporte/imprimir", methods=["POST"])
+@require_role("Mostrador")
+def imprimir_orden():
+    orden = session.get("orden_actual")
+    pruebas = session.get("pruebas_seleccionadas", [])
+
+    if isinstance(pruebas, str):
+        try:
+            pruebas = json.loads(pruebas)
+        except Exception:
+            pruebas = []
+
+    if not orden or not pruebas:
+        flash("No hay datos de orden o pruebas para guardar.", "error")
+        return redirect(url_for("app_routes.reporte"))
+
+    # --- NUEVO: validar si el folio guardado realmente existe en BD ---
+    orden_id_db = session.get("orden_id_db")
+    if orden_id_db:
+        orden_db = obtener_orden_por_id(orden_id_db)
+        if orden_db:
+            # La orden sí existe -> no la vuelvas a insertar
+            flash(f"Orden #{orden_id_db} ya fue guardada.", "info")
+            return redirect(url_for("app_routes.reporte"))
+        else:
+            # Folio fantasma -> lo limpiamos y seguimos como orden nueva
+            session.pop("orden_id_db", None)
+
+    # --- Insertar la orden como nueva ---
+    empleado_id = session.get("empleado_id")
+
+    try:
+        orden_id = guardar_orden_en_bd(orden, pruebas, empleado_id)
+        session["orden_id_db"] = orden_id
+        flash(f"Orden #{orden_id} guardada correctamente.", "success")
+    except Exception as e:
+        print("Error al guardar la orden:", e)
+        flash("Ocurrió un error al guardar la orden.", "error")
+
+    return redirect(url_for("app_routes.reporte"))
+
+@app_routes.route("/orden/<int:orden_id>/abonar", methods=["POST"])
+@require_role("Mostrador")
+def abonar_orden(orden_id: int):
+    orden_id_session = session.get("orden_id_db")
+
+    if not orden_id_session or orden_id_session != orden_id:
+        flash("Primero guarda la orden (Imprimir) antes de registrar abonos.", "error")
+        return redirect(url_for("app_routes.reporte"))
+
+    orden_db = obtener_orden_por_id(orden_id)
+    if not orden_db:
+        flash("La orden no existe en la base de datos. Vuelve a guardarla.", "error")
+        # limpia el folio fantasma para que al imprimir se vuelva a crear
+        session.pop("orden_id_db", None)
+        return redirect(url_for("app_routes.reporte"))
+
+    cantidad_str = request.form.get("cantidad")
+    nota = request.form.get("nota")
+
+    try:
+        cantidad = float(cantidad_str)
+    except (TypeError, ValueError):
+        flash("Cantidad de abono inválida.", "error")
+        return redirect(url_for("app_routes.reporte"))
+
+    if cantidad <= 0:
+        flash("La cantidad debe ser mayor a cero.", "error")
+        return redirect(url_for("app_routes.reporte"))
+
+    empleado_id = session.get("empleado_id")
+
+    try:
+        registrar_abono(orden_id, cantidad, empleado_id, nota)
+        flash("Abono registrado correctamente.", "success")
+    except Exception as e:
+        print("Error al registrar abono:", e)
+        flash("Ocurrió un error al registrar el abono.", "error")
+
+    return redirect(url_for("app_routes.reporte"))
+
 @app_routes.route("/orden_pruebas")
-@require_role("Mostrador")  
+@require_role("Mostrador")
 def manage_orden_pruebas():
-    return render_template("mostrador/orden_pruebas.html")
+    if "orden_actual" not in session:
+        flash("Primero llena los datos de la orden.", "error")
+        return redirect(url_for("app_routes.manage_orden"))
+
+    pruebas = obtener_pruebas()  # usa la función ya existente en services.py
+    return render_template("mostrador/orden_pruebas.html", pruebas=pruebas)
+
+@app_routes.route("/listos")
+@require_role("Mostrador")  
+def listos():
+    return render_template("mostrador/listos.html")
 
 
 #Enfermero

@@ -215,6 +215,20 @@ def obtener_doctores():
         print(f"Error al obtener doctores: {e}")
         return []
 
+def obtener_doctor_por_id(doctor_id: int):
+    try:
+        response = (
+            supabase.table("doctores")
+            .select("*")
+            .eq("id", doctor_id)
+            .single()
+            .execute()
+        )
+        return response.data
+    except Exception as e:
+        print(f"Error al obtener doctor {doctor_id}:", e)
+        return None
+    
 
 def actualizar_doctor(doctor_id, data):
     try:
@@ -507,21 +521,45 @@ def asignar_reactivos_a_prueba(prueba_id, lista_reactivos_ids):
 
 
 def obtener_pruebas():
+    """
+    Obtiene todas las pruebas clínicas desde Supabase y agrega,
+    si existen, los nombres de los reactivos relacionados.
+    """
     try:
-        pruebas = supabase.table('pruebas_clinicas').select('*').order('id', desc=False).execute()
-        if pruebas.error:
-            print(f"Error en obtener_pruebas: {pruebas.error}")
-            return []
-        pruebas_data = pruebas.data or []
-        
+        # Traer todas las pruebas (puedes agregar .eq("activo", True) si quieres solo activas)
+        response = (
+            supabase
+            .table("pruebas_clinicas")
+            .select("*")
+            .order("id", desc=False)
+            .execute()
+        )
+
+        pruebas_data = response.data or []
+
+        # Para cada prueba, traer sus reactivos (opcional)
         for prueba in pruebas_data:
-            relacion = supabase.table('pruebas_reactivos').select('reactivo_id(nombre)').eq('prueba_id', prueba['id']).execute()
-            if relacion.error:
-                print(f"Error al obtener reactivos para prueba {prueba['id']}: {relacion.error}")
-                prueba['reactivos'] = []
-            else:
-                prueba['reactivos'] = [r['reactivo_id']['nombre'] for r in relacion.data] if relacion.data else []
+            try:
+                rel_resp = (
+                    supabase
+                    .table("pruebas_reactivos")
+                    .select("reactivo_id(nombre)")
+                    .eq("prueba_id", prueba["id"])
+                    .execute()
+                )
+                relacion_data = rel_resp.data or []
+
+                prueba["reactivos"] = [
+                    r["reactivo_id"]["nombre"]
+                    for r in relacion_data
+                    if r.get("reactivo_id")
+                ]
+            except Exception as e:
+                print(f"Error al obtener reactivos para prueba {prueba['id']}: {e}")
+                prueba["reactivos"] = []
+
         return pruebas_data
+
     except Exception as e:
         print(f"Error al obtener pruebas clínicas: {e}")
         return []
@@ -616,3 +654,163 @@ def obtener_todos_los_reactivos():
         print(f"Error al obtener reactivos: {e}")
         return []
 
+
+#para validar para orden
+def existe_paciente_activo(paciente_id):
+    try:
+        res = supabase.table('pacientes').select('id, activo').eq('id', paciente_id).single().execute()
+        if not res.data:
+            return False
+        # si no existe campo 'activo' lo consideramos True por compatibilidad
+        return res.data.get('activo', True) is True
+    except Exception:
+        return False
+
+def existe_hospital_activo(hospital_id):
+    try:
+        res = supabase.table('hospitales').select('id, activo').eq('id', hospital_id).single().execute()
+        if not res.data:
+            return False
+        return res.data.get('activo', True) is True
+    except Exception:
+        return False
+
+def existe_doctor_activo(doctor_id):
+    try:
+        res = supabase.table('doctores').select('id, activo').eq('id', doctor_id).single().execute()
+        if not res.data:
+            return False
+        return res.data.get('activo', True) is True
+    except Exception:
+        return False
+
+
+def guardar_orden_en_bd(orden: dict, pruebas: list[dict], empleado_id: int | None = None) -> int:
+    total_pruebas = 0.0
+    for p in pruebas:
+        try:
+            total_pruebas += float(p.get("precio", 0))
+        except (TypeError, ValueError):
+            continue
+
+    data_orden = {
+        "paciente_id": int(orden["patient_id"]),
+        "doctor_id": int(orden["doctor_id"]),
+        "hospital_id": int(orden["hospital_id"]),
+        "cuarto": orden["cuarto"],
+        "observaciones": orden.get("observaciones") or None,
+        "total_pruebas": total_pruebas,
+        "total_abonos": 0,
+        "estado": "pendiente",
+        "creado_por_empleado_id": empleado_id,
+    }
+
+    resp = supabase.table("ordenes").insert(data_orden).execute()
+    if not resp.data:
+        raise RuntimeError("No se pudo insertar la orden.")
+
+    orden_id = resp.data[0]["id"]
+
+    detalles = []
+    for p in pruebas:
+        try:
+            cantidad = int(p.get("cantidad", 1))
+        except (TypeError, ValueError):
+            cantidad = 1
+
+        try:
+            precio_unit = float(p.get("precio_unitario", p.get("precio", 0)))
+        except (TypeError, ValueError):
+            precio_unit = 0.0
+
+        try:
+            precio_total = float(p.get("precio", precio_unit * cantidad))
+        except (TypeError, ValueError):
+            precio_total = precio_unit * cantidad
+
+        detalles.append(
+            {
+                "orden_id": orden_id,
+                "prueba_id": int(p["prueba_id"]) if p.get("prueba_id") else None,
+                "nombre_prueba": p.get("prueba"),
+                "tipo_prueba": p.get("tipo_prueba"),
+                "cantidad": cantidad,
+                "precio_unitario": precio_unit,
+                "precio_total": precio_total,
+            }
+        )
+
+    if detalles:
+        supabase.table("orden_pruebas_detalle").insert(detalles).execute()
+
+    return orden_id
+
+def obtener_orden_por_id(orden_id: int):
+    try:
+        resp = (
+            supabase.table("ordenes")
+            .select("*")
+            .eq("id", orden_id)
+            .single()
+            .execute()
+        )
+        return resp.data
+    except Exception as e:
+        print(f"Error al obtener orden {orden_id}:", e)
+        return None
+
+
+def obtener_abonos_orden(orden_id: int):
+    try:
+        resp = (
+            supabase.table("orden_abonos")
+            .select("*")
+            .eq("orden_id", orden_id)
+            .order("fecha_abono", desc=False)
+            .execute()
+        )
+        return resp.data or []
+    except Exception as e:
+        print(f"Error al obtener abonos de orden {orden_id}:", e)
+        return []
+    
+def recalcular_totales_y_estado_orden(orden_id: int):
+    orden = obtener_orden_por_id(orden_id)
+    if not orden:
+        return
+
+    total_pruebas = float(orden.get("total_pruebas", 0) or 0)
+
+    abonos = obtener_abonos_orden(orden_id)
+    total_abonos = 0.0
+    for a in abonos:
+        try:
+            total_abonos += float(a.get("cantidad", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+
+    if total_abonos >= total_pruebas and total_pruebas > 0:
+        estado = "pagada"
+    elif total_abonos > 0:
+        estado = "credito"
+    else:
+        estado = "pendiente"
+
+    supabase.table("ordenes").update(
+        {
+            "total_abonos": total_abonos,
+            "estado": estado,
+        }
+    ).eq("id", orden_id).execute()
+
+def registrar_abono(orden_id: int, cantidad: float, empleado_id: int | None = None, nota: str | None = None):
+    supabase.table("orden_abonos").insert(
+        {
+            "orden_id": orden_id,
+            "cantidad": cantidad,
+            "registrado_por_empleado_id": empleado_id,
+            "nota": nota,
+        }
+    ).execute()
+
+    recalcular_totales_y_estado_orden(orden_id)
