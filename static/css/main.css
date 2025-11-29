@@ -287,3 +287,61 @@ body {
     color: white;
     box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); /* sombra más intensa al pasar el ratón */
 }
+
+.btn-whats {
+    background-color: white;
+    color: #25c761;
+    padding: 0.25rem 2rem;
+    border-radius: 1rem;
+    border: 2px solid #25c761;
+    transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* sombra sutil */
+}
+
+.btn-whats:hover {
+    background-color: #25c761;
+    color: white;
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); /* sombra más intensa al pasar el ratón */
+}
+
+/* Tooltip de la sidebar colapsada */
+.applab-tooltip {
+  position: absolute;
+  z-index: 60;
+  background: rgba(17, 24, 39, 0.98);
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1rem;
+  padding: 6px 8px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px -12px rgba(0,0,0,.5);
+  pointer-events: none;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  display: none;
+}
+
+/* Texto oculto por defecto */
+#sidebar .sidebar-text-mobile { display: none; }
+
+/* Solo móvil: cuando el drawer está abierto, mostramos texto y alineamos a la izquierda */
+@media (max-width: 767px) {
+  #sidebar[data-open="true"] .sidebar-text-mobile { display: inline; }
+  #sidebar[data-open="true"] .sidebar-link {
+    justify-content: flex-start;
+    padding-left: 0.75rem;  /* px-3 */
+    padding-right: 0.75rem;
+  }
+}
+
+/* Dropdown animation */
+.dropdown {
+  transform-origin: top right;
+  transition: opacity .15s ease, transform .15s ease;
+  opacity: 0;
+  transform: scale(.98);
+}
+.dropdown.open {
+  opacity: 1;
+  transform: scale(1);
+}
