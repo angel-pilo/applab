@@ -6,47 +6,52 @@
 
   <title>{% block title %}Dashboard{% endblock %}</title>
 
-  <!-- Config Tailwind CDN (breakpoints personalizados y sin dark mode) -->
+  <!-- Config Tailwind CDN (debe declararse ANTES del script de Tailwind) -->
   <script>
-    // Importante: este objeto debe declararse ANTES del script de Tailwind
-    tailwind = {
+    window.tailwind = window.tailwind || {};
+    tailwind.config = {
       theme: {
         extend: {
           screens: {
-            xs: '480px',   // móvil extra
-            '3xl': '1600px' // monitores grandes
+            xs: '480px',
+            '3xl': '1600px'
           },
           boxShadow: {
-            card: '0 8px 24px -12px rgba(0,0,0,.2)'
-          }
+            card: '0 8px 24px -12px rgba(0,0,0,.2)',
+          },
         }
-      },
-      corePlugins: {
-        // desactiva dark mode por ahora (si lo tenías habilitado en CSS)
       }
-    }
+      // dark mode off por defecto (no definir darkMode)
+    };
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Iconos -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
 
-  <!-- Tu CSS debe ir DESPUÉS de Tailwind para sobreescribir estilos si quieres -->
+  <!-- Tu CSS: después de Tailwind -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
-<body class="font-sans">
-  <div class="flex flex-col min-h-screen">
-    <div class="flex flex-1">
-      {% include 'partials/sidebar.html' %}
-      <div class="flex-1 flex flex-col">
-        {% include 'partials/navbar.html' %}
-        <div id="main-content" class="content-wrapper flex-1 p-4">
-          {% block content %}{% endblock %}
-        </div>
-      </div>
+
+<body class="font-sans min-h-[100dvh] overflow-x-hidden">
+  <div class="flex min-h-[100dvh]">
+    {# Sidebar fija a la izquierda #}
+    {% include 'partials/sidebar.html' %}
+
+    {# Columna principal #}
+    <div class="flex-1 flex flex-col md:pl-16">
+      {% include 'partials/navbar.html' %}
+
+      {# main SIN flex-1, así el footer sube y queda pegado al contenido #}
+      <main id="main-content"
+            class="px-4 sm:px-6 lg:px-8 overflow-x-hidden py-4">
+        {% block content %}{% endblock %}
+      </main>
+
+      {% include 'partials/footer.html' %}
     </div>
-    {% include 'partials/footer.html' %}
   </div>
+
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

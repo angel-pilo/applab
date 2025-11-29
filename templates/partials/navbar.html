@@ -1,54 +1,107 @@
-<div class="flex justify-between items-center bg-white py-4 px-6 shadow relative">
-  <div class="flex items-center space-x-4 ml-auto">
-    <div class="relative">
-      <i class="fas fa-bell text-xl relative cursor-pointer" onclick="toggleNotifications()">
-        <span class="absolute top-0 right-0 inline-block w-2 h-2 bg-red-600 rounded-full"></span>
-      </i>
-      <div id="notificationPopup" class="notification-popup">
-        <div class="p-4 border-b flex justify-between items-center">
-          <h3 class="text-lg font-bold">Notificaciones</h3>
-          <i class="fas fa-times cursor-pointer" onclick="closeNotifications()"></i>
-        </div>
-        <div class="p-4">
-          <p class="text-sm">Notificación de muestra 1</p>
-          <hr class="my-2">
-          <p class="text-sm">Notificación de muestra 2</p>
-          <hr class="my-2">
-          <p class="text-sm">Notificación de muestra 3</p>
-        </div>
-      </div>
-    </div>
+{# Navbar sticky, responsive, sin <head> duplicados #}
+<header class="sticky top-0 inset-x-0 z-40 bg-white border-b border-gray-200">
+  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="h-16 flex items-center justify-between">
+      <!-- Izquierda: Hamburger (móvil) + Marca -->
+      <div class="flex items-center gap-3">
+        <button
+          class="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          aria-label="Abrir menú"
+          onclick="toggleSidebar(false)">
+          <i class="fas fa-bars text-lg"></i>
+        </button>
 
-    <div class="relative">
-      <div class="flex items-center space-x-2 cursor-pointer" onclick="toggleProfile()">
-        <img alt="User profile picture" class="w-8 h-8 rounded-full" src="{{ session['foto_perfil'] }}" />
-        <div class="text-sm">
-          <div class="font-medium text-gray-900">{{ session['nombres'] }}</div>
-          <div class="text-gray-500">{{ session['rol'] }}</div>
-        </div>
+        <a href="#" class="flex items-center gap-2">
+          <i class="fas fa-flask text-blue-600"></i>
+          <span class="font-semibold tracking-wide hidden sm:inline">AppLab</span>
+        </a>
       </div>
-      <div id="profilePopup" class="profile-popup">
-        <div class="p-4 border-b flex justify-between items-center">
-          <h3 class="text-lg font-bold">Perfil</h3>
-          <i class="fas fa-times cursor-pointer" onclick="closeProfile()"></i>
-        </div>
-        <div class="p-4 flex items-center space-x-4">
-          <img alt="User profile picture" class="w-12 h-12 rounded-full" src="{{ session['foto_perfil'] }}" />
-          <div>
-            <div class="font-medium text-gray-900">{{ session['nombres'] }}</div>
-            <div class="text-gray-500">{{ session['rol'] }}</div>
+
+      <!-- Derecha: Notificaciones + Perfil -->
+      <div class="flex items-center gap-1 sm:gap-2">
+        <!-- Notificaciones -->
+        <div class="relative" data-dropdown>
+          <button id="navNotifBtn"
+                  class="relative inline-flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-haspopup="true" aria-expanded="false" aria-controls="navNotifPanel">
+            <i class="fas fa-bell text-lg"></i>
+            <span class="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center
+                         text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white">3</span>
+          </button>
+
+          <!-- Panel notificaciones -->
+          <div id="navNotifPanel"
+               class="dropdown hidden absolute right-0 mt-2 w-80 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+            <div class="px-4 py-3 border-b">
+              <p class="font-semibold text-gray-800">Notificaciones</p>
+            </div>
+            <div class="max-h-64 overflow-auto divide-y">
+              <div class="px-4 py-3 hover:bg-gray-50">
+                <p class="text-sm text-gray-700">Resultado disponible para el paciente #A123</p>
+                <span class="text-xs text-gray-400">Hace 5 min</span>
+              </div>
+              <div class="px-4 py-3 hover:bg-gray-50">
+                <p class="text-sm text-gray-700">Stock bajo: Reactivo “X”</p>
+                <span class="text-xs text-gray-400">Hace 1 h</span>
+              </div>
+              <div class="px-4 py-3 hover:bg-gray-50">
+                <p class="text-sm text-gray-700">Nueva orden creada</p>
+                <span class="text-xs text-gray-400">Ayer</span>
+              </div>
+            </div>
+            <div class="px-4 py-2 border-t bg-gray-50 text-right">
+              <a href="{{ url_for('app_routes.backlog') if 'app_routes.backlog' in available_endpoints else '#' }}"
+                 class="text-sm text-blue-600 hover:underline">Ver todas</a>
+            </div>
           </div>
         </div>
-        <div class="p-4 border-t">
-          <button class="w-full text-left text-sm text-blue-600 hover:underline">Configuración</button>
-        </div>
-        <div class="p-4 border-t">
-          <button class="w-full text-left text-sm text-red-600 hover:underline"
-                  onclick="window.location.href='{{ url_for('app_routes.logout') }}'">
-            Cerrar Sesión
+
+        <!-- Perfil -->
+        <div class="relative" data-dropdown>
+          <button id="navProfileBtn"
+                  class="inline-flex items-center gap-2 pl-2 pr-3 h-10 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-haspopup="true" aria-expanded="false" aria-controls="navProfilePanel">
+            <img src="{{ session['foto_perfil'] }}" alt="Foto de perfil"
+                 class="w-8 h-8 rounded-full object-cover"/>
+            <div class="hidden sm:flex flex-col items-start leading-tight">
+              <span class="text-sm text-gray-900 max-w-[10rem] truncate">{{ session['nombres'] }}</span>
+              <span class="text-[11px] text-gray-500 -mt-0.5">{{ session['rol'] }}</span>
+            </div>
+            <i class="fas fa-chevron-down text-xs text-gray-500"></i>
           </button>
+
+          <!-- Panel perfil -->
+          <div id="navProfilePanel"
+               class="dropdown hidden absolute right-0 mt-2 w-64 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+            <div class="px-4 py-3 border-b flex items-center gap-3">
+              <img src="{{ session['foto_perfil'] }}" alt="Foto de perfil"
+                   class="w-10 h-10 rounded-full object-cover"/>
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-gray-900 truncate">{{ session['nombres'] }}</p>
+                <p class="text-xs text-gray-500 truncate">{{ session['rol'] }}</p>
+              </div>
+            </div>
+            <div class="py-1">
+              <a href="#" class="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm text-gray-700">
+                <i class="fas fa-user-circle w-4"></i> Mi perfil
+              </a>
+              <a href="#" class="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm text-gray-700">
+                <i class="fas fa-cog w-4"></i> Configuración
+              </a>
+              <a href="{{ url_for('app_routes.backlog') if 'app_routes.backlog' in available_endpoints else '#' }}"
+                 class="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm text-gray-700">
+                <i class="fas fa-history w-4"></i> Backlog
+              </a>
+            </div>
+            <div class="border-t bg-gray-50">
+              <button class="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-red-600"
+                      onclick="window.location.href='{{ url_for('app_routes.logout') }}'">
+                <i class="fas fa-sign-out-alt w-4"></i> Cerrar sesión
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
+  </nav>
+</header>
