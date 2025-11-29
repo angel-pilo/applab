@@ -26,7 +26,8 @@
     }
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
-
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
   <!-- Iconos -->
   <link
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
@@ -35,6 +36,7 @@
 
   <!-- Tu CSS (después de Tailwind) -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
 <body class="font-sans overflow-x-hidden">
   <!-- Layout principal: sidebar + columna derecha -->
