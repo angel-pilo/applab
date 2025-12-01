@@ -21,7 +21,7 @@ ROLE_MENU = {
         {"text": "Configuración",    "icon": "fa-cog",          "url": "#"},
     ],
 
-    "Químico": [
+    "Quimico": [
         {"text": "Resultados",       "icon": "fa-clipboard-check", "url": "app_routes.resultados"},
         {"text": "Control de calidad","icon":"fa-vials",            "url": "#"},
         {"text": "Equipos",          "icon": "fa-tools",            "url": "#"},
@@ -29,7 +29,7 @@ ROLE_MENU = {
         {"text": "Configuración",    "icon": "fa-cog",              "url": "#"},
     ],
 
-    "Enfermería": [
+    "Enfermero": [
         {"text": "Faltantes de muestra","icon":"fa-vial",          "url": "app_routes.manage_muestra"},
         {"text": "Registro de toma",    "icon":"fa-syringe",       "url": "#"},
         {"text": "Etiquetas / QR",      "icon":"fa-qrcode",        "url": "#"},

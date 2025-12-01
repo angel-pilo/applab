@@ -839,9 +839,7 @@ def registrar_abono(orden_id: int, cantidad: float, empleado_id: int | None = No
     recalcular_totales_y_estado_orden(orden_id)
 
 def listar_ordenes_resumen(limit: int = 50):
-    """
-    Regresa una lista de órdenes con datos listos para el template 'recientes.html'.
-    """
+
     try:
         resp = (
             supabase
@@ -908,10 +906,7 @@ def obtener_detalle_pruebas_por_orden(orden_id: int):
         return []
 
 def obtener_siguiente_folio_orden():
-    """
-    Regresa el siguiente folio sugerido para órdenes (último id + 1).
-    Solo es decorativo, el id real lo asigna la BD al insertar.
-    """
+
     try:
         resp = (
             supabase.table("ordenes")
@@ -930,3 +925,190 @@ def obtener_siguiente_folio_orden():
         print(f"Error al obtener siguiente folio de orden: {e}")
         # En caso de error, devolvemos None o 0
         return None
+    
+def obtener_ordenes_pendientes_con_detalle():
+
+    try:
+        # Ajusta el estado según cómo lo manejes en tu sistema
+        resp_ordenes = supabase.table("ordenes") \
+            .select("id, paciente_id, cuarto, estado, creado_en") \
+            .order("creado_en", desc=True) \
+            .execute()
+
+        if getattr(resp_ordenes, "error", None):
+            print(f"Error al obtener órdenes: {resp_ordenes.error}")
+            return []
+
+        ordenes = resp_ordenes.data or []
+        if not ordenes:
+            return []
+
+        # Cache sencillo para no consultar al mismo paciente muchas veces
+        pacientes_idx = {}
+
+        for orden in ordenes:
+            pid = orden.get("paciente_id")
+            if not pid:
+                continue
+
+            if pid not in pacientes_idx:
+                resp_p = supabase.table("pacientes") \
+                    .select("id, nombres, apellidos") \
+                    .eq("id", pid) \
+                    .single() \
+                    .execute()
+
+                if not getattr(resp_p, "error", None) and resp_p.data:
+                    pacientes_idx[pid] = resp_p.data
+
+            p = pacientes_idx.get(pid)
+            if p:
+                orden["nombre_paciente"] = f'{p["nombres"]} {p["apellidos"]}'
+            else:
+                orden["nombre_paciente"] = "Paciente desconocido"
+
+        return ordenes
+
+    except Exception as e:
+        print(f"Error en obtener_ordenes_pendientes_con_detalle: {e}")
+        return []
+
+
+def obtener_ordenes_para_muestra():
+
+    try:
+        resp = supabase.table("ordenes") \
+            .select("id, paciente_id, cuarto, flujo, creado_en") \
+            .eq("flujo", "muestra_pendiente") \
+            .order("creado_en", desc=True) \
+            .execute()
+
+        if hasattr(resp, "error") and resp.error:
+            print(f"Error al obtener órdenes para muestra: {resp.error}")
+            return []
+
+        ordenes = resp.data or []
+        if not ordenes:
+            return []
+
+        pacientes_cache = {}
+
+        for orden in ordenes:
+            pid = orden.get("paciente_id")
+            if not pid:
+                orden["nombre_paciente"] = "Paciente desconocido"
+                continue
+
+            if pid not in pacientes_cache:
+                resp_p = supabase.table("pacientes") \
+                    .select("id, nombres, apellidos") \
+                    .eq("id", pid) \
+                    .single() \
+                    .execute()
+                if not (hasattr(resp_p, "error") and resp_p.error) and resp_p.data:
+                    pacientes_cache[pid] = resp_p.data
+
+            p = pacientes_cache.get(pid)
+            if p:
+                orden["nombre_paciente"] = f'{p["nombres"]} {p["apellidos"]}'
+            else:
+                orden["nombre_paciente"] = "Paciente desconocido"
+
+        return ordenes
+
+    except Exception as e:
+        print(f"Error en obtener_ordenes_para_muestra: {e}")
+        return []
+
+
+def consultar_analisis_por_folio(orden_id):
+
+    try:
+        resp = supabase.table("orden_pruebas_detalle") \
+            .select("id, nombre_prueba, tipo_prueba") \
+            .eq("orden_id", orden_id) \
+            .execute()
+
+        if hasattr(resp, "error") and resp.error:
+            print(f"Error al consultar análisis por folio: {resp.error}")
+            return []
+
+        filas = resp.data or []
+        resultados = []
+        for row in filas:
+            resultados.append({
+                "id": row.get("id"),
+                "nombre": row.get("nombre_prueba", ""),
+                "tipo": row.get("tipo_prueba", "")
+            })
+        return resultados
+
+    except Exception as e:
+        print(f"Error en consultar_analisis_por_folio: {e}")
+        return []
+
+
+def actualizar_flujo_orden(orden_id, nuevo_flujo):
+
+    try:
+        resp = supabase.table("ordenes") \
+            .update({"flujo": nuevo_flujo}) \
+            .eq("id", orden_id) \
+            .execute()
+
+        if hasattr(resp, "error") and resp.error:
+            print(f"Error al actualizar flujo de orden: {resp.error}")
+            return False
+
+        return True
+
+    except Exception as e:
+        print(f"Error en actualizar_flujo_orden: {e}")
+        return False
+
+
+def obtener_ordenes_para_quimico():
+
+    try:
+        resp = supabase.table("ordenes") \
+            .select("id, paciente_id, cuarto, flujo, creado_en") \
+            .eq("flujo", "en_quimico") \
+            .order("creado_en", desc=True) \
+            .execute()
+
+        if hasattr(resp, "error") and resp.error:
+            print(f"Error al obtener órdenes para químico: {resp.error}")
+            return []
+
+        ordenes = resp.data or []
+        if not ordenes:
+            return []
+
+        pacientes_cache = {}
+
+        for orden in ordenes:
+            pid = orden.get("paciente_id")
+            if not pid:
+                orden["nombre_paciente"] = "Paciente desconocido"
+                continue
+
+            if pid not in pacientes_cache:
+                resp_p = supabase.table("pacientes") \
+                    .select("id, nombres, apellidos") \
+                    .eq("id", pid) \
+                    .single() \
+                    .execute()
+                if not (hasattr(resp_p, "error") and resp_p.error) and resp_p.data:
+                    pacientes_cache[pid] = resp_p.data
+
+            p = pacientes_cache.get(pid)
+            if p:
+                orden["nombre_paciente"] = f'{p["nombres"]} {p["apellidos"]}'
+            else:
+                orden["nombre_paciente"] = "Paciente desconocido"
+
+        return ordenes
+
+    except Exception as e:
+        print(f"Error en obtener_ordenes_para_quimico: {e}")
+        return []

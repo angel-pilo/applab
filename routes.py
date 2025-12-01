@@ -1865,22 +1865,41 @@ def listos():
     return render_template("mostrador/listos.html")
 
 
-#Enfermero
+# Enfermero
 @app_routes.route("/muestra")
-@require_role("Enfermero") 
+@require_role("Enfermero")
 def manage_muestra():
-    return render_template("enfermero/muestra.html")
+    ordenes = obtener_ordenes_para_muestra()
+    return render_template("enfermero/muestra.html", ordenes=ordenes)
 
-@app_routes.route("/api/analisis/<folio>")
-def get_analisis(folio):
-    datos = consultar_analisis_por_folio(folio)  
+
+@app_routes.route("/api/analisis/<int:orden_id>")
+@require_role("Enfermero, Quimico")
+def get_analisis(orden_id):
+    datos = consultar_analisis_por_folio(orden_id)
     return jsonify(datos)
 
-#Quimico
+
+@app_routes.route("/api/muestra/finalizar/<int:orden_id>", methods=["POST"])
+@require_role("Enfermero")
+def api_finalizar_muestra(orden_id):
+    ok = actualizar_flujo_orden(orden_id, "en_quimico")
+    if not ok:
+        return jsonify({"ok": False, "error": "No se pudo actualizar el flujo de la orden"}), 500
+    return jsonify({"ok": True})
+
+# Químico
 @app_routes.route("/resultados")
-@require_role("Quimico") 
+@require_role("Quimico")
 def resultados():
-    return render_template("quimico/resultados.html")
+    ordenes = obtener_ordenes_para_quimico()     # flujo = 'en_quimico'
+    faltantes = obtener_ordenes_para_muestra()   # flujo = 'muestra_pendiente'
+    return render_template(
+        "quimico/resultados.html",
+        ordenes=ordenes,
+        faltantes=faltantes
+    )
+
 
 # Ruta de prueba solo para front
 @app_routes.route('/quimico/captura_resultados/<folio>')
