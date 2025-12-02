@@ -33,8 +33,8 @@ except Exception:
 ROLE_HOME = {
     "Admin":      "app_routes.admin_dashboard",
     "Mostrador":  "app_routes.mostrador_dashboard",
-    "Químico":    "app_routes.quimico_dashboard",
-    "Enfermería": "app_routes.enfermero_dashboard",
+    "Quimico":    "app_routes.quimico_dashboard",
+    "Enfermero": "app_routes.enfermero_dashboard",
 }
 
 
