@@ -1278,39 +1278,74 @@ def add_prueba():
     if request.method == 'POST':
         nombre = request.form.get('nombre', '').strip()
         tipo = request.form.get('tipo', '').strip()
-        reactivos = request.form.getlist('reactivos')  # Lista de reactivos seleccionados
+
+        # Lista de IDs de reactivos (viene de los <input type="hidden" name="reactivos">)
+        reactivos_ids = request.form.getlist('reactivos')
+
+        # JSON de valores normales (lo arma el JS del add_prueba.html)
         valores_normales_json = request.form.get('valores_normales_json', '[]')
 
+        # Validación básica
         if not nombre or not tipo:
             flash("Todos los campos son obligatorios.", "error")
-            return render_template('admin/add_prueba.html', is_edit=False)
+            reactivos = obtener_todos_los_reactivos()
+            return render_template(
+                'admin/add_prueba.html',
+                is_edit=False,
+                reactivos=reactivos,
+                prueba=None
+            )
 
-        # Crear prueba
+        # Crear prueba clínica básica
         nueva_prueba = crear_prueba(nombre, tipo)
         if not nueva_prueba:
             flash("Error al crear la prueba.", "error")
-            return render_template('admin/add_prueba.html', is_edit=False)
+            reactivos = obtener_todos_los_reactivos()
+            return render_template(
+                'admin/add_prueba.html',
+                is_edit=False,
+                reactivos=reactivos,
+                prueba=None
+            )
 
-        prueba_id = nueva_prueba[0]['id']  # asumiendo que retorna lista con dicts
+        # Supabase retorna lista de dicts
+        prueba_id = nueva_prueba[0]['id']
 
-        # Asignar reactivos
-        asignar_reactivos_a_prueba(prueba_id, reactivos)
+        # Asignar reactivos (si hay)
+        if reactivos_ids:
+            asignar_reactivos_a_prueba(prueba_id, reactivos_ids)
 
-        # Guardar valores normales
-        import json
-        valores_normales = json.loads(valores_normales_json)
-        for valor in valores_normales:
-            crear_valor_normal(prueba_id, valor.get('nombre', ''),
-                              valor.get('tipo_separacion', ''),
-                              valor.get('estructura', {}))
+        # Procesar valores normales
+        try:
+            valores_normales = json.loads(valores_normales_json) if valores_normales_json else []
+        except json.JSONDecodeError:
+            valores_normales = []
+            flash("Hubo un problema al interpretar los valores normales, no se guardaron.", "error")
 
-        flash("Prueba registrada exitosamente", "success")
+        if valores_normales:
+            for valor in valores_normales:
+                nombre_vn = (valor.get('nombre') or '').strip()
+                tipo_sep = (valor.get('tipo_separacion') or '').strip()
+                estructura = valor.get('estructura') or {}
+
+                # Si faltan datos mínimos, la saltamos
+                if not nombre_vn or not tipo_sep:
+                    continue
+
+                # Guardar cada valor normal (estructura se va como jsonb)
+                crear_valor_normal(prueba_id, nombre_vn, tipo_sep, estructura)
+
+        flash("Prueba registrada exitosamente.", "success")
         return redirect(url_for('app_routes.pruebas_clinicas'))
 
-    # GET
+    # ------- GET: mostrar formulario vacío -------
     reactivos = obtener_todos_los_reactivos()
-    return render_template('admin/add_prueba.html', is_edit=False, reactivos=reactivos)
-
+    return render_template(
+        'admin/add_prueba.html',
+        is_edit=False,
+        reactivos=reactivos,
+        prueba=None
+    )
 
 # Editar prueba clínica existente
 @app_routes.route('/admin/edit_prueba/<int:prueba_id>', methods=['GET', 'POST'])
@@ -1910,7 +1945,7 @@ def captura_resultados(folio):
     nombres_pacientes = {
         "00010": "María Fernanda López Hernández",
         "00008": "José Manuel Pérez Rodríguez",
-        "00007": "Ana Sofía Ramírez García",
+        "00001": "Ana Sofía Ramírez García",
         "00006": "Juan Carlos Martínez Torres",
         "00005": "Valeria González Chávez",
         "00011": "María José Hernández Gómez",
@@ -1929,7 +1964,7 @@ def captura_resultados(folio):
     folio_pruebas = {
         "00010": ["EGO", "BH (Biometría Hemática)"],  # <--- agrega las pruebas que lleva
         "00008": ["EGO"],
-        "00007": ["Coprológico"],
+        "00001": ["Coprológico"],
         "00006": ["Grupo Sanguíneo"],
         "00005": ["Cultivo de Heridas"],
         "00011": ["BH (Biometría Hemática)", "EGO"],

@@ -491,6 +491,7 @@ def actualizar_reactivo(reactivo_id, data):
         return None
 
 def crear_prueba(nombre, tipo):
+    """Crea una prueba clínica básica en pruebas_clinicas."""
     try:
         data = {
             "nombre": nombre,
@@ -498,25 +499,40 @@ def crear_prueba(nombre, tipo):
             "activo": True
         }
         response = supabase.table('pruebas_clinicas').insert(data).execute()
-        if response.error:
+
+        if hasattr(response, 'error') and response.error:
             print(f"Error en crear_prueba: {response.error}")
             return None
-        return response.data
+
+        return response.data  # lista de dicts con la fila insertada
     except Exception as e:
         print(f"Error al crear prueba clínica: {e}")
         return None
 
 
 def asignar_reactivos_a_prueba(prueba_id, lista_reactivos_ids):
+    """
+    Inserta uno o varios reactivos para una prueba en pruebas_reactivos.
+    lista_reactivos_ids: lista de strings o ints.
+    """
     try:
-        data = [{"prueba_id": prueba_id, "reactivo_id": int(rid)} for rid in lista_reactivos_ids]
+        if not lista_reactivos_ids:
+            return None
+
+        data = [
+            {"prueba_id": prueba_id, "reactivo_id": int(rid)}
+            for rid in lista_reactivos_ids
+        ]
+
         response = supabase.table('pruebas_reactivos').insert(data).execute()
-        if response.error:
+
+        if hasattr(response, 'error') and response.error:
             print(f"Error en asignar_reactivos_a_prueba: {response.error}")
             return None
+
         return response.data
     except Exception as e:
-        print(f"Error al asignar reactivos: {e}")
+        print(f"Error al asignar reactivos a prueba: {e}")
         return None
 
 
@@ -622,6 +638,10 @@ def actualizar_reactivos_de_prueba(prueba_id, lista_reactivos_ids):
 
 
 def crear_valor_normal(prueba_id, nombre, tipo_separacion, estructura_json):
+    """
+    Crea un registro en valores_normales.
+    estructura_json debe ser un dict de Python (se serializa a jsonb).
+    """
     try:
         data = {
             "prueba_id": prueba_id,
@@ -630,28 +650,38 @@ def crear_valor_normal(prueba_id, nombre, tipo_separacion, estructura_json):
             "estructura": estructura_json
         }
         response = supabase.table('valores_normales').insert(data).execute()
-        if response.error:
+
+        if hasattr(response, 'error') and response.error:
             print(f"Error en crear_valor_normal: {response.error}")
             return None
+
         return response.data
     except Exception as e:
         print(f"Error al crear valor normal: {e}")
         return None
 
 def obtener_todos_los_reactivos():
+    """Devuelve id y nombre de todos los reactivos activos, ordenados por nombre."""
     try:
-        response = supabase.table('reactivos').select('id,nombre').eq('activo', True).order('nombre').execute()
-        # Intenta acceder al atributo error de forma segura:
+        response = (
+            supabase
+            .table('reactivos')
+            .select('id,nombre')
+            .eq('activo', True)
+            .order('nombre')
+            .execute()
+        )
+
         if hasattr(response, 'error') and response.error:
             print(f"Error en obtener_todos_los_reactivos: {response.error}")
             return []
-        # En caso que no tenga error, pero data sea None
+
         if not response.data:
-            print("No se recibieron datos de reactivos")
             return []
+
         return response.data
     except Exception as e:
-        print(f"Error al obtener reactivos: {e}")
+        print(f"Error al obtener todos los reactivos: {e}")
         return []
 
 
