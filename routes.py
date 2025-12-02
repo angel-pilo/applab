@@ -56,6 +56,11 @@ def home():
     
     return redirect(url_for("app_routes.login"))
 
+@app_routes.route("/proximamente")
+def proximamente():
+    feature = request.args.get("feature")
+    return render_template("proximamente.html", feature=feature)
+
 # Ruta de Dashboard
 @app_routes.route("/dashboard")
 def dashboard():
