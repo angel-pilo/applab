@@ -44,7 +44,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for reactivo in reactivos %}
+                        {% for reactivo in reactivos|sort(attribute='id') %}
                         <tr class="border-b cursor-pointer {% if not reactivo.activo %}bg-gray-100{% endif %}" 
                             onclick="document.getElementById('reactivo-{{ reactivo.id }}').checked = true; selectReactivo({{ reactivo.id }}, '{{ reactivo.nombre }}', '{{ reactivo.tipo_reactivo }}', '{{ reactivo.cantidad_inicial }}', '{{ reactivo.precio_unidad }}')">
                             <td class="py-2 px-4">
