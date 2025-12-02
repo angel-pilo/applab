@@ -56,6 +56,11 @@ def home():
     
     return redirect(url_for("app_routes.login"))
 
+@app_routes.route("/proximamente")
+def proximamente():
+    feature = request.args.get("feature")
+    return render_template("proximamente.html", feature=feature)
+
 # Ruta de Dashboard
 @app_routes.route("/dashboard")
 def dashboard():
@@ -631,7 +636,19 @@ def reportes():
 
 @app_routes.route("/configuracion")
 def configuracion():
-    return render_template("admin/configuracion.html")
+    # Solo usuarios logueados
+    if "usuario" not in session:
+        return redirect(url_for("app_routes.login"))
+
+    user = {
+        "username": session.get("usuario"),
+        "rol": session.get("rol", "—"),
+        "nombres": session.get("nombres", "—"),
+        "foto_perfil": session.get("foto_perfil"),  # puede ser None
+    }
+
+    return render_template("admin/configuracion.html", user=user)
+
 
 @app_routes.route("/faltantes")
 def faltantes():
