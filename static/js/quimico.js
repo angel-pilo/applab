@@ -1,3 +1,50 @@
+function verificarResultadosCompletos() {
+  const filas = document.querySelectorAll('tbody tr');
+  let todosCompletados = true;
+
+  filas.forEach((row) => {
+    const resultadoInput = row.querySelector('input[name="resultado"]');
+    if (!resultadoInput || resultadoInput.value.trim() === '') {
+      todosCompletados = false;
+    }
+  });
+
+  const finalizarButton = document.querySelector('#finalizar-btn');
+  finalizarButton.disabled = !todosCompletados;
+}
+
+// Llamar a la función cada vez que se ingrese un resultado
+document.querySelectorAll('input[name="resultado"]').forEach(input => {
+  input.addEventListener('input', verificarResultadosCompletos);
+});
+
+// Iniciar la verificación al cargar la página
+document.addEventListener('DOMContentLoaded', verificarResultadosCompletos);
+
+function verificarResultadosCompletos() {
+  const filas = document.querySelectorAll('tbody tr');
+  let todosCompletados = true;
+
+  filas.forEach((row) => {
+    const resultadoInput = row.querySelector('input[name="resultado"]');
+    if (!resultadoInput || resultadoInput.value.trim() === '') {
+      todosCompletados = false;
+    }
+  });
+
+  const finalizarButton = document.querySelector('#finalizar-btn');
+  finalizarButton.disabled = !todosCompletados;
+}
+
+// Llamar a la función cada vez que se ingrese un resultado
+document.querySelectorAll('input[name="resultado"]').forEach(input => {
+  input.addEventListener('input', verificarResultadosCompletos);
+});
+
+// Iniciar la verificación al cargar la página
+document.addEventListener('DOMContentLoaded', verificarResultadosCompletos);
+
+
 document.addEventListener('DOMContentLoaded', function () {
     console.log("Página del Químico cargada correctamente.");
 });
