@@ -8,6 +8,17 @@
   window.faltantesData = {{ faltantes|tojson|safe }};
 </script>  <!-- si no meto esto no se muestra nada en los paneles -->
 <script src="{{ url_for('static', filename='js/quimico.js') }}"></script>
+<script>
+function finalizarOrden(button) {
+  // Cambiar el texto y color del botón
+  button.innerHTML = "Enviado a Mostrador";  // Cambia el texto
+  button.classList.add("bg-gray-400", "text-white", "opacity-50");  // Añadir clases para cambiar color de fondo y texto
+  
+  button.disabled = true;
+}
+
+
+</script>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   <!-- Encabezado -->
@@ -55,18 +66,16 @@
                       {{ orden.cuarto }}
                     </td>
                     <td class="px-6 py-4 flex gap-2 justify-center">
-                      <a
-                        href="{{ url_for('app_routes.captura_resultados', folio=folio_str) }}"
-                        class="btn-cancelar px-4 py-1 rounded-[1rem]"
-                      >
+                    <a href="{{ url_for('app_routes.captura_resultados', orden_id=folio_str) }}" class="btn-cancelar px-4 py-1 rounded-[1rem]">
                         Agregar Resultados
-                      </a>
-                      <button
-                        type="button"
-                        class="btn-guardar px-4 py-1 rounded-[1rem]"
-                      >
-                        Finalizar
-                      </button>
+                    </a>
+                    <button
+                      type="button"
+                      class="finalizar-btn btn-guardar px-4 py-1 rounded-[1rem] transition-all duration-300 ease-in-out"
+                      onclick="finalizarOrden(this)"
+                    >
+                      Finalizar
+                    </button>
                     </td>
                   </tr>
                 {% endfor %}

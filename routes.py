@@ -12,6 +12,7 @@ import json
 import hashlib
 
 
+
 app_routes = Blueprint('app_routes', __name__)
 
 # Obtener la ruta del archivo JSON con estados
@@ -1952,93 +1953,170 @@ def resultados():
         faltantes=faltantes
     )
 
+@app_routes.route('/orden/<int:orden_id>/captura_resultados', methods=['GET'])
+def captura_resultados(orden_id):
+    # Paso 1: Obtener las pruebas asociadas con la orden desde 'orden_pruebas_detalle'
+    pruebas_query = supabase.table('orden_pruebas_detalle') \
+        .select('id, nombre_prueba, prueba_id, orden_id') \
+        .eq('orden_id', orden_id) \
+        .execute()
 
-# Ruta de prueba solo para front
-@app_routes.route('/quimico/captura_resultados/<folio>')
-def captura_resultados(folio):
-    paciente = {"nombre": "Paciente Demo", "orden": folio}
+    # Depurar: Verificar si estamos obteniendo las pruebas correctamente
+    print(f"Pruebas Query: {pruebas_query.data}")  # Verificar las pruebas
 
-    # Diccionario de nombres demo
-    nombres_pacientes = {
-        "00010": "María Fernanda López Hernández",
-        "00008": "José Manuel Pérez Rodríguez",
-        "00001": "Ana Sofía Ramírez García",
-        "00006": "Juan Carlos Martínez Torres",
-        "00005": "Valeria González Chávez",
-        "00011": "María José Hernández Gómez",
-        "00012": "Jorge Luis Vargas Martínez",
-        "00013": "Carmen Patricia Flores López",
-        "00014": "Carlos Eduardo Pérez Gutiérrez",
-        "00015": "Sofía Elena Jiménez Morales",
-    }
+    # Verificar si hay pruebas asociadas a la orden
+    if not pruebas_query.data:
+        return "No se encontraron pruebas para esta orden", 404  # Manejar la falta de pruebas
 
-    paciente = {
-        "nombre": nombres_pacientes.get(folio, "Paciente Demo"),
-        "orden": folio
-    }
+    pruebas = pruebas_query.data  # Obtener las pruebas
 
-    # Define pruebas por folio
-    folio_pruebas = {
-        "00010": ["EGO", "BH (Biometría Hemática)"],  # <--- agrega las pruebas que lleva
-        "00008": ["EGO"],
-        "00001": ["Coprológico"],
-        "00006": ["Grupo Sanguíneo"],
-        "00005": ["Cultivo de Heridas"],
-        "00011": ["BH (Biometría Hemática)", "EGO"],
-        "00012": ["Coprológico"],
-        "00013": ["Grupo Sanguíneo"],
-        "00014": ["Cultivo de Heridas"],
-        "00015": ["Grupo Sanguíneo"]
-    }
+    # Paso 2: Obtener el 'paciente_id' a partir de la tabla 'ordenes' usando 'orden_id'
+    orden_query = supabase.table('ordenes') \
+        .select('paciente_id') \
+        .eq('id', orden_id) \
+        .execute()
 
-    # Diccionario de pruebas como arriba
-    catalogo_pruebas = {
-        "BH (Biometría Hemática)": {
-            "nombre": "BH (Biometría Hemática)",
-            "campos": [
-                {"key": "hemoglobina", "nombre": "Hemoglobina", "tipo": "input", "unidad": "g/dL", "valores_normales": "13.8 a 17.2"},
-                {"key": "hematocrito", "nombre": "Hematocrito", "tipo": "input", "unidad": "%", "valores_normales": "40 a 50"},
-                {"key": "eritrocitos", "nombre": "Eritrocitos", "tipo": "input", "unidad": "millones/µL", "valores_normales": "4.7 a 6.1"},
-            ]
-        },  
-        "EGO": {
-            "nombre": "EGO",
-            "campos": [
-                {"key": "bilirrubinas", "nombre": "Bilirrubinas", "tipo": "select", "opciones": ["Negativo", "Positivo", "Escasos"], "unidad": "-", "valores_normales": "Negativo"},
-                {"key": "cetonas", "nombre": "Cetonas", "tipo": "select", "opciones": ["Negativo", "Positivo", "Escasos"], "unidad": "-", "valores_normales": "Negativo"},
-                {"key": "cristales", "nombre": "Cristales", "tipo": "select", "opciones": ["Negativo", "Positivo", "Escasos"], "unidad": "-", "valores_normales": "Ausente o escasos"},
-                {"key": "urobilinogeno", "nombre": "Urobilinógeno", "tipo": "input", "unidad": "mg/dl", "valores_normales": "0.1 a 1.0"},
-            ]
-        },
-        "Coprológico": {
-            "nombre": "Coprológico",
-            "campos": [
-                {"key": "color", "nombre": "Color", "tipo": "select", "opciones": ["Amarillo", "Marrón", "Verde", "Negro"], "unidad": "-", "valores_normales": "Marrón"},
-                {"key": "consistencia", "nombre": "Consistencia", "tipo": "select", "opciones": ["Sólida", "Semi-sólida", "Líquida"], "unidad": "-", "valores_normales": "Sólida"},
-                {"key": "sangre_oculta", "nombre": "Sangre Oculta", "tipo": "select", "opciones": ["Negativo", "Positivo"], "unidad": "-", "valores_normales": "Negativo"},
-            ]
-        },
-        "Grupo Sanguíneo": {
-            "nombre": "Grupo Sanguíneo",
-            "campos": [
-                {"key": "grupo", "nombre": "Grupo", "tipo": "select", "opciones": ["A", "B", "AB", "O"], "unidad": "-", "valores_normales": "-"},
-                {"key": "rh", "nombre": "RH", "tipo": "select", "opciones": ["+", "-"], "unidad": "-", "valores_normales": "-"},
-            ]
-        },
-        "Cultivo de Heridas": {
-            "nombre": "Cultivo de Heridas",
-            "campos": [
-                {"key": "leucocitos", "nombre": "Leucocitos", "tipo": "select", "opciones": ["Ausentes", "Escasos", "Moderados", "Abundantes"], "unidad": "-", "valores_normales": "Ausentes"},
-                {"key": "bacterias", "nombre": "Bacterias", "tipo": "select", "opciones": ["Ausentes", "Presentes"], "unidad": "-", "valores_normales": "Ausentes"},
-                {"key": "flora", "nombre": "Flora", "tipo": "input", "unidad": "-", "valores_normales": "-"},
-            ]
-        },
-    }
-    # Obtén solo las pruebas del folio
-    pruebas = [catalogo_pruebas[n] for n in folio_pruebas.get(folio, [])]
+    # Depurar: Verificar si estamos obteniendo el paciente_id correctamente
+    print(f"Orden Query: {orden_query.data}")  # Verificar los datos de la orden
 
-    return render_template(
-        "quimico/resultados_captura.html",
-        paciente=paciente,
-        pruebas=pruebas
-    )
+    # Verificar si la orden existe y contiene el 'paciente_id'
+    if not orden_query.data:
+        return "Orden no encontrada", 404  # Manejar la falta de la orden
+
+    paciente_id = orden_query.data[0]['paciente_id']  # Obtener el paciente_id
+
+    # Paso 3: Obtener el paciente relacionado con la orden
+    paciente_query = supabase.table('pacientes') \
+        .select('nombres, apellidos') \
+        .eq('id', paciente_id) \
+        .execute()
+
+    # Depurar: Verificar si estamos obteniendo los datos del paciente correctamente
+    print(f"Paciente Query: {paciente_query.data}")  # Verificar los datos del paciente
+
+    # Verificar si el paciente existe
+    if not paciente_query.data:
+        return "Paciente no encontrado", 404  # Manejar la falta del paciente
+
+    paciente = paciente_query.data[0]  # Tomamos el primer (y único) resultado
+    paciente['orden'] = orden_id  # Agregar la orden_id al objeto paciente
+
+    # Paso 4: Obtener los valores normales de las pruebas
+    for prueba in pruebas:
+        prueba_id = prueba['prueba_id']
+
+        # Consultar los valores normales desde Supabase
+        valores_normales_query = supabase.table('valores_normales').select('nombre, estructura') \
+            .eq('prueba_id', prueba_id).execute()
+
+        prueba['valores_normales'] = valores_normales_query.data  # Asignar los valores normales a la prueba
+
+    # Depurar: Verificar los datos que vamos a pasar a la plantilla
+    print(f"Paciente: {paciente}")  # Verificar que el paciente tiene el nombre correcto
+    print(f"Pruebas: {pruebas}")  # Verificar que las pruebas tienen los valores normales
+
+    # Pasar el paciente y las pruebas junto con la orden a la plantilla
+    return render_template('quimico/resultados_captura.html', orden=orden_id, paciente=paciente, pruebas=pruebas)
+
+
+@app_routes.route('/ordenes/resultados', methods=['GET'])
+def obtener_ordenes_pendientes():
+    # Obtener todas las órdenes que tienen pruebas pero no resultados
+    ordenes_query = supabase.table('ordenes') \
+        .select('ordenes.id, pacientes.nombres AS nombre_paciente, ordenes.cuarto') \
+        .join('pacientes', 'pacientes.id', 'ordenes.paciente_id') \
+        .left_outer_join('orden_pruebas_detalle', 'orden_pruebas_detalle.orden_id', 'ordenes.id') \
+        .left_outer_join('resultados_clinicos', 'resultados_clinicos.orden_prueba_id', 'orden_pruebas_detalle.id') \
+        .is_null('resultados_clinicos.id', True)  # Verifica si no hay resultados asociados
+
+    ordenes = ordenes_query.execute().data
+
+    return render_template('resultados.html', ordenes=ordenes)
+
+
+@app_routes.route('/guardar_resultados', methods=['POST'])
+def guardar_resultados():
+    orden_id = request.form['orden_id']
+    paciente_id = request.form['paciente_id']
+    resultado_parcial = request.form['resultado_parcial']  # Recibe los resultados parciales
+
+    # Si no se proporciona resultado parcial, se retorna un error
+    if not resultado_parcial:
+        return jsonify({"error": "El resultado parcial es requerido"}), 400
+
+    # Intentamos obtener el resultado actual de la base de datos
+    existing_result = supabase.table('resultados_paciente').select('*').eq('orden_id', orden_id).eq('paciente_id', paciente_id).single().execute()
+
+    if existing_result.status_code == 200:
+        # Si ya existe un resultado, vamos a actualizarlo parcialmente
+        current_result = existing_result.data['resultado']
+
+        # Si hay datos previos, los agregamos al resultado parcial
+        if current_result:
+            current_result = json.loads(current_result)
+            current_result.append(resultado_parcial)  # Añadir el nuevo resultado parcial
+
+        # Actualizar el resultado parcial
+        supabase.table('resultados_paciente').update({
+            'resultado': json.dumps(current_result),
+            'estado': 'en_proceso',  # Estado 'en_proceso' mientras no se complete
+            'semaforo': False  # Semáforo en 'False' hasta que se finalice
+        }).eq('orden_id', orden_id).eq('paciente_id', paciente_id).execute()
+
+        return jsonify({"message": "Resultado actualizado parcialmente"}), 200
+    else:
+        # Si no existe un resultado, crear uno nuevo
+        resultado_json = [resultado_parcial]  # Guardar el resultado como una lista de resultados
+
+        supabase.table('resultados_paciente').insert({
+            'orden_id': orden_id,
+            'paciente_id': paciente_id,
+            'resultado': json.dumps(resultado_json),
+            'estado': 'en_proceso',
+            'semaforo': False
+        }).execute()
+
+        return jsonify({"message": "Resultado guardado parcialmente"}), 201
+
+
+
+
+@app_routes.route('/finalizar_resultados', methods=['POST'])
+def finalizar_resultados():
+    orden_id = request.json.get('orden_id')  # ID de la orden
+    # Verificar que todos los campos estén llenos y los resultados están completos
+    resultado_query = supabase.table('resultados_paciente') \
+        .select('*') \
+        .eq('orden_id', orden_id) \
+        .execute()
+    
+    if not resultado_query.data:
+        return jsonify({"message": "No se encontraron resultados para esta orden"}), 404
+
+    resultados = resultado_query.data[0]
+    
+    # Verificar que todos los campos estén completos (esto puede incluir validación adicional)
+    if not resultados['resultado']:
+        return jsonify({"message": "Faltan resultados por completar"}), 400
+    
+    # Marcar la orden como finalizada
+    supabase.table('resultados_paciente') \
+        .update({
+            'estado': 'finalizado',
+            'semaforo': True  # Marcar el semáforo como True
+        }) \
+        .eq('orden_id', orden_id) \
+        .execute()
+    
+    return jsonify({"message": "Resultados finalizados y listos para mostrador"}), 200
+
+@app_routes.route('/mostrar_resultados', methods=['GET'])
+def mostrar_resultados():
+    # Obtener todas las órdenes finalizadas con resultados listos para mostrador
+    resultados_query = supabase.table('resultados_paciente') \
+        .select('*') \
+        .eq('semaforo', True)  # Solo los resultados que están listos para mostrador
+    
+    resultados = resultados_query.execute().data
+    
+    return render_template('mostrador/resultado_mostrador.html', resultados=resultados)
