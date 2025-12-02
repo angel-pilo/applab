@@ -1,7 +1,7 @@
 # app.py
 import os
 from dotenv import load_dotenv
-from flask import Flask, session
+from flask import Flask, session, render_template
 
 load_dotenv()
 
@@ -67,6 +67,23 @@ def create_app() -> Flask:
             "role_home": ROLE_HOME,
             "available_endpoints": available_endpoints,
         }
+    
+        # --- Páginas de error personalizadas ---
+
+    @app.errorhandler(404)
+    def page_not_found(e):
+        # Puedes loguear el error aquí si quieres
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        # Aquí también puedes loguear e, mandarlo a Supabase, etc.
+        return render_template("errors/500.html"), 500
+
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template("errors/403.html"), 403
+
 
     # --- Healthcheck ---
     @app.get("/health")
