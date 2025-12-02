@@ -1278,26 +1278,27 @@ def add_prueba():
     if request.method == 'POST':
         nombre = request.form.get('nombre', '').strip()
         tipo = request.form.get('tipo', '').strip()
+        precio = request.form.get('precio', '').strip()  # Nuevo campo para precio
 
-        # Lista de IDs de reactivos (viene de los <input type="hidden" name="reactivos">)
+        # Lista de IDs de reactivos
         reactivos_ids = request.form.getlist('reactivos')
 
-        # JSON de valores normales (lo arma el JS del add_prueba.html)
+        # JSON de valores normales
         valores_normales_json = request.form.get('valores_normales_json', '[]')
 
         # Validación básica
-        if not nombre or not tipo:
+        if not nombre or not tipo or not precio:
             flash("Todos los campos son obligatorios.", "error")
             reactivos = obtener_todos_los_reactivos()
             return render_template(
                 'admin/add_prueba.html',
                 is_edit=False,
                 reactivos=reactivos,
-                prueba=None
+                prueba={'valores_normales': []}  # Asegurar lista vacía para valores_normales
             )
 
         # Crear prueba clínica básica
-        nueva_prueba = crear_prueba(nombre, tipo)
+        nueva_prueba = crear_prueba(nombre, tipo, precio)  # Ahora pasamos el precio
         if not nueva_prueba:
             flash("Error al crear la prueba.", "error")
             reactivos = obtener_todos_los_reactivos()
@@ -1305,13 +1306,13 @@ def add_prueba():
                 'admin/add_prueba.html',
                 is_edit=False,
                 reactivos=reactivos,
-                prueba=None
+                prueba={'valores_normales': []}
             )
 
         # Supabase retorna lista de dicts
         prueba_id = nueva_prueba[0]['id']
 
-        # Asignar reactivos (si hay)
+        # Asignar reactivos
         if reactivos_ids:
             asignar_reactivos_a_prueba(prueba_id, reactivos_ids)
 
@@ -1332,7 +1333,7 @@ def add_prueba():
                 if not nombre_vn or not tipo_sep:
                     continue
 
-                # Guardar cada valor normal (estructura se va como jsonb)
+                # Guardar cada valor normal
                 crear_valor_normal(prueba_id, nombre_vn, tipo_sep, estructura)
 
         flash("Prueba registrada exitosamente.", "success")
@@ -1344,48 +1345,74 @@ def add_prueba():
         'admin/add_prueba.html',
         is_edit=False,
         reactivos=reactivos,
-        prueba=None
+        prueba={'valores_normales': []}
     )
 
-# Editar prueba clínica existente
+
 @app_routes.route('/admin/edit_prueba/<int:prueba_id>', methods=['GET', 'POST'])
 @require_role("Admin")
 def edit_prueba(prueba_id):
     if request.method == 'POST':
         nombre = request.form.get('nombre', '').strip()
         tipo = request.form.get('tipo', '').strip()
-        reactivos = request.form.getlist('reactivos')
+        precio = request.form.get('precio', '').strip()  # Nuevo campo para precio
+
+        # Lista de IDs de reactivos
+        reactivos_ids = request.form.getlist('reactivos')
+
+        # JSON de valores normales
         valores_normales_json = request.form.get('valores_normales_json', '[]')
 
-        if not nombre or not tipo:
+        # Validación básica
+        if not nombre or not tipo or not precio:
             flash("Todos los campos son obligatorios.", "error")
             return redirect(url_for('app_routes.edit_prueba', prueba_id=prueba_id))
 
-        actualizar_prueba(prueba_id, nombre, tipo)
+        # Actualizar prueba básica
+        actualizar_prueba(prueba_id, nombre, tipo, precio)  # Ahora pasamos el precio
 
-        actualizar_reactivos_de_prueba(prueba_id, reactivos)
+        # Actualizar reactivos
+        actualizar_reactivos_de_prueba(prueba_id, reactivos_ids)
 
-        import json
-        valores_normales = json.loads(valores_normales_json)
-        # Por simplicidad elimina los valores normales previos y crea nuevos (puedes optimizar)
+        # Actualizar valores normales
+        try:
+            valores_normales = json.loads(valores_normales_json or '[]')
+        except Exception as e:
+            valores_normales = []
+
+        # Eliminar valores normales antiguos y agregar los nuevos
         eliminar_valores_normales_de_prueba(prueba_id)
+
         for valor in valores_normales:
-            crear_valor_normal(prueba_id, valor.get('nombre', ''),
-                              valor.get('tipo_separacion', ''),
-                              valor.get('estructura', {}))
+            crear_valor_normal(
+                prueba_id,
+                valor.get('nombre', ''),
+                valor.get('tipo_separacion', ''),
+                valor.get('estructura', {}) or {}
+            )
 
         flash("Prueba actualizada correctamente", "success")
         return redirect(url_for('app_routes.pruebas_clinicas'))
 
-    # GET
+    # -------- GET: cargar datos para editar --------
     prueba = obtener_prueba_por_id(prueba_id)
     if not prueba:
         flash("Prueba no encontrada", "error")
         return redirect(url_for('app_routes.pruebas_clinicas'))
 
     reactivos = obtener_todos_los_reactivos()
-    return render_template('admin/add_prueba.html', is_edit=True, prueba=prueba, reactivos=reactivos)
 
+    # Asegúrate de pasar valores_normales y precio (vacíos si no existen)
+    prueba['valores_normales'] = prueba.get('valores_normales', [])
+    prueba['precio'] = prueba.get('precio', '')
+
+    # Renderiza el formulario con los valores actuales de la prueba
+    return render_template(
+        'admin/add_prueba.html',
+        is_edit=True,
+        prueba=prueba,  # Incluye los valores normales y reactivos asociados
+        reactivos=reactivos
+    )
 
 # Eliminar (desactivar) prueba clínica
 @app_routes.route('/admin/delete_prueba/<int:prueba_id>', methods=['POST'])

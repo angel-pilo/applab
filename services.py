@@ -490,21 +490,22 @@ def actualizar_reactivo(reactivo_id, data):
         print(f"Error al actualizar reactivo: {e}")
         return None
 
-def crear_prueba(nombre, tipo):
-    """Crea una prueba clínica básica en pruebas_clinicas."""
+def crear_prueba(nombre, tipo, precio):
+    """Crea una nueva prueba clínica con el precio."""
     try:
         data = {
             "nombre": nombre,
             "tipo": tipo,
+            "precio": precio,  # Agregar el precio aquí
             "activo": True
         }
         response = supabase.table('pruebas_clinicas').insert(data).execute()
 
         if hasattr(response, 'error') and response.error:
-            print(f"Error en crear_prueba: {response.error}")
+            print(f"Error al crear prueba clínica: {response.error}")
             return None
 
-        return response.data  # lista de dicts con la fila insertada
+        return response.data  # Devuelve la fila de la prueba creada
     except Exception as e:
         print(f"Error al crear prueba clínica: {e}")
         return None
@@ -583,43 +584,61 @@ def obtener_pruebas():
 
 def obtener_prueba_por_id(prueba_id):
     try:
-        prueba = supabase.table('pruebas_clinicas').select('*').eq('id', prueba_id).single().execute()
-        if prueba.error or not prueba.data:
-            print(f"Error o prueba no encontrada: {prueba.error}")
+        # Obtener prueba por ID
+        resp_prueba = (
+            supabase
+            .table('pruebas_clinicas')
+            .select('*')
+            .eq('id', prueba_id)
+            .single()
+            .execute()
+        )
+        prueba_data = getattr(resp_prueba, 'data', None)
+        if not prueba_data:
             return None
-        prueba_data = prueba.data
-        
-        relacion = supabase.table('pruebas_reactivos').select('reactivo_id').eq('prueba_id', prueba_id).execute()
-        if relacion.error:
-            print(f"Error al obtener reactivos para prueba {prueba_id}: {relacion.error}")
-            prueba_data['reactivos'] = []
-        else:
-            prueba_data['reactivos'] = [r['reactivo_id'] for r in relacion.data] if relacion.data else []
-        
-        valores = supabase.table('valores_normales').select('*').eq('prueba_id', prueba_id).execute()
-        if valores.error:
-            print(f"Error al obtener valores normales para prueba {prueba_id}: {valores.error}")
-            prueba_data['valores_normales'] = []
-        else:
-            prueba_data['valores_normales'] = valores.data if valores.data else []
-        
+
+        # Obtener reactivos asociados
+        resp_reactivos = (
+            supabase
+            .table('pruebas_reactivos')
+            .select('reactivo_id')
+            .eq('prueba_id', prueba_id)
+            .execute()
+        )
+        prueba_data['reactivos'] = [r['reactivo_id'] for r in resp_reactivos.data]
+
+        # Obtener valores normales asociados
+        resp_vals = (
+            supabase
+            .table('valores_normales')
+            .select('*')
+            .eq('prueba_id', prueba_id)
+            .execute()
+        )
+        prueba_data['valores_normales'] = resp_vals.data  # Los valores normales
+
         return prueba_data
+
     except Exception as e:
         print(f"Error al obtener prueba por ID: {e}")
         return None
 
 
-def actualizar_prueba(prueba_id, nombre, tipo):
+def actualizar_prueba(prueba_id, nombre, tipo, precio):
+    """Actualiza los datos básicos de una prueba clínica, incluyendo el precio."""
     try:
         data = {
             "nombre": nombre,
-            "tipo": tipo
+            "tipo": tipo,
+            "precio": precio,  # Actualizar el precio
         }
         response = supabase.table('pruebas_clinicas').update(data).eq('id', prueba_id).execute()
-        if response.error:
-            print(f"Error en actualizar_prueba: {response.error}")
+
+        if hasattr(response, 'error') and response.error:
+            print(f"Error al actualizar prueba clínica: {response.error}")
             return None
-        return response.data
+
+        return response.data  # Datos actualizados
     except Exception as e:
         print(f"Error al actualizar prueba clínica: {e}")
         return None
@@ -638,21 +657,18 @@ def actualizar_reactivos_de_prueba(prueba_id, lista_reactivos_ids):
 
 
 def crear_valor_normal(prueba_id, nombre, tipo_separacion, estructura_json):
-    """
-    Crea un registro en valores_normales.
-    estructura_json debe ser un dict de Python (se serializa a jsonb).
-    """
+    """Inserta un valor normal para una prueba en la base de datos."""
     try:
         data = {
             "prueba_id": prueba_id,
             "nombre": nombre,
             "tipo_separacion": tipo_separacion,
-            "estructura": estructura_json
+            "estructura": estructura_json  # Asegúrate de que esta sea la estructura correcta
         }
         response = supabase.table('valores_normales').insert(data).execute()
 
         if hasattr(response, 'error') and response.error:
-            print(f"Error en crear_valor_normal: {response.error}")
+            print(f"Error al crear valor normal: {response.error}")
             return None
 
         return response.data
