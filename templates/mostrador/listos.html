@@ -62,26 +62,29 @@
       <table class="w-full text-sm text-left">
         <thead>
           <tr class="border-b">
-            <th class="pb-2 text-red-600 font-semibold">Folio ⬇</th>
+            <th class="pb-2 text-red-600 font-semibold">Folio</th>
             <th class="pb-2">Nombre del paciente</th>
           </tr>
         </thead>
         <tbody>
-          {% set faltantes = [
-            ("00011", "María José Hernández Gómez"),
-            ("00012", "Jorge Luis Vargas Martínez"),
-            ("00013", "Carmen Patricia Flores López"),
-            ("00014", "Carlos Eduardo Pérez Gutiérrez"),
-            ("00015", "Sofía Elena Jiménez Morales"),
-            ("00016", "Andrés Felipe Castillo Torres"),
-            ("00017", "Alejandra Itzel Sánchez Cruz")
-          ] %}
-          {% for folio, nombre in faltantes %}
-          <tr class="border-b hover:bg-gray-100">
-            <td class="py-2 text-red-600 font-bold">#{{ folio }}</td>
-            <td class="py-2">{{ nombre }}</td>
-          </tr>
-          {% endfor %}
+          {% if ordenes_quimico and ordenes_quimico|length > 0 %}
+            {% for orden in ordenes_quimico %}
+              <tr class="border-b hover:bg-gray-50">
+                <td class="py-2 text-red-600 font-bold">
+                  #{{ "%05d"|format(orden.id) }}
+                </td>
+                <td class="py-2 px-2">
+                  {{ orden.nombre_paciente }}
+                </td>
+              </tr> 
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="2" class="text-center text-gray-500 py-2">
+                No hay órdenes para mostrar.
+              </td>
+            </tr>
+          {% endif %}
         </tbody>
       </table>
     </div>

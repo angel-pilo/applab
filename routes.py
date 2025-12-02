@@ -1939,9 +1939,11 @@ def recientes():
     return render_template("mostrador/recientes.html", ordenes=ordenes)
 
 @app_routes.route("/listos")
-@require_role("Mostrador")  
+@require_role("Mostrador")
 def listos():
-    return render_template("mostrador/listos.html")
+    # Obtener las órdenes que ya llegaron a Químico
+    ordenes_quimico = obtener_ordenes_para_quimico()  
+    return render_template("mostrador/listos.html", ordenes_quimico=ordenes_quimico)
 
 
 # Enfermero
