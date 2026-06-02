@@ -2,6 +2,36 @@
 {% block title %}Dashboard Mostrador{% endblock %}
 
 {% block content %}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<div class="flex justify-center items-center h-full">
+    <div class="grid grid-cols-2 sm:grid-cols-2 gap-10 p-6">
+        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_orden') }}'">
+            <h2>Generar orden</h2>
+            <img src="{{ url_for('static', filename='icons/orden.svg') }}" alt="Icono orden" class="icon">
+       <button class="card" onclick="window.location.href='{{ url_for('app_routes.listos') }}'">
+            <h2>Resultados listos</h2>
+            <img src="{{ url_for('static', filename='icons/listos.svg') }}" alt="Icono listos" class="icon">
+        </button>
+        <button class="card" onclick="window.location.href='{{ url_for('app_routes.manage_patients') }}'">
+            <h2>Pacientes</h2>
+            <img src="{{ url_for('static', filename='icons/pacientes.svg') }}" alt="Icono pacientes" class="icon">
+        </button>
+        <!-- <button class="card">
+            <h2>Corte de caja</h2>
+            <img src="{{ url_for('static', filename='icons/corte.svg') }}" alt="Icono corte de caja" class="icon">
+        </button>
+        <button class="card">
+            <h2>Ordenes recientes</h2>
+            <img src="{{ url_for('static', filename='icons/reciente.svg') }}" alt="Icono ordenes recientes" class="icon">
+        </button> -->
+        <button class="card">
+            <h2>Configuración</h2>
+            <img src="{{ url_for('static', filename='icons/configuracion.svg') }}" alt="Icono configuracion" class="icon">
+        </button>
+=======
+>>>>>>> 3702d0689922593733854f152d9cf18e9bf61702
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
   <!-- Header -->
@@ -9,6 +39,10 @@
     <div>
       <h1 class="text-2xl font-bold tracking-tight text-gray-900">Mostrador</h1>
       <p class="text-sm text-gray-500">Atiende pacientes, genera órdenes y gestiona pagos</p>
+<<<<<<< HEAD
+=======
+>>>>>>> cb81e959e120e0058d69cf6a8aac0e3fb3a6923e
+>>>>>>> 3702d0689922593733854f152d9cf18e9bf61702
     </div>
     <div class="flex items-center gap-2">
       <a href="{{ url_for('app_routes.manage_patients') }}"
