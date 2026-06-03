@@ -1,9 +1,14 @@
+# supabase_client.py
+import os
+from dotenv import load_dotenv
 from supabase import create_client, Client
-from flask import current_app
 
-# Función para obtener el cliente de Supabase
-def get_supabase_client() -> Client:
-    url = current_app.config['SUPABASE_URL']  
-    key = current_app.config['SUPABASE_KEY']  
-    supabase = create_client(url, key)  
-    return supabase
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError("Faltan SUPABASE_URL y/o SUPABASE_KEY en el archivo .env")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)

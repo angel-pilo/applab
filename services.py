@@ -1,11 +1,5 @@
-from supabase import create_client, Client
-import os
 import bcrypt
-
-# Inicializa la conexión a Supabase
-url = os.getenv('SUPABASE_URL')
-key = os.getenv('SUPABASE_KEY')
-supabase: Client = create_client(url, key)
+from supabase_client import supabase
 
 def verificar_usuario(usuario, password):
     """Verifica si un usuario existe y su contraseña es correcta."""

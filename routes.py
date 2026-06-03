@@ -3,13 +3,12 @@ import bcrypt
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for, jsonify
 from functools import wraps
 from services import *
-from supabase import Client, create_client
 from utils import *
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
 from datetime import datetime
 import json
-import hashlib
+from supabase_client import supabase
 
 
 
@@ -23,10 +22,6 @@ with open(ruta_estados, 'r', encoding='utf-8') as file:
     estados_data = json.load(file)
     estados = estados_data["estados"]  # Extrae la lista de estados del JSON
 
-# Inicializa la conexión a Supabase
-url = os.getenv('SUPABASE_URL')
-key = os.getenv('SUPABASE_KEY')
-supabase: Client = create_client(url, key)
 
 # Mapeo de roles por ID
 role_map = {

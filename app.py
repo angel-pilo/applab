@@ -6,10 +6,8 @@ from flask import Flask, session, render_template
 load_dotenv()
 
 # --- Supabase (opcional) ---
-try:
-    from supabase_client import supabase
-except Exception:
-    supabase = None
+from supabase_client import supabase
+
 
 # --- Menú por rol ---
 try:
