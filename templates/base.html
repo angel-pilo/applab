@@ -85,12 +85,12 @@
   <!-- Layout principal: sidebar + columna derecha -->
   <div class="min-h-screen flex">
     <!-- Sidebar fija a la izquierda -->
-    {% include 'partials/sidebar.html' %}
+    {% include 'components/sidebar.html' %}
 
     <!-- Columna derecha: navbar + contenido + footer (sin flex-col) -->
     <div class="flex-1">
       <!-- Navbar arriba -->
-      {% include 'partials/navbar.html' %}
+      {% include 'components/navbar.html' %}
 
       <!-- Contenido: altura natural, sin flex-1 -->
       <main id="main-content" class="p-4">
@@ -98,7 +98,7 @@
       </main>
 
       <!-- Footer inmediatamente después del contenido -->
-      {% include 'partials/footer.html' %}
+      {% include 'components/footer.html' %}
     </div>
   </div>
 
