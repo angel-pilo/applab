@@ -9,23 +9,7 @@ load_dotenv()
 from supabase_client import supabase
 
 
-# --- Menú por rol ---
-try:
-    from menus import ROLE_MENU
-except ImportError:
-    ROLE_MENU = {
-        "Admin": [
-            {"text": "Pruebas", "icon": "fa-clipboard-check", "url": "app_routes.pruebas_clinicas"},
-            {"text": "Inventario", "icon": "fa-vial", "url": "app_routes.manage_inventory"},
-            {"text": "Pacientes", "icon": "fa-id-card", "url": "app_routes.manage_patients"},
-            {"text": "Proveedores", "icon": "fa-truck", "url": "app_routes.manage_proveedores"},
-            {"text": "Doctores", "icon": "fa-stethoscope", "url": "app_routes.manage_doctores"},
-            {"text": "Hospitales", "icon": "fa-hospital", "url": "app_routes.manage_hospitals"},
-            {"text": "Empleados", "icon": "fa-user-tie", "url": "app_routes.manage_employees"},
-            {"text": "Backlog", "icon": "fa-history", "url": "app_routes.backlog"},
-            {"text": "Configuración", "icon": "fa-cog", "url": "#"},
-        ]
-    }
+from menus import ROLE_MENU
 
 # Dashboard de inicio por rol (botón "Inicio" en sidebar)
 ROLE_HOME = {

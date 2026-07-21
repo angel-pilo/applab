@@ -75,7 +75,6 @@ function showDetails(employee) {
 }
 
 function confirmDelete(employeeId) {
-    console.log("Empleado a eliminar:", employeeId);
     document.getElementById('delete-modal').classList.remove('hidden');
     document.getElementById('delete-employee-id').value = employeeId;
 }
@@ -122,7 +121,6 @@ function deleteEmployee() {
 }
 
 function confirmActivate(employeeId) {
-    console.log("Empleado a activar:", employeeId);
     const modal = document.getElementById('activation-modal');
 
     if (modal) {
@@ -158,7 +156,6 @@ function activateEmployee() {
             modalMessage.innerHTML = '<p class="text-green-600 text-sm">Empleado activado correctamente.</p>';
             setTimeout(() => {
                 closeModal();
-                console.log("Recargando página después de activar...");
                 location.reload(); // Recargar la página después de activar
             }, 1500);
         } else {
@@ -439,31 +436,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
-
-function getSelectedEmployeeType() {
-    const selectedEmployee = document.querySelector('input[name="employee_type"]:checked');
-    if (selectedEmployee) {
-        console.log(`Empleado seleccionado: ${selectedEmployee.value}`);
-    } else {
-        console.log('No se ha seleccionado un empleado');
-    }
-}
-
-function getSelectedGender() {
-    const selectedGender = document.querySelector('input[name="gender"]:checked');
-    if (selectedGender) {
-        console.log(`Sexo seleccionado: ${selectedGender.value}`);
-    } else {
-        console.log('No se ha seleccionado un sexo');
-    }
-}
-
-// Ejemplo de cómo usarlas
-document.getElementById('yourButtonId').addEventListener('click', function() {
-    getSelectedEmployeeType();
-    getSelectedGender();
-});
-
 
     // Obtener todos los inputs de tipo radio para 'employee_type'
     const employeeTypeRadios = document.querySelectorAll('input[name="employee_type"]');

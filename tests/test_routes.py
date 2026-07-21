@@ -5,7 +5,11 @@ from unittest.mock import patch
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("SUPABASE_URL", "https://example.supabase.co")
-os.environ.setdefault("SUPABASE_KEY", "test-key")
+os.environ.setdefault(
+    "SUPABASE_KEY",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+    "eyJyb2xlIjoiYW5vbiIsImlhdCI6MTUxNjIzOTAyMn0.dGVzdA",
+)
 
 import routes
 from app import create_app

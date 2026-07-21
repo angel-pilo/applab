@@ -1,5 +1,4 @@
 function confirmDelete(hospitalId) {
-    console.log("Hospital a eliminar:", hospitalId);
     const modal = document.getElementById('delete-modal');
 
     if (modal) {
@@ -36,7 +35,6 @@ function deleteHospital() {
             modalMessage.innerHTML = '<p class="text-green-600 text-sm">Hospital desactivado correctamente.</p>';
             setTimeout(() => {
                 closeModal(); // Cerrar modal
-                console.log("Recargando página después de eliminar...");
                 window.location.href = window.location.href; // Recargar la página
             }, 2000);
         } else {
@@ -51,7 +49,6 @@ function deleteHospital() {
 }
 
 function confirmActivate(hospitalId) {
-    console.log("Hospital a activar:", hospitalId);
     const modal = document.getElementById('activation-modal');
 
     if (modal) {
@@ -87,7 +84,6 @@ function activateHospital() {
             modalMessage.innerHTML = '<p class="text-green-600 text-sm">Hospital activado correctamente.</p>';
             setTimeout(() => {
                 closeModal();
-                console.log("Recargando página después de activar...");
                 location.reload(); // Recargar la página después de activar
             }, 1500);
         } else {
