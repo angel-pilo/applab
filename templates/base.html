@@ -6,10 +6,9 @@
 
   <title>{% block title %}Dashboard{% endblock %}</title>
 
-  <!-- Config Tailwind CDN (debe declararse ANTES del script de Tailwind) -->
+  <!-- Config Tailwind CDN (breakpoints personalizados y sin dark mode) -->
   <script>
-    window.tailwind = window.tailwind || {};
-    tailwind.config = {
+    tailwind = {
       theme: {
         extend: {
           screens: {
@@ -17,41 +16,120 @@
             '3xl': '1600px'
           },
           boxShadow: {
-            card: '0 8px 24px -12px rgba(0,0,0,.2)',
-          },
+            card: '0 8px 24px -12px rgba(0,0,0,.2)'
+          }
         }
+      },
+      corePlugins: {
+        // sin dark mode por ahora
       }
-      // dark mode off por defecto (no definir darkMode)
-    };
+    }
   </script>
+  <script>
+  function openFlashModal(message, category) {
+    const modal = document.getElementById("flash-modal");
+    const title = document.getElementById("flash-modal-title");
+    const text  = document.getElementById("flash-modal-text");
+
+    if (!modal || !title || !text) return;
+
+    // Título según categoría
+    if (category === "success") {
+      title.textContent = "Éxito";
+    } else if (category === "error") {
+      title.textContent = "Error";
+    } else {
+      title.textContent = "Mensaje";
+    }
+
+    text.textContent = message;
+
+    // Mostrar modal (aquí usas tus clases propias)
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const flashData = document.getElementById("flash-data");
+    if (flashData) {
+      const message  = flashData.dataset.message;
+      const category = flashData.dataset.category || "success";
+      openFlashModal(message, category);
+    }
+
+    const modal = document.getElementById("flash-modal");
+    const btnClose = document.getElementById("flash-modal-close");
+    if (btnClose && modal) {
+      btnClose.addEventListener("click", () => {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      });
+    }
+  });
+</script>
+
   <script src="https://cdn.tailwindcss.com"></script>
-
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
   <!-- Iconos -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+    rel="stylesheet"
+  />
 
-  <!-- Tu CSS: después de Tailwind -->
+  <!-- Tu CSS (después de Tailwind) -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
+<body class="font-sans overflow-x-hidden {% if request.path.startswith('/admin/') %}admin-surface{% endif %}">
+  <!-- Layout principal: sidebar + columna derecha -->
+  <div class="min-h-screen flex">
+    <!-- Sidebar fija a la izquierda -->
+    {% include 'components/sidebar.html' %}
 
-<body class="font-sans min-h-[100dvh] overflow-x-hidden">
-  <div class="flex min-h-[100dvh]">
-    {# Sidebar fija a la izquierda #}
-    {% include 'partials/sidebar.html' %}
+    <!-- Columna derecha: navbar + contenido + footer (sin flex-col) -->
+    <div class="flex-1">
+      <!-- Navbar arriba -->
+      {% include 'components/navbar.html' %}
 
-    {# Columna principal #}
-    <div class="flex-1 flex flex-col md:pl-16">
-      {% include 'partials/navbar.html' %}
-
-      {# main SIN flex-1, así el footer sube y queda pegado al contenido #}
-      <main id="main-content"
-            class="px-4 sm:px-6 lg:px-8 overflow-x-hidden py-4">
+      <!-- Contenido: altura natural, sin flex-1 -->
+      <main id="main-content" class="p-4">
         {% block content %}{% endblock %}
       </main>
 
-      {% include 'partials/footer.html' %}
+      <!-- Footer inmediatamente después del contenido -->
+      {% include 'components/footer.html' %}
     </div>
   </div>
 
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+  {% with messages = get_flashed_messages(with_categories=True) %}
+  {% if messages %}
+    {# Tomamos solo el primer mensaje para el modal #}
+    {% set category, text = messages[0] %}
+    <div id="flash-data"
+         data-message="{{ text }}"
+         data-category="{{ category }}"></div>
+  {% endif %}
+{% endwith %}
+
+<!-- Modal genérico para mensajes -->
+<div id="flash-modal" class="hidden fixed inset-0 z-50 items-center justify-center">
+  <div class="fixed inset-0 bg-black/40"></div>
+
+  <div class="relative bg-white rounded-2xl shadow-lg max-w-md w-full mx-4 p-6">
+    <h2 id="flash-modal-title" class="text-xl font-semibold mb-2">Mensaje</h2>
+    <p id="flash-modal-text" class="text-gray-700 mb-4"></p>
+
+    <div class="flex justify-end gap-2">
+      <button id="flash-modal-close"
+              class="px-4 py-2 rounded-xl border">
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

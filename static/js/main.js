@@ -29,22 +29,23 @@ function applySidebarState(collapsed) {
     document.querySelectorAll(".sidebar-text").forEach(el => el.classList.remove("hidden"));
   } else {
     // Desktop: usamos data attribute para que el CSS cambie el ancho (w-64 / w-16)
-    aside.dataset.collapsed = collapsed ? "true" : "false";
+    aside.dataset.collapsed = "false";
 
     // Mostrar/ocultar textos al colapsar (solo desktop)
     document.querySelectorAll(".sidebar-text").forEach(el => {
-      if (collapsed) el.classList.add("hidden");
-      else el.classList.remove("hidden");
+      el.classList.remove("hidden");
     });
 
     // Si aún dependes de margen en el contenido, ajusta aquí (fallback)
     if (main) {
       // Usa 250px expandido / 64px colapsado como en tu código previo
-      main.style.marginLeft = collapsed ? "64px" : "250px";
+      main.style.marginLeft =  "64px";
     }
   }
 
-  try { localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0"); } catch {}
+  try { localStorage.setItem(SIDEBAR_KEY); } catch {}
+
+  retunr;
 }
 
 // API pública para botón
@@ -52,20 +53,14 @@ function toggleSidebar(forceState) {
   const aside = document.getElementById("sidebar");
   if (!aside) return;
 
-  const isCollapsedDesktop = aside.dataset.collapsed === "true";
-  const isHiddenMobile = aside.classList.contains("-translate-x-full");
-  const current = isMobile() ? isHiddenMobile : isCollapsedDesktop;
+  // En desktop ya no hacemos nada: sidebar estática
+  if (!isMobile()) return;
 
-  // forceState: boolean opcional. Si no se pasa, invertimos.
+  const isHiddenMobile = aside.classList.contains("-translate-x-full");
+  const current = isHiddenMobile;
   const next = (typeof forceState === "boolean") ? forceState : !current;
 
-  if (isMobile()) {
-    // En móvil, next=true => ocultar drawer; next=false => mostrar
-    applySidebarState(next);
-  } else {
-    // En desktop, next=true => colapsar; next=false => expandir
-    applySidebarState(next);
-  }
+  applySidebarState(next);
 }
 
 // Inicializar estado en carga

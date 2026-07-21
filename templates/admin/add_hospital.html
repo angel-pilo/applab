@@ -1,18 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Añadir Hospital{% endblock %}
+{% block title %}{{ 'Editar hospital' if is_edit else 'Registrar hospital' }}{% endblock %}
 
 {% block content %}
-
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
 
 <div class="flex-1 p-8 transition-all duration-300">
     <div class="flex items-center space-x-2 mb-6">
         <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-        <h1 class="text-3xl font-bold">Agregar Nuevo Hospital</h1>
+        <h1 class="text-3xl font-bold">{{ 'Editar hospital' if is_edit else 'Registrar hospital' }}</h1>
     </div>
 
     <form method="POST">
@@ -20,15 +15,15 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-gray-700 font-bold mb-2">Nombre del hospital<span class="text-red-500">*</span></label>
-                    <input type="text" name="nombre" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el nombre del hospital" required>
+                    <input type="text" name="nombre" value="{{ hospital.nombre or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el nombre del hospital" required>
                 </div>
                 <div>
                     <label class="block text-gray-700 font-bold mb-2">Número de teléfono<span class="text-red-500">*</span></label>
-                    <input type="text" name="telefono" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el teléfono del hospital" required>
+                    <input type="text" name="telefono" value="{{ hospital.telefono or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el teléfono del hospital" required>
                 </div>
                 <div class="col-span-1 md:col-span-2">
                     <label class="block text-gray-700 font-bold mb-2">Correo electrónico<span class="text-red-500">*</span></label>
-                    <input type="email" name="correo" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el correo del hospital" required>
+                    <input type="email" name="correo" value="{{ hospital.correo or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el correo del hospital" required>
                 </div>
             </div>
         </div>
@@ -38,30 +33,30 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <label class="block text-gray-700 font-bold mb-2">Calle<span class="text-red-500">*</span></label>
-                        <input type="text" name="calle" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa la calle" required>
+                        <input type="text" name="calle" value="{{ hospital.calle or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa la calle" required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2">No. Ext.<span class="text-red-500">*</span></label>
-                        <input type="text" name="numero_ext" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número exterior" required>
+                        <input type="text" name="numero_ext" value="{{ hospital.numero_ext or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número exterior" required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2">No. Int.</label>
-                        <input type="text" name="numero_int" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número interior (opcional)">
+                        <input type="text" name="numero_int" value="{{ hospital.numero_int or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número interior (opcional)">
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2">Código postal<span class="text-red-500">*</span></label>
-                        <input type="text" name="codigo_postal" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el código postal" required>
+                        <input type="text" name="codigo_postal" value="{{ hospital.codigo_postal or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el código postal" required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2">Municipio<span class="text-red-500">*</span></label>
-                        <input type="text" name="municipio" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el municipio" required>
+                        <input type="text" name="municipio" value="{{ hospital.municipio or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el municipio" required>
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2">Estado<span class="text-red-500">*</span></label>
                         <select name="estado" class="w-full px-4 py-2 border rounded-[1rem]" required>
                             <option>Seleccione un estado</option>
                             {% for estado in estados %}
-                                <option value="{{ estado }}">{{ estado }}</option>
+                                <option value="{{ estado }}" {% if hospital.estado == estado %}selected{% endif %}>{{ estado }}</option>
                             {% endfor %}
                         </select>                   
                     </div>
@@ -70,12 +65,12 @@
 
             <div class="w-full md:w-1/2 bg-white p-6 rounded-[1rem] shadow-md">
                 <label class="block text-gray-700 font-bold mb-2">Anotaciones Extra</label>
-                <textarea name="anotaciones" rows="4" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Añade información adicional si es necesario"></textarea>
+                <textarea name="anotaciones" rows="4" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Añade información adicional si es necesario">{{ hospital.anotaciones or '' }}</textarea>
             </div>
         </div>
 
         <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
-            <button type="submit" class="btn-guardar">Guardar</button>
+            <button type="submit" class="btn-guardar">{{ 'Guardar cambios' if is_edit else 'Registrar hospital' }}</button>
             <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
         </div>
     </form>

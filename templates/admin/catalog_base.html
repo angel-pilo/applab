@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <header class="flex flex-col gap-5 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <div class="flex items-start gap-4">
+      <button type="button" onclick="window.history.back()"
+              class="mt-1 grid h-10 w-10 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
+              aria-label="Volver">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p>
+        <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">{{ page_title }}</h1>
+        <p class="mt-2 text-sm text-gray-500">{{ page_description }}</p>
+      </div>
+    </div>
+    <a href="{{ add_url }}" class="btn-editar admin-primary-action inline-flex items-center justify-center gap-2">
+      <i class="fas fa-plus text-xs"></i>
+      {{ add_label }}
+    </a>
+  </header>
+
+  <div class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <div class="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <label class="relative block w-full sm:max-w-md" for="{{ search_id }}">
+        <span class="sr-only">{{ search_placeholder }}</span>
+        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
+        <input type="search" id="{{ search_id }}" data-admin-catalog-search placeholder="{{ search_placeholder }}" {% if search_handler %}oninput="{{ search_handler }}()"{% endif %}
+               class="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100">
+      </label>
+
+      <div class="relative">
+        <button type="button" onclick="toggleFilterMenu()"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto">
+          <i class="fas fa-filter text-gray-400"></i>
+          Filtros
+        </button>
+        <div id="filter-menu" class="absolute right-0 z-50 mt-2 hidden w-72 rounded-2xl border border-gray-200 bg-white p-4 shadow-xl">
+          {% block filters %}
+          <p class="mb-3 text-sm font-semibold text-gray-800">Estado</p>
+          <div class="space-y-2 text-sm text-gray-600">
+            <label class="flex items-center gap-2"><input type="radio" name="filter-status" value="all" checked> Todos</label>
+            <label class="flex items-center gap-2"><input type="radio" name="filter-status" value="activo"> Activos</label>
+            <label class="flex items-center gap-2"><input type="radio" name="filter-status" value="inactivo"> Inactivos</label>
+          </div>
+          <button id="apply-filters" type="button" class="mt-4 w-full rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
+            Aplicar filtros
+          </button>
+          {% endblock %}
+        </div>
+      </div>
+    </div>
+
+    <div id="not-found-message" class="hidden border-b border-gray-100 bg-amber-50 px-5 py-3 text-sm text-amber-800">
+      {{ empty_search_message }}
+      <a href="{{ add_url }}" class="font-semibold underline">{{ add_label }}</a>
+    </div>
+
+    <div class="max-h-[40rem] overflow-auto">
+      <table data-admin-catalog-table class="min-w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+          <tr class="border-b border-gray-200">
+            {% block table_head %}{% endblock %}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 text-gray-700">
+          {% block table_body %}{% endblock %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{% block catalog_extras %}{% endblock %}
+<script src="{{ url_for('static', filename='js/admin_catalog.js') }}"></script>
+{% endblock %}

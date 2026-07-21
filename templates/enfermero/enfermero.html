@@ -105,12 +105,15 @@
       </a>
 
       <!-- Registro de toma -->
-      <a href="#"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+      <a href="{{ url_for('app_routes.proximamente', feature='Registro de toma') }}"
+        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
                 transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+        aria-label="Registro de toma próximamente">
         <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">Hoy</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-syringe text-8xl text-emerald-600"></i></div>
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-syringe text-8xl text-emerald-600"></i>
+        </div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-emerald-200 bg-emerald-50">
             <i class="fas fa-syringe text-emerald-600 text-xl"></i>
@@ -123,12 +126,15 @@
       </a>
 
       <!-- Etiquetas / QR -->
-      <a href="#"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+      <a href="{{ url_for('app_routes.proximamente', feature='Etiquetas / QR') }}"
+        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
                 transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+        aria-label="Etiquetas y QR próximamente">
         <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-slate-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">QR</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-qrcode text-8xl text-slate-600"></i></div>
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-qrcode text-8xl text-slate-600"></i>
+        </div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-slate-200 bg-slate-50">
             <i class="fas fa-qrcode text-slate-600 text-xl"></i>
@@ -141,12 +147,15 @@
       </a>
 
       <!-- Bioseguridad -->
-      <a href="#"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+      <a href="{{ url_for('app_routes.proximamente', feature='Bioseguridad') }}"
+        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
                 transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+        aria-label="Bioseguridad próximamente">
         <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">1</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-shield-virus text-8xl text-rose-600"></i></div>
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-shield-virus text-8xl text-rose-600"></i>
+        </div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-rose-200 bg-rose-50">
             <i class="fas fa-shield-virus text-rose-600 text-xl"></i>
@@ -159,11 +168,14 @@
       </a>
 
       <!-- Envío / Traslado -->
-      <a href="#"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+      <a href="{{ url_for('app_routes.proximamente', feature='Envío / Traslado') }}"
+        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
                 transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-truck text-8xl text-amber-600"></i></div>
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+        aria-label="Envío y traslado próximamente">
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-truck text-8xl text-amber-600"></i>
+        </div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-amber-200 bg-amber-50">
             <i class="fas fa-truck text-amber-600 text-xl"></i>
@@ -176,8 +188,8 @@
       </a>
 
       <!-- Configuración (sin badge) -->
-      <a href="#"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+      <a href="{{ url_for('app_routes.configuracion') }}"
+        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
                 transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">
         <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-cog text-8xl text-slate-600"></i></div>

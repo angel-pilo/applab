@@ -1,6 +1,172 @@
 {% extends "base.html" %}
 
+{% block title %}Configuración{% endblock %}
+
 {% block content %}
-<h1>Configuración</h1>
-<p>Ajustes de la aplicación...</p>
+<div class="max-w-6xl mx-auto">
+  <!-- Encabezado -->
+  <div class="flex items-center mb-6">
+    <button class="text-2xl mr-3" onclick="window.history.back()">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div>
+      <h1 class="text-3xl font-bold">Configuración de cuenta</h1>
+      <p class="text-sm text-gray-500">
+        Ajustes del perfil actual y preferencias de la aplicación.
+      </p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Columna izquierda: perfil -->
+    <div class="lg:col-span-1">
+      <div class="bg-white rounded-2xl shadow p-6 flex flex-col items-center text-center">
+        <!-- Avatar -->
+        {% set foto = user.foto_perfil if user.foto_perfil else None %}
+        {% if foto %}
+          <img src="{{ foto }}"
+               alt="Foto de perfil"
+               class="w-24 h-24 rounded-full object-cover mb-4 ring-2 ring-emerald-500">
+        {% else %}
+          <div class="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center mb-4 ring-2 ring-emerald-500">
+            <i class="fas fa-user text-3xl text-emerald-600"></i>
+          </div>
+        {% endif %}
+
+        <h2 class="text-xl font-semibold">
+          {{ user.nombres or "Usuario sin nombre" }}
+        </h2>
+        <p class="text-sm text-gray-500">
+          {{ user.username }}
+        </p>
+
+        <span class="inline-flex items-center mt-3 px-3 py-1 rounded-full text-xs font-semibold
+                     bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+          <i class="fas fa-id-badge mr-1"></i>
+          Rol: {{ user.rol or "Sin rol" }}
+        </span>
+
+        <div class="mt-6 w-full space-y-2 text-left text-sm text-gray-600">
+          <div class="flex items-center justify-between">
+            <span class="text-gray-500">Estado de cuenta</span>
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+              Activa
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <span class="text-gray-500">ID de usuario</span>
+            <span class="font-mono text-xs text-gray-700">
+              {{ user.username }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna derecha: ajustes -->
+    <div class="lg:col-span-2 space-y-6">
+
+      <!-- Datos de cuenta -->
+      <div class="bg-white rounded-2xl shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">Datos de la cuenta</h3>
+        <p class="text-sm text-gray-500 mb-4">
+          Información básica del usuario actualmente autenticado.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Nombre completo</label>
+            <input type="text"
+                   class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50"
+                   value="{{ user.nombres or '' }}"
+                   readonly>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Usuario</label>
+            <input type="text"
+                   class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50"
+                   value="{{ user.username or '' }}"
+                   readonly>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Rol</label>
+            <input type="text"
+                   class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50"
+                   value="{{ user.rol or '' }}"
+                   readonly>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">
+              Correo electrónico
+              <span class="text-[0.65rem] text-amber-600 font-normal">(Próximamente editable)</span>
+            </label>
+            <input type="email"
+                   class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50"
+                   placeholder="correo@laboratorio.com"
+                   readonly>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preferencias (algunas como Próximamente) -->
+      <div class="bg-white rounded-2xl shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">Preferencias</h3>
+        <p class="text-sm text-gray-500 mb-4">
+          Algunas opciones están planeadas para una versión futura.
+        </p>
+
+        <div class="space-y-4">
+          <!-- Notificaciones -->
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-800">Notificaciones por correo</p>
+              <p class="text-xs text-gray-500">Recibir avisos de muestras, resultados y control de calidad.</p>
+            </div>
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
+              Próximamente
+            </span>
+          </div>
+
+          <!-- Tema -->
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-800">Tema oscuro</p>
+              <p class="text-xs text-gray-500">Modo oscuro para trabajar en ambientes con poca luz.</p>
+            </div>
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
+              Próximamente
+            </span>
+          </div>
+
+          <!-- Seguridad -->
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-800">Cambiar contraseña</p>
+              <p class="text-xs text-gray-500">Actualiza tu contraseña periódicamente por seguridad.</p>
+            </div>
+            <button class="px-3 py-1 rounded-lg text-xs font-semibold border border-gray-300 text-gray-400 cursor-not-allowed">
+              Próximamente
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloque de información -->
+      <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-amber-800">
+        <p class="font-semibold mb-1">
+          🔧 Funcionalidad en construcción
+        </p>
+        <p>
+          Esta sección muestra tu información básica de sesión.
+          En futuras versiones podrás editar datos del perfil,
+          configurar notificaciones y preferencias avanzadas del laboratorio.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

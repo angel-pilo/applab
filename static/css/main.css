@@ -40,9 +40,6 @@ footer {
     transition: width 0.3s ease-in-out;
 }
 
-.sidebar-expanded {
-    width: 250px !important; /* Se asegura que tome el ancho correcto */
-}
 
 .sidebar-collapsed {
     width: 64px !important;
@@ -201,12 +198,8 @@ body {
 
 #main-content {
     margin-left: 64px;
-    transition: margin-left 0.3s ease-in-out;
 }
 
-.sidebar-expanded + #main-content {
-    margin-left: 250px;
-}
 
 .btn-editar {
     background-color: white;
@@ -256,6 +249,56 @@ body {
     box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); /* sombra más intensa al pasar el ratón */
 }
 
+/* Acciones consistentes para los listados administrativos */
+.admin-primary-action {
+    min-height: 2.5rem;
+    padding: 0.55rem 1rem;
+    white-space: nowrap;
+    border-width: 1px;
+    box-shadow: 0 2px 5px rgba(0, 95, 204, 0.12);
+}
+
+.admin-action-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    min-width: max-content;
+}
+
+.admin-action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 5rem;
+    min-height: 2rem;
+    padding: 0.35rem 0.75rem;
+    border-width: 1px;
+    border-radius: 0.75rem;
+    box-shadow: none;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.admin-action-button:focus-visible,
+.admin-primary-action:focus-visible {
+    outline: 3px solid rgba(59, 130, 246, 0.25);
+    outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+    .admin-action-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-action-button {
+        width: 100%;
+    }
+}
+
 .btn-guardar {
     background-color: white;
     color: #007BFF;
@@ -302,4 +345,46 @@ body {
     background-color: #25c761;
     color: white;
     box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); /* sombra más intensa al pasar el ratón */
+}
+
+/* Tooltip de la sidebar colapsada */
+.applab-tooltip {
+  position: absolute;
+  z-index: 60;
+  background: rgba(17, 24, 39, 0.98);
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1rem;
+  padding: 6px 8px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px -12px rgba(0,0,0,.5);
+  pointer-events: none;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  display: none;
+}
+
+/* Texto oculto por defecto */
+#sidebar .sidebar-text-mobile { display: none; }
+
+/* Solo móvil: cuando el drawer está abierto, mostramos texto y alineamos a la izquierda */
+@media (max-width: 767px) {
+  #sidebar[data-open="true"] .sidebar-text-mobile { display: inline; }
+  #sidebar[data-open="true"] .sidebar-link {
+    justify-content: flex-start;
+    padding-left: 0.75rem;  /* px-3 */
+    padding-right: 0.75rem;
+  }
+}
+
+/* Dropdown animation */
+.dropdown {
+  transform-origin: top right;
+  transition: opacity .15s ease, transform .15s ease;
+  opacity: 0;
+  transform: scale(.98);
+}
+.dropdown.open {
+  opacity: 1;
+  transform: scale(1);
 }

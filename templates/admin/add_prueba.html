@@ -4,531 +4,935 @@
 
 {% block content %}
 
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-
 <style>
-    /* Tus estilos CSS personalizados */
-    .autocomplete-suggestions {
-        border: 1px solid #ddd;
-        max-height: 150px;
-        overflow-y: auto;
-        background-color: white;
-        position: absolute;
-        z-index: 1000;
-        width: 100%;
-    }
-    .autocomplete-suggestion {
-        padding: 8px;
-        cursor: pointer;
-    }
-    .autocomplete-suggestion:hover {
-        background-color: #f0f0f0;
-    }
-    .error-message {
-        color: red;
-        font-size: 0.875rem;
-    }
-    .contenido-fila {
-        transition: all 0.3s ease;
-    }
-    .contenido-fila.hidden {
-        display: none;
-    }
-    .fa-chevron-down {
-        transform: rotate(0deg);
-        transition: transform 0.3s ease;
-    }
-    .fa-chevron-up {
-        transform: rotate(180deg);
-        transition: transform 0.3s ease;
-    }
-    .cursor-pointer {
-        cursor: pointer;
-    }
+  .autocomplete-suggestions {
+    border: 1px solid #ddd;
+    max-height: 150px;
+    overflow-y: auto;
+    background-color: white;
+    position: absolute;
+    z-index: 1000;
+    width: 100%;
+  }
+
+  .autocomplete-suggestion {
+    padding: 8px;
+    cursor: pointer;
+  }
+
+  .autocomplete-suggestion:hover {
+    background-color: #f0f0f0;
+  }
+
+  .error-message {
+    color: red;
+    font-size: 0.875rem;
+  }
+
+  .contenido-fila {
+    transition: all 0.3s ease;
+  }
+
+  .contenido-fila.hidden {
+    display: none;
+  }
+
+  .fa-chevron-down {
+    transform: rotate(0deg);
+    transition: transform 0.3s ease;
+  }
+
+  .fa-chevron-up {
+    transform: rotate(180deg);
+    transition: transform 0.3s ease;
+  }
+
+  .cursor-pointer {
+    cursor: pointer;
+  }
 </style>
 
+{% set form_action =
+  url_for('app_routes.edit_prueba', prueba_id=prueba['id']) if is_edit and prueba is defined
+  else url_for('app_routes.add_prueba')
+%}
 
+<form method="POST" action="{{ form_action }}" id="form-prueba" class="clinical-test-form">
+  <div class="admin-form-shell mt-8 space-y-8">
+    <!-- Encabezado -->
+    <div class="flex items-center mb-2">
+      <button class="text-2xl" type="button" onclick="window.history.back()">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <h1 class="text-3xl font-bold ml-2">
+        {{ 'Editar prueba' if is_edit else 'Registrar nueva prueba' }}
+      </h1>
+    </div>
 
-<form method="POST" action="{{ url_for('app_routes.add_prueba') }}">
-    <!-- 1er contenedor -->
-    <div class="w-full px-4 md:px-8 lg:px-16 xl:px-32 mt-8">
-        <div class="flex items-center mb-6">
-            <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-            <h1 class="text-3xl font-bold ml-2">Registrar nueva prueba</h1>
+    <!-- 1. Información de la prueba + Reactivos -->
+    <div class="bg-white p-8 rounded-2xl shadow-md w-full clinical-test-section">
+        <div class="clinical-step-heading">
+          <span class="clinical-step-number">1</span>
+          <div><h2 class="text-xl font-bold">Información de la prueba</h2><p>Define los datos generales y los reactivos necesarios.</p></div>
         </div>
-        <div class="bg-white p-8 rounded-2xl shadow-md w-full">
-            <h2 class="text-xl font-bold mb-4">Información del reactivo</h2>
-            <div class="border-b border-gray-300 mb-4"></div>
-            <div class="flex flex-wrap gap-4">
-                <div class="w-full md:w-1/4">
-                    <label for="nombre-reactivo" class="block text-sm font-bold mb-2">Nombre</label>
-                    <input type="text" id="nombre-reactivo" name="nombre" placeholder="Ingresa el nombre de tu prueba" class="w-full p-2 border rounded-lg" required>
-                </div>
-                <div class="w-full md:w-1/4">
-                    <label for="tipo" class="block text-sm font-bold mb-2">Tipo de prueba</label>
-                    <select id="tipo" name="tipo" class="w-full p-2 border rounded-lg" required>
-                        <option value="" disabled selected>Sanguínea - Orina - Antígeno ...</option>
-                        <option value="sanguinea">Sanguínea</option>
-                        <option value="orina">Orina</option>
-                        <option value="antigeno">Antígeno</option>
-                    </select>
-                </div>
-                <div class="w-1/2 md:w-1/3 relative">
-                    <label for="reactivo" class="block text-sm font-bold mb-2">Reactivos necesarios</label>
-                    <input type="text" id="reactivo" autocomplete="off" placeholder="Busca y selecciona reactivos" class="w-full p-2 border rounded-lg" />
-                    <div id="suggestions" class="autocomplete-suggestions hidden"></div>
-                    <div id="selected-reactivos" class="flex space-x-1 mt-2 selected-reactivos"></div>
-                    <input type="hidden" name="reactivos" id="reactivos_ids" value="" />
-                </div>
-                <div class="flex items-center mt-4 w-full">
-                    <button type="submit" class="ml-auto bg-white text-blue-500 border border-blue-500 px-4 py-2 rounded-lg shadow-md hover:bg-blue-50">Registrar reactivo</button>
-                </div>
+        <div class="border-b border-gray-300 mb-4"></div>
+
+        <div class="flex flex-wrap gap-4">
+            <!-- Nombre de la prueba -->
+            <div class="w-full md:w-1/3">
+                <label for="nombre" class="block text-sm font-bold mb-2">
+                    Nombre de la prueba
+                </label>
+                <input
+                    type="text"
+                    id="nombre"
+                    name="nombre"
+                    class="w-full p-2 border rounded-lg"
+                    placeholder="Ingresa el nombre de tu prueba"
+                    required
+                    value="{{ prueba['nombre'] if is_edit and prueba is defined else '' }}"
+                />
+            </div>
+
+            <!-- Tipo de prueba -->
+            <div class="w-full md:w-1/3">
+                <label for="tipo" class="block text-sm font-bold mb-2">
+                    Tipo de prueba
+                </label>
+                <select
+                    id="tipo"
+                    name="tipo"
+                    class="w-full p-2 border rounded-lg"
+                    required
+                >
+                    <option
+                        value=""
+                        disabled
+                        {% if not is_edit %}selected{% endif %}
+                    >
+                        Sanguínea - Orina - Antígeno ...
+                    </option>
+                    <option
+                        value="sanguinea"
+                        {% if is_edit and prueba is defined and prueba['tipo'] == 'sanguinea' %}selected{% endif %}
+                    >
+                        Sanguínea
+                    </option>
+                    <option
+                        value="orina"
+                        {% if is_edit and prueba is defined and prueba['tipo'] == 'orina' %}selected{% endif %}
+                    >
+                        Orina
+                    </option>
+                    <option
+                        value="antigeno"
+                        {% if is_edit and prueba is defined and prueba['tipo'] == 'antigeno' %}selected{% endif %}
+                    >
+                        Antígeno
+                    </option>
+                </select>
+            </div>
+
+            <!-- Precio de la prueba -->
+            <div class="w-full md:w-1/3">
+                <label for="precio" class="block text-sm font-bold mb-2">
+                    Precio
+                </label>
+                <input
+                    type="number"
+                    id="precio"
+                    name="precio"
+                    class="w-full p-2 border rounded-lg"
+                    placeholder="Ingresa el precio de la prueba"
+                    value="{{ prueba['precio'] if is_edit and prueba is defined else '' }}"
+                    min="0" step="0.01"
+                />
+            </div>
+
+            <!-- Buscador de reactivos -->
+            <div class="w-full md:w-1/3 relative">
+                <label for="reactivo" class="block text-sm font-bold mb-2">
+                    Reactivos necesarios
+                </label>
+                <input
+                    type="text"
+                    id="reactivo"
+                    autocomplete="off"
+                    placeholder="Busca y selecciona reactivos"
+                    class="w-full p-2 border rounded-lg"
+                />
+                <div id="suggestions" class="autocomplete-suggestions hidden"></div>
+
+                <!-- Reactivos seleccionados (chips) -->
+                <div
+                    id="selected-reactivos"
+                    class="flex flex-wrap gap-2 mt-2 selected-reactivos"
+                ></div>
+
+                <!-- Inputs ocultos que viajan al backend -->
+                <div id="reactivos-hidden-container"></div>
+
+                <!-- Solo debug, no tiene name="reactivos" -->
+                <input type="hidden" id="reactivos_ids" value="" />
+            </div>
+
+            <!-- Botón para abrir sugerencias de reactivos -->
+            <div class="flex items-center mt-4 w-full">
+                <button
+                    type="button"
+                    id="btn-add-reactivo"
+                    class="ml-auto bg-white text-blue-500 border border-blue-500 px-4 py-2 rounded-lg shadow-md hover:bg-blue-50"
+                >
+                    Agregar reactivo
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- 2do contenedor -->
-    <div class="w-full px-4 md:px-8 lg:px-16 xl:px-32 mt-8">
-        <div class="bg-white p-8 rounded-2xl shadow-md w-full">
-            <h1 class="text-2xl font-bold mb-4 border-b pb-2 text-center">Nuevo valor normal</h1>
-            <div class="flex flex-col md:flex-row items-start justify-start">
-                <div class="flex flex-col mb-4 md:mb-0">
-                    <label for="nombre-valor" class="font-semibold mb-2">Nombre</label>
-                    <input type="text" id="nombre-valor" name="nombre_valor" placeholder="Ingresa el nombre de tu valor" class="border rounded-lg p-2 w-full md:w-80">
-                    <div id="nombre-error-empty" class="error-message hidden">Por favor ingresa un nombre.</div>
-                    <div id="nombre-error-exist" class="text-red-500 text-sm hidden">Este valor normal ya existe.</div>
-                </div>
-                <div class="flex flex-col md:ml-4">
-                    <label class="font-semibold mb-2 md:mb-0">Separación</label>
-                    <div class="flex flex-wrap items-center mb-4 mt-4 md:mt-4">
-                        <label class="mr-4">
-                            <input type="radio" name="separacion" value="edades" class="mr-1"> Edades
-                        </label>
-                        <label class="mr-4">
-                            <input type="radio" name="separacion" value="sexo" class="mr-1"> Sexo
-                        </label>
-                        <label class="mr-4">
-                            <input type="radio" name="separacion" value="edad-sexo" class="mr-1"> Edad/Sexo
-                        </label>
-                        <label class="mr-4">
-                            <input type="radio" name="separacion" value="min-max" class="mr-1"> Min/Max
-                        </label>
-                        <label class="mr-4">
-                            <input type="radio" name="separacion" value="positivo-negativo" class="mr-1"> Positivo/Negativo
-                        </label>
-                        <label class="mr-4">
-                            <input type="radio" name="separacion" value="menor-que" class="mr-1"> Menor que
-                        </label>
+    <!-- 2. Valores normales -->
+<div class="bg-white p-8 rounded-2xl shadow-md w-full clinical-test-section">
+    <div class="clinical-step-heading">
+      <span class="clinical-step-number">2</span>
+      <div><h2 class="text-xl font-bold">Elementos de la prueba</h2><p>Agrega cada resultado que reportará la prueba, por ejemplo glucosa, urea o creatinina.</p></div>
+    </div>
+    <div class="border-b border-gray-300 mb-4"></div>
+
+    <!-- Controles para crear un valor normal -->
+    <div class="flex flex-col md:flex-row items-start justify-start">
+        <!-- Nombre del valor normal -->
+        <div class="flex flex-col mb-4 md:mb-0">
+            <label for="nombre-valor" class="font-semibold mb-2">
+                Nombre del elemento
+            </label>
+            <input
+                type="text"
+                id="nombre-valor"
+                class="border rounded-lg p-2 w-full md:w-80"
+                placeholder="Ej. Glucosa"
+            />
+            <div id="nombre-error-empty" class="error-message hidden">
+                Por favor ingresa un nombre.
+            </div>
+            <div id="nombre-error-exist" class="error-message hidden">
+                Este elemento ya fue agregado.
+            </div>
+        </div>
+
+        <!-- Tipo de separación -->
+        <div class="flex flex-col md:ml-4">
+            <label class="font-semibold mb-2">Tipo de valor de referencia</label>
+            <div class="flex flex-wrap items-center mb-4 mt-2">
+                <label class="mr-4">
+                    <input
+                        type="radio"
+                        name="separacion"
+                        value="edades"
+                        class="mr-1"
+                        {% if is_edit and prueba.valores_normales and prueba.valores_normales | length > 0 and prueba.valores_normales[0].tipo_separacion == 'edades' %}checked{% endif %}
+                    />
+                    Edades
+                </label>
+                <label class="mr-4">
+                    <input
+                        type="radio"
+                        name="separacion"
+                        value="sexo"
+                        class="mr-1"
+                        {% if is_edit and prueba.valores_normales and prueba.valores_normales | length > 0 and prueba.valores_normales[0].tipo_separacion == 'sexo' %}checked{% endif %}
+                    />
+                    Sexo
+                </label>
+                <label class="mr-4">
+                    <input
+                        type="radio"
+                        name="separacion"
+                        value="edad-sexo"
+                        class="mr-1"
+                        {% if is_edit and prueba.valores_normales and prueba.valores_normales | length > 0 and prueba.valores_normales[0].tipo_separacion == 'edad-sexo' %}checked{% endif %}
+                    />
+                    Edad / Sexo
+                </label>
+                <label class="mr-4">
+                    <input
+                        type="radio"
+                        name="separacion"
+                        value="min-max"
+                        class="mr-1"
+                        {% if is_edit and prueba.valores_normales and prueba.valores_normales | length > 0 and prueba.valores_normales[0].tipo_separacion == 'min-max' %}checked{% endif %}
+                    />
+                    Min / Max
+                </label>
+                <!-- Campo para el tipo de separación "Positivo/Negativo" -->
+                <label class="mr-4">
+                    <input
+                        type="radio"
+                        name="separacion"
+                        value="positivo-negativo"
+                        class="mr-1"
+                        {% if is_edit and prueba.valores_normales and prueba.valores_normales | length > 0 and prueba.valores_normales[0].tipo_separacion == 'positivo-negativo' %}checked{% endif %}
+                    />
+                    Positivo / Negativo
+                </label>
+                <label class="mr-4">
+                    <input
+                        type="radio"
+                        name="separacion"
+                        value="menor-que"
+                        class="mr-1"
+                        {% if is_edit and prueba.valores_normales and prueba.valores_normales | length > 0 and prueba.valores_normales[0].tipo_separacion == 'menor-que' %}checked{% endif %}
+                    />
+                    Menor que
+                </label>
+            </div>
+            <div id="opcion-error" class="error-message hidden">
+                Por favor selecciona una opción.
+            </div>
+        </div>
+    </div>
+
+    <div class="flex justify-end mt-4">
+        <button
+            type="button"
+            id="btn-add-valor"
+            class="bg-white text-blue-500 border border-blue-500 px-4 py-2 rounded-lg shadow-md hover:bg-blue-50"
+        >
+            <i class="fas fa-plus mr-2" aria-hidden="true"></i>Agregar elemento
+        </button>
+    </div>
+
+    <div class="clinical-elements-heading">
+      <div>
+        <h3>3. Configura los valores de referencia</h3>
+        <p>Completa el rango o resultado esperado para cada elemento.</p>
+      </div>
+      <span id="elementos-count" class="clinical-elements-count">0 elementos</span>
+    </div>
+    <div id="elementos-empty" class="clinical-elements-empty">
+      <i class="fas fa-vials" aria-hidden="true"></i>
+      <strong>Aún no hay elementos</strong>
+      <span>Escribe un nombre, elige cómo se interpreta y presiona “Agregar elemento”.</span>
+    </div>
+
+    <!-- Contenedor donde se agregan las tarjetas -->
+    <div id="contenedor-valores" class="mt-4 space-y-4">
+        <!-- Las tarjetas de valores normales se llenarán dinámicamente -->
+        {% if prueba.valores_normales %}
+            {% for valor in prueba.valores_normales %}
+                <div class="bg-white shadow-md rounded-2xl p-4 border valor-normal-card" data-nombre="{{ valor.nombre }}" data-tipo_separacion="{{ valor.tipo_separacion }}">
+                    <div class="flex justify-between items-center mb-2 header-valor cursor-pointer">
+                        <h3 class="text-lg font-bold">{{ valor.nombre }} - {{ valor.tipo_separacion }}</h3>
+                        <button type="button" class="text-red-500 eliminar-valor" aria-label="Eliminar {{ valor.nombre }}" title="Eliminar elemento">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                        <button type="button" class="text-black" aria-label="Mostrar u ocultar valores"><i class="fas fa-chevron-up arrow-icon"></i></button>
                     </div>
-                    <div id="opcion-error" class="error-message hidden">Por favor selecciona una opción.</div>
+                    <div class="contenido-fila mt-4">
+                        <!-- Aquí se agregan los valores para cada tipo de separación -->
+                        {% if valor.tipo_separacion == 'sexo' %}
+                            <div class="flex items-center space-x-4 mt-2">
+                                <span class="w-1/4">Hombres</span>
+                                <div class="w-1/3 flex items-center space-x-2">
+                                    <input data-field="sexo_M_min" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo" value="{{ valor.estructura.M.min }}">
+                                    <span>a</span>
+                                    <input data-field="sexo_M_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo" value="{{ valor.estructura.M.max }}">
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4 mt-2">
+                                <span class="w-1/4">Mujeres</span>
+                                <div class="w-1/3 flex items-center space-x-2">
+                                    <input data-field="sexo_F_min" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo" value="{{ valor.estructura.F.min }}">
+                                    <span>a</span>
+                                    <input data-field="sexo_F_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo" value="{{ valor.estructura.F.max }}">
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4 mt-2">
+                                <span class="w-1/4">Unidades</span>
+                                <input data-field="sexo_unidad" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad" value="{{ valor.estructura.unidad }}">
+                            </div>
+                        {% endif %}
+                        <!-- Aquí puedes agregar más condiciones para otros tipos de separación -->
+                    </div>
                 </div>
-                <button type="button" class="mt-8 md:mt-4 bg-white text-blue-500 border border-blue-500 rounded-lg px-4 py-2 hover:bg-blue-50 md:ml-4 self-center" onclick="agregarValorNormal()">Agregar</button>
-            </div>
-        </div>
+            {% endfor %}
+        {% endif %}
     </div>
 
-    <!-- 3er contenedor -->
-    <div class="w-full px-4 md:px-8 lg:px-16 xl:px-32 mt-8">
-        <div class="bg-white p-8 rounded-2xl shadow-md w-full">
-            <h1 class="text-center text-2xl font-bold mb-4">Valores normales</h1>
-            <div class="border-t border-black mb-4"></div>
-            <div class="space-y-6" id="contenedor-valores"></div>
-        </div>
+
+    <!-- Campo oculto donde se manda el JSON de valores normales -->
+    <input
+        type="hidden"
+        name="valores_normales_json"
+        id="valores_normales_json"
+        />
     </div>
+
+
+    <!-- Botón principal de submit -->
+    <div class="flex justify-end mb-12">
+      <button
+        type="submit"
+        class="bg-blue-600 text-white px-6 py-2 rounded-xl shadow hover:bg-blue-700"
+      >
+        {{ 'Guardar cambios' if is_edit else 'Guardar prueba' }}
+      </button>
+    </div>
+  </div>
 </form>
 
 <script>
-    
-        // Función para agregar una nueva fila en el contenedor 3
-        function agregarValorNormal() {
-            // Obtener el nombre y la opción seleccionada
-            const nombre = document.getElementById('nombre-valor').value;
-            const separacion = document.querySelector('input[name="separacion"]:checked');
-    
-            // Validar si el nombre está vacío
-            if (!nombre) {
-                document.getElementById('nombre-error-empty').classList.remove('hidden');
-                document.getElementById('nombre-error-exist').classList.add('hidden'); // Ocultar el error de repetición
-                return;
-            } else {
-                document.getElementById('nombre-error-empty').classList.add('hidden');
-            }
-    
-            // Validar si no se seleccionó una opción
-            if (!separacion) {
-                document.getElementById('opcion-error').classList.remove('hidden');
-                return;
-            } else {
-                document.getElementById('opcion-error').classList.add('hidden');
-            }
-    
-            const contenedor = document.getElementById('contenedor-valores');
-    
-            // Verificar si el valor normal ya existe (solo por nombre)
-            const existingValue = Array.from(contenedor.getElementsByTagName('h2'))
-                .some(h2 => h2.textContent.split(' - ')[0] === nombre); // Verificamos solo el nombre (sin la separación)
-    
-            if (existingValue) {
-                document.getElementById('nombre-error-exist').classList.remove('hidden'); // Mostrar el error si ya existe
-                return; // No agregar la fila si ya existe
-            } else {
-                document.getElementById('nombre-error-exist').classList.add('hidden');
-            }
-    
-            let nuevaFila = '';
-    
-            // Crear la fila con el nombre y la opción seleccionada
-            if (separacion.value === 'edades') {
-                nuevaFila = `
-                    <div class="bg-white shadow-md rounded-2xl p-6 mt-4" id="fila-${nombre}">
-                        <div class="flex justify-between items-center cursor-pointer" onclick="toggleFila(this)">
-                            <h2 class="text-xl font-bold">${nombre} - Edades</h2>
-                            <button class="mt-2 text-red-500" onclick="eliminarFila(event, this)">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                            <button class="mt-2 text-black ml-2">
-                                <i class="fas fa-chevron-down" id="arrow-${nombre}"></i>
-                            </button>
-                        </div>
-                        <div class="contenido-fila mt-4 hidden"> <!-- Contenido colapsado por defecto -->
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">0 a 29 días de nacido</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">1 a 11 meses de edad</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">1 a 12 años de edad</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">13 a 14 años de edad</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Unidades</span>
-                                <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (separacion.value === 'sexo') {
-                nuevaFila = `
-                    <div class="bg-white shadow-md rounded-2xl p-6 mt-4 ">
-                        <div class="flex justify-between items-center cursor-pointer" onclick="toggleFila(this)">
-                            <h2 class="text-xl font-bold mb-4">${nombre} - Sexo</h2>
-                            <button class="mt-2 text-red-500" onclick="eliminarFila(event, this)">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                            <button class="mt-2 text-black ml-2">
-                                <i class="fas fa-chevron-down" id="arrow-${nombre}"></i>
-                            </button>
-                        </div>
-                        <div class="contenido-fila mt-4 hidden"> <!-- Contenido colapsado por defecto -->
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Hombre</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Mujer</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Unidades</span>
-                                <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
-                            </div>
-                        </div>   
-                    </div>
-                `;
-            } else if (separacion.value === 'edad-sexo') {
-                nuevaFila = `
-                    <div class="bg-white shadow-md rounded-2xl p-6 mt-4">
-                        <div class="flex justify-between items-center cursor-pointer" onclick="toggleFila(this)">
-                            <h2 class="text-xl font-bold mb-4">${nombre} - Edad/Sexo</h2>
-                            <button class="mt-2 text-red-500" onclick="eliminarFila(event, this)">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                            <button class="mt-2 text-black ml-2">
-                                <i class="fas fa-chevron-down" id="arrow-${nombre}"></i>
-                            </button>
-                        </div>
-                        <div class="contenido-fila mt-4 hidden"> <!-- Contenido colapsado por defecto -->
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">0 a 29 días de nacido</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">1 a 11 meses de edad</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">1 a 12 años de edad</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">13 a 14 años de edad</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Edad/Sexo</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Unidades</span>
-                                <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (separacion.value === 'min-max') {
-                nuevaFila = `
-                    <div class="bg-white shadow-md rounded-2xl p-6 mt-4">
-                        <div class="flex justify-between items-center cursor-pointer" onclick="toggleFila(this)">
-                            <h2 class="text-xl font-bold mb-4">${nombre} - Min/Max</h2>
-                            <button class="mt-2 text-red-500" onclick="eliminarFila(event, this)">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                            <button class="mt-2 text-black ml-2">
-                                <i class="fas fa-chevron-down" id="arrow-${nombre}"></i>
-                            </button>
-                        </div>
-                        <div class="contenido-fila mt-4 hidden"> <!-- Contenido colapsado por defecto -->
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Mínimo/Máximo</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
-                                    <span>a</span>
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Unidades</span>
-                                <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (separacion.value === 'positivo-negativo') {
-                nuevaFila = `
-                    <div class="bg-white shadow-md rounded-2xl p-6 mt-4">
-                        <div class="flex justify-between items-center cursor-pointer" onclick="toggleFila(this)">
-                            <h2 class="text-xl font-bold mb-4">${nombre} - Positivo/Negativo</h2>
-                            <button class="mt-2 text-red-500" onclick="eliminarFila(event, this)">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                            <button class="mt-2 text-black ml-2">
-                                <i class="fas fa-chevron-down" id="arrow-${nombre}"></i>
-                            </button>
-                        </div>
-                        <div class="contenido-fila mt-4 hidden"> <!-- Contenido colapsado por defecto -->
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Positivo/Negativo</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <select class="w-1/3 border border-gray-300 rounded-full p-2">
-                                        <option>Positivo</option>
-                                        <option>Negativo</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Unidades</span>
-                                <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (separacion.value === 'menor-que') {
-                nuevaFila = `
-                    <div class="bg-white shadow-md rounded-2xl p-6 mt-4">
-                        <div class="flex justify-between items-center cursor-pointer" onclick="toggleFila(this)">
-                            <h2 class="text-xl font-bold mb-4">${nombre} - Menor que</h2>
-                            <button class="mt-2 text-red-500" onclick="eliminarFila(event, this)">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                            <button class="mt-2 text-black ml-2">
-                                <i class="fas fa-chevron-down" id="arrow-${nombre}"></i>
-                            </button>
-                        </div>
-                        <div class="contenido-fila mt-4 hidden"> <!-- Contenido colapsado por defecto -->
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Menor que</span>
-                                <div class="w-1/4 flex items-center space-x-2">
-                                    <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Valor">
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 mt-2">
-                                <span class="w-1/4">Unidades</span>
-                                <input type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
+document.addEventListener("DOMContentLoaded", function () {
+  // Datos desde el backend
+  const reactivos = {{ reactivos | tojson | safe }};
+  const isEdit = {{ 'true' if is_edit else 'false' }};
+  const prueba = {{ (prueba if prueba is defined else None) | tojson | safe }};
 
-            // Agregar la fila generada al contenedor 3
-            contenedor.innerHTML += nuevaFila;
+  // --- Reactivos ---
+  const reactivoInput = document.getElementById("reactivo");
+  const suggestionsBox = document.getElementById("suggestions");
+  const selectedReactivos = document.getElementById("selected-reactivos");
+  const hiddenContainer = document.getElementById("reactivos-hidden-container");
+  const reactivosIdsDebug = document.getElementById("reactivos_ids");
+  const btnAddReactivo = document.getElementById("btn-add-reactivo");
 
-            // Limpiar el input del nombre y deseleccionar las opciones
-            document.getElementById('nombre-valor').value = '';
-            const radios = document.querySelectorAll('input[name="separacion"]');
-            radios.forEach(radio => radio.checked = false);
-            }
+  // --- Valores normales ---
+  const btnAddValor = document.getElementById("btn-add-valor");
+  const contenedorValores = document.getElementById("contenedor-valores");
 
-            // Función para eliminar una fila completa, incluyendo los inputs
-            function eliminarFila(event, button) {
-                event.stopPropagation(); // Evitar que el evento de toggleFila se ejecute
-                const fila = button.closest('div[id^="fila-"]');
-                fila.remove(); // Eliminar la fila completa (título + contenido colapsado/expandido)
-            }
+  // --- Form ---
+  const form = document.getElementById("form-prueba");
+  const inputValoresJson = document.getElementById("valores_normales_json");
 
-            // Función para alternar el colapso/expansión de una fila
-            function toggleFila(button) {
-                const fila = button.closest('.bg-white'); // Encontrar la fila correspondiente
-                const contenido = fila.querySelector('.contenido-fila'); // Contenido que será expandido o colapsado
-                
-                // Selecciona el icono de la flecha dentro del botón correcto
-                // Por ejemplo, busca el <i> con clase "fa-chevron-down" o "fa-chevron-up"
-                const arrow = fila.querySelector('button > i.fa-chevron-down, button > i.fa-chevron-up');
+  // ========== REACTIVOS ==========
 
-                // Verificar si la fila está colapsada o expandida
-                if (contenido.classList.contains('hidden')) {
-                    contenido.classList.remove('hidden'); // Expandir el contenido
-                    if (arrow) {
-                        arrow.classList.remove('fa-chevron-down');
-                        arrow.classList.add('fa-chevron-up'); // Cambiar la flecha hacia arriba
-                    }
-                } else {
-                    contenido.classList.add('hidden'); // Colapsar el contenido
-                    if (arrow) {
-                        arrow.classList.remove('fa-chevron-up');
-                        arrow.classList.add('fa-chevron-down'); // Cambiar la flecha hacia abajo
-                    }
-                }
-            }
-            
-    document.addEventListener('DOMContentLoaded', function() {
-        const reactivos = {{ reactivos | tojson }};
+  function actualizarDebugReactivosIds() {
+    const ids = [...hiddenContainer.querySelectorAll('input[name="reactivos"]')]
+      .map(i => i.value);
+    if (reactivosIdsDebug) {
+      reactivosIdsDebug.value = ids.join(",");
+    }
+  }
 
-        const reactivoInput = document.getElementById('reactivo');
-        const suggestionsBox = document.getElementById('suggestions');
-        const selectedReactivos = document.getElementById('selected-reactivos');
-        const reactivosIdsInput = document.getElementById('reactivos_ids');
+  function yaEstaSeleccionado(id) {
+    return hiddenContainer.querySelector(
+      'input[name="reactivos"][value="' + id + '"]'
+    ) !== null;
+  }
 
-        function mostrarSugerencias(filtro) {
-        suggestionsBox.innerHTML = '';
-        let filtrados = [];
+  function agregarReactivo(reactivo) {
+    const id = String(reactivo.id);
 
-        if (!filtro) {
-            // Si no hay filtro, muestra todos los reactivos
-            filtrados = reactivos;
-        } else {
-            const f = filtro.toLowerCase();
-            filtrados = reactivos.filter(r => r.nombre.toLowerCase().includes(f));
-        }
+    if (yaEstaSeleccionado(id)) return;
 
-        if (filtrados.length === 0) {
-            suggestionsBox.classList.add('hidden');
-            return;
-        }
+    // Chip visual
+    const span = document.createElement("span");
+    span.className =
+      "inline-flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs";
+    span.dataset.id = id;
+    span.textContent = reactivo.nombre;
 
-        filtrados.forEach(r => {
-            const div = document.createElement('div');
-            div.className = 'autocomplete-suggestion';
-            div.textContent = r.nombre;
-            div.onclick = () => {
-            addReactivo(r);
-            reactivoInput.value = '';
-            suggestionsBox.innerHTML = '';
-            suggestionsBox.classList.add('hidden');
-            };
-            suggestionsBox.appendChild(div);
-        });
-
-        suggestionsBox.classList.remove('hidden');
-        }
-
-        // Mostrar lista completa al hacer click en el input
-        reactivoInput.addEventListener('click', () => {
-        mostrarSugerencias('');
-        });
-
-        // Filtrar conforme escribes
-        reactivoInput.addEventListener('input', () => {
-        mostrarSugerencias(reactivoInput.value);
-        });
-
-        function addReactivo(reactivo) {
-        if ([...selectedReactivos.children].some(s => s.dataset.id == reactivo.id)) return;
-
-        const span = document.createElement('span');
-        span.className = 'bg-blue-100 text-blue-700 px-1 py-0.5 rounded-full flex items-center text-sm';
-        span.dataset.id = reactivo.id;
-        span.textContent = reactivo.nombre;
-
-        const removeBtn = document.createElement('i');
-        removeBtn.className = 'fas fa-times ml-1 cursor-pointer text-red-500';
-        removeBtn.onclick = () => {
-            span.remove();
-            updateReactivosIds();
-        };
-
-        span.appendChild(removeBtn);
-        selectedReactivos.appendChild(span);
-        updateReactivosIds();
-        }
-
-        function updateReactivosIds() {
-        const ids = [...selectedReactivos.children].map(s => s.dataset.id);
-        reactivosIdsInput.value = ids.join(',');
-        }
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "ml-2 text-red-500";
+    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    removeBtn.addEventListener("click", function () {
+      selectedReactivos.removeChild(span);
+      const hidden = hiddenContainer.querySelector(
+        'input[name="reactivos"][value="' + id + '"]'
+      );
+      if (hidden) hidden.remove();
+      actualizarDebugReactivosIds();
     });
+
+    span.appendChild(removeBtn);
+    selectedReactivos.appendChild(span);
+
+    // input oculto real que viaja al backend
+    const hiddenInput = document.createElement("input");
+    hiddenInput.type = "hidden";
+    hiddenInput.name = "reactivos";
+    hiddenInput.value = id;
+    hiddenContainer.appendChild(hiddenInput);
+
+    actualizarDebugReactivosIds();
+  }
+
+  function mostrarSugerencias(filtro) {
+    suggestionsBox.innerHTML = "";
+    let filtrados = [];
+
+    if (!filtro) {
+      filtrados = reactivos;
+    } else {
+      const f = filtro.toLowerCase();
+      filtrados = reactivos.filter(r => r.nombre.toLowerCase().includes(f));
+    }
+
+    if (filtrados.length === 0) {
+      suggestionsBox.classList.add("hidden");
+      return;
+    }
+
+    filtrados.forEach(r => {
+      const div = document.createElement("div");
+      div.className = "autocomplete-suggestion";
+      div.textContent = r.nombre;
+      div.addEventListener("click", function () {
+        agregarReactivo(r);
+        reactivoInput.value = "";
+        suggestionsBox.classList.add("hidden");
+      });
+      suggestionsBox.appendChild(div);
+    });
+
+    suggestionsBox.classList.remove("hidden");
+  }
+
+  reactivoInput.addEventListener("input", function () {
+    mostrarSugerencias(this.value);
+  });
+
+  reactivoInput.addEventListener("focus", function () {
+    if (!this.value) {
+      mostrarSugerencias("");
+    }
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!suggestionsBox.contains(e.target) && e.target !== reactivoInput) {
+      suggestionsBox.classList.add("hidden");
+    }
+  });
+
+  if (btnAddReactivo) {
+    btnAddReactivo.addEventListener("click", function () {
+      reactivoInput.focus();
+      if (!reactivoInput.value) {
+        mostrarSugerencias("");
+      }
+    });
+  }
+
+  // Si algún día quieres precargar reactivos en edición:
+  if (isEdit && prueba && Array.isArray(prueba.reactivos)) {
+    prueba.reactivos.forEach(idReactivo => {
+      const encontrado = reactivos.find(r => r.id === idReactivo);
+      if (encontrado) agregarReactivo(encontrado);
+    });
+  }
+
+  // ========== VALORES NORMALES: CREAR TARJETA ==========
+
+  function crearTarjetaValor(nombre, tipoSeparacion) {
+    const card = document.createElement("div");
+    card.className =
+      "bg-white shadow-md rounded-2xl p-6 mt-4 valor-normal-card clinical-element-card";
+    card.dataset.nombre = nombre;
+    card.dataset.tipoSeparacion = tipoSeparacion;
+
+    let inner = "";
+
+    if (tipoSeparacion === "sexo") {
+      inner = `
+        <div class="flex justify-between items-center cursor-pointer header-valor">
+          <h2 class="text-xl font-bold mb-4">${nombre} - Sexo</h2>
+          <div class="flex items-center space-x-2">
+            <button type="button" class="text-red-500 eliminar-valor">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+            <button type="button" class="text-black">
+              <i class="fas fa-chevron-down arrow-icon"></i>
+            </button>
+          </div>
+        </div>
+        <div class="contenido-fila mt-4">
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Hombres</span>
+            <div class="w-1/3 flex items-center space-x-2">
+              <input data-field="sexo_M_min" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
+              <span>a</span>
+              <input data-field="sexo_M_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Mujeres</span>
+            <div class="w-1/3 flex items-center space-x-2">
+              <input data-field="sexo_F_min" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
+              <span>a</span>
+              <input data-field="sexo_F_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Unidades</span>
+            <input data-field="sexo_unidad" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
+          </div>
+        </div>
+      `;
+    } else if (tipoSeparacion === "edades") {
+      inner = `
+        <div class="flex justify-between items-center cursor-pointer header-valor">
+          <h2 class="text-xl font-bold mb-4">${nombre} - Edades</h2>
+          <div class="flex items-center space-x-2">
+            <button type="button" class="text-red-500 eliminar-valor">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+            <button type="button" class="text-black">
+              <i class="fas fa-chevron-down arrow-icon"></i>
+            </button>
+          </div>
+        </div>
+        <div class="contenido-fila mt-4">
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">0 a 1 año</span>
+            <div class="w-1/3 flex items-center space-x-2">
+              <input data-field="edades_0_1_min" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
+              <span>a</span>
+              <input data-field="edades_0_1_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">1 a 12 años</span>
+            <div class="w-1/3 flex items-center space-x-2">
+              <input data-field="edades_1_12_min" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
+              <span>a</span>
+              <input data-field="edades_1_12_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">13+ años</span>
+            <div class="w-1/3 flex items-center space-x-2">
+              <input data-field="edades_13_mas_min" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
+              <span>a</span>
+              <input data-field="edades_13_mas_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Unidades</span>
+            <input data-field="edades_unidad" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
+          </div>
+        </div>
+      `;
+    } else if (tipoSeparacion === "edad-sexo") {
+      inner = `
+        <div class="flex justify-between items-center cursor-pointer header-valor">
+          <h2 class="text-xl font-bold mb-4">${nombre} - Edad/Sexo</h2>
+          <div class="flex items-center space-x-2">
+            <button type="button" class="text-red-500 eliminar-valor">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+            <button type="button" class="text-black">
+              <i class="fas fa-chevron-down arrow-icon"></i>
+            </button>
+          </div>
+        </div>
+        <div class="contenido-fila mt-4">
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Hombres 18–45</span>
+            <div class="w-1/3 flex items-center space-x-2">
+              <input data-field="edadsexo_M_18_45_min" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
+              <span>a</span>
+              <input data-field="edadsexo_M_18_45_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Mujeres 18–45</span>
+            <div class="w-1/3 flex items-center space-x-2">
+              <input data-field="edadsexo_F_18_45_min" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
+              <span>a</span>
+              <input data-field="edadsexo_F_18_45_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Unidades</span>
+            <input data-field="edadsexo_unidad" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
+          </div>
+        </div>
+      `;
+    } else if (tipoSeparacion === "min-max") {
+      inner = `
+        <div class="flex justify-between items-center cursor-pointer header-valor">
+          <h2 class="text-xl font-bold mb-4">${nombre} - Min/Max</h2>
+          <div class="flex items-center space-x-2">
+            <button type="button" class="text-red-500 eliminar-valor">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+            <button type="button" class="text-black">
+              <i class="fas fa-chevron-down arrow-icon"></i>
+            </button>
+          </div>
+        </div>
+        <div class="contenido-fila mt-4">
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Rango</span>
+            <div class="w-1/3 flex items-center space-x-2">
+              <input data-field="minmax_min" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Mínimo">
+              <span>a</span>
+              <input data-field="minmax_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Máximo">
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Unidades</span>
+            <input data-field="minmax_unidad" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
+          </div>
+        </div>
+      `;
+    } else if (tipoSeparacion === "positivo-negativo") {
+      inner = `
+        <div class="flex justify-between items-center cursor-pointer header-valor">
+          <h2 class="text-xl font-bold mb-4">${nombre} - Positivo/Negativo</h2>
+          <div class="flex items-center space-x-2">
+            <button type="button" class="text-red-500 eliminar-valor">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+            <button type="button" class="text-black">
+              <i class="fas fa-chevron-down arrow-icon"></i>
+            </button>
+          </div>
+        </div>
+        <div class="contenido-fila mt-4">
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Valor normal</span>
+            <select data-field="posneg_normal" class="w-1/3 border border-gray-300 rounded-full p-2">
+              <option value="negativo">Negativo</option>
+              <option value="positivo">Positivo</option>
+            </select>
+          </div>
+        </div>
+      `;
+    } else if (tipoSeparacion === "menor-que") {
+      inner = `
+        <div class="flex justify-between items-center cursor-pointer header-valor">
+          <h2 class="text-xl font-bold mb-4">${nombre} - Menor que</h2>
+          <div class="flex items-center space-x-2">
+            <button type="button" class="text-red-500 eliminar-valor">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+            <button type="button" class="text-black">
+              <i class="fas fa-chevron-down arrow-icon"></i>
+            </button>
+          </div>
+        </div>
+        <div class="contenido-fila mt-4">
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Máximo permitido</span>
+            <input data-field="menorque_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Valor">
+          </div>
+          <div class="flex items-center space-x-4 mt-2">
+            <span class="w-1/4">Unidades</span>
+            <input data-field="menorque_unidad" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Unidad">
+          </div>
+        </div>
+      `;
+    }
+
+    card.innerHTML = inner;
+
+    const header = card.querySelector(".header-valor");
+    const contenido = card.querySelector(".contenido-fila");
+    const arrow = card.querySelector(".arrow-icon");
+    const btnEliminar = card.querySelector(".eliminar-valor");
+
+    if (header && contenido && arrow) {
+      header.addEventListener("click", function (e) {
+        if (e.target.closest(".eliminar-valor")) return;
+        contenido.classList.toggle("hidden");
+        arrow.classList.toggle("fa-chevron-down");
+        arrow.classList.toggle("fa-chevron-up");
+      });
+    }
+
+    if (btnEliminar) {  
+      btnEliminar.addEventListener("click", function (e) {
+        e.stopPropagation();
+        card.remove();
+        actualizarEstadoElementos();
+      });
+    }
+
+    contenedorValores.appendChild(card);
+    actualizarEstadoElementos();
+    return card;
+  }
+
+  function actualizarEstadoElementos() {
+    const cantidad = contenedorValores.querySelectorAll(".valor-normal-card").length;
+    const contador = document.getElementById("elementos-count");
+    const vacio = document.getElementById("elementos-empty");
+    if (contador) contador.textContent = `${cantidad} ${cantidad === 1 ? "elemento" : "elementos"}`;
+    if (vacio) vacio.classList.toggle("hidden", cantidad > 0);
+  }
+
+  // En edición, conecta también las tarjetas renderizadas por el servidor.
+  contenedorValores.querySelectorAll(".valor-normal-card").forEach(card => {
+    card.classList.add("clinical-element-card");
+    const header = card.querySelector(".header-valor");
+    const contenido = card.querySelector(".contenido-fila");
+    const arrow = card.querySelector(".arrow-icon");
+    const eliminar = card.querySelector(".eliminar-valor");
+    header?.addEventListener("click", event => {
+      if (event.target.closest(".eliminar-valor")) return;
+      contenido?.classList.toggle("hidden");
+      arrow?.classList.toggle("fa-chevron-down");
+      arrow?.classList.toggle("fa-chevron-up");
+    });
+    eliminar?.addEventListener("click", event => {
+      event.stopPropagation();
+      card.remove();
+      actualizarEstadoElementos();
+    });
+  });
+  actualizarEstadoElementos();
+
+  function nombreValorExiste(nombre) {
+    return Array.from(
+      contenedorValores.querySelectorAll(".valor-normal-card")
+    ).some(card => card.dataset.nombre === nombre);
+  }
+
+  if (btnAddValor) {
+    btnAddValor.addEventListener("click", function () {
+      const nombreInput = document.getElementById("nombre-valor");
+      const nombre = nombreInput.value.trim();
+      const separacion = document.querySelector(
+        'input[name="separacion"]:checked'
+      );
+
+      if (!nombre) {
+        document.getElementById("nombre-error-empty").classList.remove("hidden");
+        document.getElementById("nombre-error-exist").classList.add("hidden");
+        return;
+      } else {
+        document.getElementById("nombre-error-empty").classList.add("hidden");
+      }
+
+      if (!separacion) {
+        document.getElementById("opcion-error").classList.remove("hidden");
+        return;
+      } else {
+        document.getElementById("opcion-error").classList.add("hidden");
+      }
+
+      if (nombreValorExiste(nombre)) {
+        document.getElementById("nombre-error-exist").classList.remove("hidden");
+        return;
+      } else {
+        document.getElementById("nombre-error-exist").classList.add("hidden");
+      }
+
+      crearTarjetaValor(nombre, separacion.value);
+      nombreInput.value = "";
+      separacion.checked = false;
+    });
+  }
+
+  // ========== ARMAR JSON ANTES DEL SUBMIT ==========
+
+  function toNumberOrNull(v) {
+    const n = parseFloat(v.replace(",", "."));
+    return isNaN(n) ? null : n;
+  }
+
+  if (form) {
+    form.addEventListener("submit", function () {
+      const tarjetas = document.querySelectorAll(".valor-normal-card");
+      const valores = [];
+
+      tarjetas.forEach(card => {
+        const nombre = card.dataset.nombre;
+        const tipo = card.dataset.tipoSeparacion;
+        let estructura = null;
+
+        if (tipo === "sexo") {
+          const mMin = card.querySelector('[data-field="sexo_M_min"]')?.value || "";
+          const mMax = card.querySelector('[data-field="sexo_M_max"]')?.value || "";
+          const fMin = card.querySelector('[data-field="sexo_F_min"]')?.value || "";
+          const fMax = card.querySelector('[data-field="sexo_F_max"]')?.value || "";
+          const unidad = card.querySelector('[data-field="sexo_unidad"]')?.value || "";
+
+          estructura = {
+            M: { min: toNumberOrNull(mMin), max: toNumberOrNull(mMax), unidad },
+            F: { min: toNumberOrNull(fMin), max: toNumberOrNull(fMax), unidad },
+          };
+        } else if (tipo === "edades") {
+          const e01Min = card.querySelector('[data-field="edades_0_1_min"]')?.value || "";
+          const e01Max = card.querySelector('[data-field="edades_0_1_max"]')?.value || "";
+          const e112Min = card.querySelector('[data-field="edades_1_12_min"]')?.value || "";
+          const e112Max = card.querySelector('[data-field="edades_1_12_max"]')?.value || "";
+          const e13Min = card.querySelector('[data-field="edades_13_mas_min"]')?.value || "";
+          const e13Max = card.querySelector('[data-field="edades_13_mas_max"]')?.value || "";
+          const unidad = card.querySelector('[data-field="edades_unidad"]')?.value || "";
+
+          estructura = {
+            unidad_edad: "años",
+            unidad,
+            rangos: [
+              { min_edad: 0, max_edad: 1, min: toNumberOrNull(e01Min), max: toNumberOrNull(e01Max) },
+              { min_edad: 1, max_edad: 12, min: toNumberOrNull(e112Min), max: toNumberOrNull(e112Max) },
+              { min_edad: 13, max_edad: null, min: toNumberOrNull(e13Min), max: toNumberOrNull(e13Max) },
+            ],
+          };
+        } else if (tipo === "edad-sexo") {
+          const mMin = card.querySelector('[data-field="edadsexo_M_18_45_min"]')?.value || "";
+          const mMax = card.querySelector('[data-field="edadsexo_M_18_45_max"]')?.value || "";
+          const fMin = card.querySelector('[data-field="edadsexo_F_18_45_min"]')?.value || "";
+          const fMax = card.querySelector('[data-field="edadsexo_F_18_45_max"]')?.value || "";
+          const unidad = card.querySelector('[data-field="edadsexo_unidad"]')?.value || "";
+
+          estructura = {
+            unidad_edad: "años",
+            unidad,
+            rangos: [
+              {
+                sexo: "M",
+                min_edad: 18,
+                max_edad: 45,
+                min: toNumberOrNull(mMin),
+                max: toNumberOrNull(mMax),
+              },
+              {
+                sexo: "F",
+                min_edad: 18,
+                max_edad: 45,
+                min: toNumberOrNull(fMin),
+                max: toNumberOrNull(fMax),
+              },
+            ],
+          };
+        } else if (tipo === "min-max") {
+          const vMin = card.querySelector('[data-field="minmax_min"]')?.value || "";
+          const vMax = card.querySelector('[data-field="minmax_max"]')?.value || "";
+          const unidad = card.querySelector('[data-field="minmax_unidad"]')?.value || "";
+
+          estructura = {
+            min: toNumberOrNull(vMin),
+            max: toNumberOrNull(vMax),
+            unidad,
+          };
+        } else if (tipo === "positivo-negativo") {
+          const normal = card.querySelector('[data-field="posneg_normal"]')?.value || "negativo";
+          estructura = {
+            valores_permitidos: ["positivo", "negativo"],
+            valor_normal: normal,
+          };
+        } else if (tipo === "menor-que") {
+          const maxV = card.querySelector('[data-field="menorque_max"]')?.value || "";
+          const unidad = card.querySelector('[data-field="menorque_unidad"]')?.value || "";
+          estructura = {
+            max: toNumberOrNull(maxV),
+            unidad,
+          };
+        }
+
+        valores.push({
+          nombre,
+          tipo_separacion: tipo,
+          estructura: estructura ?? {},
+        });
+      });
+
+      inputValoresJson.value = JSON.stringify(valores);
+    });
+  }
+});
 </script>
 
 {% endblock %}

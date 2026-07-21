@@ -13,47 +13,140 @@
       <h1 class="text-3xl font-bold">Nota</h1>
     </div>
   </div>
-  
 
-  <!-- Fecha -->
-  <p class="text-xl font-semibold mb-4">Fecha <span class="text-red-600">{{ fecha_actual }}</span></p>
-  <p class="text-xl text-right font-semibold">Orden <span class="text-red-600">#0000</span></p>
-
-  <!-- Información del paciente -->
-  <div class="bg-white p-4 rounded-[1rem] shadow-md mb-6 w-full max-w-5xl">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-base font-medium">
-      <div><p class="text-gray-500">Nombre</p><p class="text-black">Pedro de jesus Vazquez Perez</p></div>
-      <div><p class="text-gray-500">Doctor</p><p class="text-black">Angel Adrian Aceves Gutierrez</p></div>
-      <div><p class="text-gray-500">Hospital</p><p class="text-black">Prueba 1</p></div>
-      <div><p class="text-gray-500">Cuarto</p><p class="text-black">E-104</p></div>
+  <!-- Fecha, folio e estado -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-2">
+    <p class="text-xl font-semibold">
+      Fecha <span class="text-red-600">{{ fecha_actual }}</span>
+    </p>
+    <div class="text-right">
+      <p class="text-xl text-right font-semibold">
+        Orden
+        <span class="text-red-600">
+          {% if orden_id %}
+            #{{ "%04d"|format(orden_id) }}
+          {% elif folio_sugerido %}
+            #{{ "%04d"|format(folio_sugerido) }}
+          {% else %}
+            #0000
+          {% endif %}
+        </span>
+      </p>
+      <p class="text-lg font-semibold mt-1">
+        Estado:
+        <span class="text-red-600">
+          {{ estado|capitalize if estado else "Borrador" }}
+        </span>
+      </p>
     </div>
   </div>
 
-  <!-- Tablas alineadas -->
-  <div class="flex gap-10 justify-between items-start">
-    <!-- Tabla de pruebas -->
-    <div class="bg-white p-4 rounded-[1rem] shadow-md w-[65%]">
-      <table class="w-full text-base">
-        <thead>
-          <tr class="border-b">
-            <th class="pb-2 text-left">Prueba</th>
-            <th class="pb-2 text-left">Cantidad</th>
-            <th class="pb-2 text-left">Precio final</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="border-b"><td class="py-2">Examen general de orina (EGO)</td><td>1</td><td>$100</td></tr>
-          <tr class="border-b"><td class="py-2">Examen general de heces (EGH)</td><td>1</td><td>$229</td></tr>
-          <tr class="border-b"><td class="py-2">Glucosa en la sangre</td><td>1</td><td>$90</td></tr>
-        </tbody>
-      </table>
-      <div class="flex justify-end mt-4">
-        <button class="btn-cancelar px-6 py-2 rounded-[1rem]">Editar</button>
+  <!-- Información del paciente / doctor / hospital / cuarto -->
+  <div class="bg-white rounded-[1rem] shadow-md p-6 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-base font-medium">
+      <div>
+        <p class="text-gray-500">Nombre</p>
+        <p class="font-semibold text-black">
+          {% if paciente %}
+            {{ paciente.nombres }} {{ paciente.apellidos }}
+          {% else %}
+            -
+          {% endif %}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-gray-500">Doctor</p>
+        <p class="font-semibold text-black">
+          {% if doctor %}
+            {{ doctor.nombres }} {{ doctor.apellidos }}
+          {% else %}
+            -
+          {% endif %}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-gray-500">Hospital</p>
+        <p class="font-semibold text-black">
+          {% if hospital %}
+            {{ hospital.nombre }}
+          {% else %}
+            -
+          {% endif %}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-gray-500">Cuarto</p>
+        <p class="font-semibold text-black">
+          {{ orden.cuarto }}
+        </p>
       </div>
     </div>
 
-    <!-- Panel de abonos (solo Fecha y Cantidad) -->
-    <div class="bg-white p-4 rounded-[1rem] shadow-md w-[30%]">
+    {% if orden.observaciones %}
+    <div class="mt-4">
+      <p class="text-gray-500 font-semibold">Observaciones</p>
+      <p class="text-black">{{ orden.observaciones }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Tablas: Pruebas (izq) y Abonos (der) -->
+  <div class="flex flex-col lg:flex-row gap-10 justify-between items-start">
+    <!-- Tabla de pruebas -->
+    <div class="bg-white p-4 rounded-[1rem] shadow-md w-full lg:w-[65%]">
+      <table class="w-full text-base text-left">
+        <thead>
+          <tr class="border-b">
+            <th class="pb-2 text-left">Prueba</th>
+            <th class="pb-2 text-center">Cantidad</th>
+            <th class="pb-2 text-right">Precio final</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if pruebas %}
+            {% for p in pruebas %}
+              <tr class="border-b">
+                <td class="py-2">{{ p["prueba"] }}</td>
+                <td class="py-2 text-center">{{ p["cantidad"] }}</td>
+                <td class="py-2 text-right">
+                  ${{ "%.2f"|format(p["precio"]|float) }}
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="3" class="py-4 text-center text-gray-400">
+                No hay pruebas seleccionadas.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+
+      <!-- Total pruebas -->
+      <div class="flex justify-end mt-4 text-lg font-bold">
+        <span class="mr-2">Total pruebas:</span>
+        <span>${{ "%.2f"|format(total_pruebas) }}</span>
+      </div>
+
+      <!-- Botón Editar (regresa a orden_pruebas) -->
+      <div class="flex justify-end mt-4">
+        {% if estado|lower == 'borrador' %}
+        <button
+          type="button"
+          class="btn-cancelar px-6 py-2 rounded-[1rem]"
+          onclick="window.location.href='{{ url_for('app_routes.manage_orden_pruebas') }}'">
+          Editar
+        </button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Panel de abonos -->
+    <div class="bg-white p-4 rounded-[1rem] shadow-md w-full lg:w-[30%]">
       <h3 class="text-lg font-semibold mb-4">Abonos</h3>
       <table class="w-full text-base mb-6">
         <thead>
@@ -62,39 +155,119 @@
             <th class="pb-2 text-left">Cantidad</th>
           </tr>
         </thead>
-        <tbody id="tabla-abonos">
-          <!-- Se insertan dinámicamente -->
+        <tbody>
+          {% if abonos and abonos|length > 0 %}
+            {% for a in abonos %}
+              <tr class="border-b">
+                <td class="py-2 text-red-600">{{ a.fecha_abono }}</td>
+                <td class="py-2 text-right">
+                  ${{ "%.2f"|format(a.cantidad|float) }}
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="2" class="py-4 text-center text-gray-400">
+                No hay abonos registrados.
+              </td>
+            </tr>
+          {% endif %}
         </tbody>
       </table>
-      <div class="flex justify-between font-semibold text-lg border-t pt-4">
-        <span>Total</span>
-        <span id="total-abonos">$0</span>
+      <div class="border-t pt-4 space-y-1 text-lg font-semibold">
+        <div class="flex justify-between">
+          <span>Total pagado</span>
+          <span>${{ "%.2f"|format(total_abonos) }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Total faltante</span>
+          <span>${{ "%.2f"|format(total_restante) }}</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Botones -->
+  <!-- Botones principales -->
   <div class="flex justify-end gap-4 mt-8">
-    <button class="btn-cancelar px-6 py-2 rounded-[1rem]" >Cancelar</button>
-    <button onclick="abrirModalAbono()" class="btn-cancelar px-6 py-2 rounded-[1rem]">Abonar</button>
-    <button class="btn-cancelar px-6 py-2 rounded-[1rem]" onclick="window.location.href='{{ url_for('app_routes.mostrador_dashboard') }}'">Imprimir</button>
+    <button type="button"
+            class="btn-cancelar px-6 py-2 rounded-[1rem]"
+            onclick="window.history.back()">
+      Cancelar
+    </button>
+
+    <!-- Abonar (abre modal) -->
+    <button type="button"
+            onclick="abrirModalAbono()"
+            class="btn-cancelar px-6 py-2 rounded-[1rem]">
+      Abonar
+    </button>
+
+    <!-- Imprimir: guarda la orden en BD si aún no existe -->
+    <form method="POST" action="{{ url_for('app_routes.imprimir_orden') }}">
+      <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">
+        Guardar
+      </button>
+    </form>
   </div>
 </div>
 
-<!-- Modal de abono actualizado -->
-<div id="modal-abono" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+<!-- Modal de abono -->
+<div id="modal-abono"
+     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
   <div class="bg-white rounded-[1rem] w-full max-w-md p-6 shadow-lg">
     <h2 class="text-xl font-bold text-center mb-4">Agregar Abono</h2>
-    <form id="form-abono">
-      <div class="mb-4">
-        <label for="cantidad-abono" class="block font-medium mb-2">Cantidad a abonar</label>
-        <input type="number" id="cantidad-abono" name="cantidad" min="1" step="0.01" required class="w-full px-4 py-2 border rounded-[1rem]">
+
+    {% if orden_id %}
+      <form id="form-abono"
+            method="POST"
+            action="{{ url_for('app_routes.abonar_orden', orden_id=orden_id) }}">
+        <div class="mb-4">
+          <label for="cantidad-abono" class="block font-medium mb-2">
+            Cantidad a abonar
+          </label>
+          <input
+            type="number"
+            id="cantidad-abono"
+            name="cantidad"
+            min="1"
+            step="0.01"
+            required
+            class="w-full px-4 py-2 border rounded-[1rem]"
+          >
+        </div>
+
+
+        <div class="mb-4">
+          <label for="nota-abono" class="block font-medium mb-2">Nota</label>
+          <textarea id="nota-abono" name="nota"
+                    class="w-full px-4 py-2 border rounded-[1rem]"></textarea>
+        </div>
+
+
+        <div class="flex justify-center gap-4 mt-6">
+          <button type="button"
+                  onclick="cerrarModalAbono()"
+                  class="btn-cancelar px-6 py-2 rounded-[1rem]">
+            Cancelar
+          </button>
+          <button type="submit"
+                  class="btn-guardar px-6 py-2 rounded-[1rem]">
+            Guardar
+          </button>
+        </div>
+      </form>
+    {% else %}
+      <p class="text-center text-red-500 mb-4">
+        Primero guarda la orden (Imprimir) antes de registrar abonos.
+      </p>
+      <div class="flex justify-center">
+        <button type="button"
+                onclick="cerrarModalAbono()"
+                class="btn-cancelar px-6 py-2 rounded-[1rem]">
+          Cerrar
+        </button>
       </div>
-      <div class="flex justify-center gap-4 mt-6">
-        <button type="button" onclick="cerrarModalAbono()" class="btn-cancelar px-6 py-2 rounded-[1rem]">Cancelar</button>
-        <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">Guardar</button>
-      </div>
-    </form>
+    {% endif %}
   </div>
 </div>
 
@@ -106,34 +279,5 @@
   function cerrarModalAbono() {
     document.getElementById("modal-abono").classList.add("hidden");
   }
-
-  const formAbono = document.getElementById("form-abono");
-  const tablaAbonos = document.getElementById("tabla-abonos");
-  const totalAbonos = document.getElementById("total-abonos");
-
-  formAbono.addEventListener("submit", function (e) {
-    e.preventDefault();
-
-    const cantidadInput = document.getElementById("cantidad-abono");
-    const cantidad = parseFloat(cantidadInput.value);
-    const fecha = "{{ fecha_actual }}";
-
-    if (!isNaN(cantidad) && cantidad > 0) {
-      tablaAbonos.innerHTML += `
-        <tr class="border-b">
-          <td class="py-2 text-red-600">${fecha}</td>
-          <td class="py-2 text-right">$${cantidad.toFixed(2)}</td>
-        </tr>
-      `;
-
-      // Sumar al total
-      const actual = parseFloat(totalAbonos.textContent.replace("$", "")) || 0;
-      totalAbonos.textContent = `$${(actual + cantidad).toFixed(2)}`;
-    }
-
-    formAbono.reset();
-    cerrarModalAbono();
-  });
 </script>
-
 {% endblock %}

@@ -2,6 +2,11 @@
 {% block title %}Dashboard Químico{% endblock %}
 
 {% block content %}
+
+<head>
+    <script src="{{ url_for('static', filename='js/quimico.js') }}"></script>
+</head>
+
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
   <!-- Header -->
@@ -106,13 +111,15 @@
       </a>
 
       <!-- Control de calidad -->
-      <a href="#"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+      <a href="{{ url_for('app_routes.proximamente', feature='Control de calidad') }}"
+        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
                 transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-         aria-label="Control de calidad">
+        aria-label="Control de calidad próximamente">
         <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">QC</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-vials text-8xl text-emerald-600"></i></div>
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-vials text-8xl text-emerald-600"></i>
+        </div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-emerald-200 bg-emerald-50">
             <i class="fas fa-vials text-emerald-600 text-xl"></i>
@@ -125,12 +132,14 @@
       </a>
 
       <!-- Equipos -->
-      <a href="#"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+      <a href="{{ url_for('app_routes.proximamente', feature='Equipos') }}"
+        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
                 transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-         aria-label="Equipos">
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-tools text-8xl text-amber-600"></i></div>
+        aria-label="Equipos próximamente">
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-tools text-8xl text-amber-600"></i>
+        </div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-amber-200 bg-amber-50">
             <i class="fas fa-tools text-amber-600 text-xl"></i>
@@ -143,13 +152,15 @@
       </a>
 
       <!-- Incidencias -->
-      <a href="#"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+      <a href="{{ url_for('app_routes.proximamente', feature='Incidencias') }}"
+        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
                 transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-         aria-label="Incidencias">
+        aria-label="Incidencias próximamente">
         <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">4</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-flag text-8xl text-rose-600"></i></div>
+        <div class="absolute -right-4 -top-4 opacity-10">
+          <i class="fas fa-flag text-8xl text-rose-600"></i>
+        </div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-rose-200 bg-rose-50">
             <i class="fas fa-flag text-rose-600 text-xl"></i>
@@ -162,11 +173,11 @@
       </a>
 
       <!-- Configuración (sin badge) -->
-      <a href="#"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
+      <a href="{{ url_for('app_routes.configuracion') }}"
+        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
                 transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-         aria-label="Configuración">
+        aria-label="Configuración">
         <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-cog text-8xl text-slate-600"></i></div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-slate-200 bg-slate-50">

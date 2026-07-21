@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Próximamente{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-100">
+  <div class="bg-white shadow-lg rounded-lg p-8 max-w-lg text-center">
+    <h1 class="text-3xl font-bold mb-4">
+      {% if feature %}
+        {{ feature }} estará disponible pronto
+      {% else %}
+        Esta función estará disponible en la siguiente versión
+      {% endif %}
+    </h1>
+
+    <p class="text-gray-600 mb-6">
+      Estamos trabajando para habilitar esta sección en una próxima actualización de AppLab.
+      Gracias por tu paciencia 🧪
+    </p>
+
+    <div class="flex justify-center gap-4">
+      <!-- Y aquí usamos la ruta "/" que en tu código es 'home' -->
+      <a href="{{ url_for('app_routes.home') }}"
+         class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100">
+        Ir al inicio
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

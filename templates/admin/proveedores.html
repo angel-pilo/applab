@@ -1,88 +1,21 @@
-{% extends "base.html" %}
+{% extends "admin/catalog_base.html" %}
+{% set page_title = "Proveedores" %}
+{% set page_description = "Gestiona proveedores, contactos y disponibilidad." %}
+{% set add_url = url_for('app_routes.add_proveedor') %}
+{% set add_label = "Registrar proveedor" %}
+{% set search_id = "search-proveedor" %}
+{% set search_placeholder = "Buscar proveedor..." %}
+{% set empty_search_message = "No se encontró ningún proveedor." %}
 
-{% block title %}Proveedores{% endblock %}
-
-{% block content %}
-<div class="container mx-auto p-4">
-    <div class="flex items-center mb-4">
-        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-        <h1 class="text-4xl font-bold ml-4">Proveedores</h1>
-    </div>
-
-    <div class="flex items-center justify-between mb-4">
-        <input type="text" id="search-proveedor" placeholder="Buscar proveedor..." class="w-1/3 p-2 border rounded">
-        <a href="{{ url_for('app_routes.add_proveedor') }}" class="btn-editar">Registrar nuevo proveedor</a>
-    </div>
-
-    <div class="flex justify-start mb-4">
-        <button class="bg-gray-200 p-2 rounded-xl" onclick="toggleFilterMenu()">
-            <i class="fas fa-filter"></i> Filtro
-        </button>
-    </div>
-
-    <div id="filter-menu" class="absolute bg-white border rounded shadow-lg p-4 hidden z-50">
-        <label class="block font-semibold mb-2">Filtrar por estado del proveedor:</label>
-        <div class="mb-2">
-            <input type="radio" name="filter-status" value="all" checked class="mr-2"> Todos
-        </div>
-        <div class="mb-2">
-            <input type="radio" name="filter-status" value="activo" class="mr-2"> Activos
-        </div>
-        <div class="mb-2">
-            <input type="radio" name="filter-status" value="inactivo" class="mr-2"> Inactivos
-        </div>
-        <div class="mt-4 flex justify-end">
-            <button id="apply-filters" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                Aplicar filtros
-            </button>
-        </div>
-    </div>
-
-    <div id="not-found-message" class="hidden text-red-500 mb-4">
-        No se encontró ningún proveedor. <a href="{{ url_for('app_routes.add_proveedor') }}" class="text-blue-500 underline">Registrar proveedor</a>
-    </div>
-
-    <div class="overflow-y-auto max-h-[calc(10*4rem)] border rounded shadow">
-        <table class="min-w-full bg-white">
-            <thead class="bg-gray-100">
-                <tr class="text-left border-b">
-                    <th class="py-2 px-4">ID</th>
-                    <th class="py-2 px-4">Nombre</th>
-                    <th class="py-2 px-4">Tipo</th>
-                    <th class="py-2 px-4">Teléfono</th>
-                    <th class="py-2 px-4">Correo</th>
-                    <th class="py-2 px-4">Estado</th>
-                    <th class="py-2 px-4 text-center">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for proveedor in proveedores %}
-                <tr data-proveedor-id="{{ proveedor.id }}" class="{% if not proveedor.activo %}bg-gray-100{% endif %}">
-                    <td class="py-2 px-4">{{ proveedor.id }}</td>
-                    <td class="py-2 px-4">{{ proveedor.nombre }}</td>
-                    <td class="py-2 px-4">{{ proveedor.tipo }}</td>
-                    <td class="py-2 px-4">{{ proveedor.telefono }}</td>
-                    <td class="py-2 px-4">{{ proveedor.correo }}</td>
-                    <td class="py-2 px-4 estado">{{ 'Activo' if proveedor.activo else 'Inactivo' }}</td>
-                    <td class="py-2 px-4 text-center">
-                        {% if proveedor.activo %}
-                            <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_proveedor', proveedor_id=proveedor.id) }}'">Editar</button>
-                            {% if rol == 'Admin' %}
-                            <button class="btn-eliminar" onclick="confirmDeleteProveedor('{{ proveedor.id }}')">Eliminar</button>
-                            {% endif %}
-                        {% else %}
-                            {% if rol == 'Admin' %}
-                            <button class="btn-activar" onclick="confirmActivateProveedor('{{ proveedor.id }}')">Activar</button>
-                            {% endif %}
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-{% include 'admin/modales_proveedores.html' %}
-<script src="{{ url_for('static', filename='js/proveedores.js') }}"></script>
+{% block table_head %}<th class="px-5 py-3">ID</th><th class="px-5 py-3">Nombre</th><th class="px-5 py-3">Tipo</th><th class="px-5 py-3">Teléfono</th><th class="px-5 py-3">Correo</th><th class="px-5 py-3">Estado</th><th class="px-5 py-3 text-right">Acciones</th>{% endblock %}
+{% block table_body %}
+  {% for proveedor in proveedores %}
+  <tr data-proveedor-id="{{ proveedor.id }}" class="transition hover:bg-gray-50 {% if not proveedor.activo %}bg-gray-50 text-gray-500{% endif %}">
+    <td class="px-5 py-4 font-medium">#{{ proveedor.id }}</td><td class="px-5 py-4 font-semibold text-gray-900">{{ proveedor.nombre }}</td>
+    <td class="px-5 py-4 capitalize">{{ proveedor.tipo or '—' }}</td><td class="px-5 py-4">{{ proveedor.telefono or '—' }}</td><td class="px-5 py-4">{{ proveedor.correo or '—' }}</td>
+    <td class="estado px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ 'bg-emerald-50 text-emerald-700' if proveedor.activo else 'bg-gray-200 text-gray-600' }}">{{ 'Activo' if proveedor.activo else 'Inactivo' }}</span></td>
+    <td class="px-5 py-4"><div class="admin-action-group">{% if proveedor.activo %}<button class="btn-editar admin-action-button" onclick="window.location.href='{{ url_for('app_routes.edit_proveedor', proveedor_id=proveedor.id) }}'">Editar</button>{% if rol == 'Admin' %}<button class="btn-eliminar admin-action-button" onclick="confirmDeleteProveedor('{{ proveedor.id }}')">Eliminar</button>{% endif %}{% elif rol == 'Admin' %}<button class="btn-activar admin-action-button" onclick="confirmActivateProveedor('{{ proveedor.id }}')">Activar</button>{% endif %}</div></td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">No hay proveedores registrados.</td></tr>{% endfor %}
 {% endblock %}
+{% block catalog_extras %}{% include 'admin/modales_proveedores.html' %}<script src="{{ url_for('static', filename='js/proveedores.js') }}"></script>{% endblock %}

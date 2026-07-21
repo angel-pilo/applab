@@ -3,11 +3,6 @@
 {% block title %}Resultados Listos{% endblock %}
 
 {% block content %}
-<head>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
-  <script src="https://kit.fontawesome.com/a076d05399.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
 
 <div class="w-full max-w-7xl mx-auto px-6 py-8">
   <!-- Encabezado -->
@@ -34,15 +29,7 @@
         </thead>
         <tbody>
           {% set pacientes = [
-            ("00010", "María Fernanda López Hernández", "Consultorio Pediátrico 3", "green"),
-            ("00008", "José Manuel Pérez Rodríguez", "Habitación E-104", "green"),
-            ("00007", "Ana Sofía Ramírez García", "Consultorio General 1", "red"),
-            ("00006", "Juan Carlos Martínez Torres", "Terapia Intensiva", "red"),
-            ("00005", "Valeria González Chávez", "Área de Triage", "green"),
-            ("00004", "Miguel Ángel Rivera López", "Sala de Tratamiento Ambulatorio", "green"),
-            ("00003", "Diana Carolina Jiménez Flores", "Cuidados Coronarios", "green"),
-            ("00002", "Luis Fernando Ortiz Ramírez", "Consultorio Especializado 2", "red"),
-            ("00001", "Gabriela Alejandra Castillo Cruz", "Cuidados Coronarios", "red")
+            ("00012", "Roberto Sánchez Bautista ", "1", "red"),
           ] %}
           {% for folio, nombre, lugar, color in pacientes %}
           <tr class="border-b">
@@ -67,26 +54,29 @@
       <table class="w-full text-sm text-left">
         <thead>
           <tr class="border-b">
-            <th class="pb-2 text-red-600 font-semibold">Folio ⬇</th>
+            <th class="pb-2 text-red-600 font-semibold">Folio</th>
             <th class="pb-2">Nombre del paciente</th>
           </tr>
         </thead>
         <tbody>
-          {% set faltantes = [
-            ("00011", "María José Hernández Gómez"),
-            ("00012", "Jorge Luis Vargas Martínez"),
-            ("00013", "Carmen Patricia Flores López"),
-            ("00014", "Carlos Eduardo Pérez Gutiérrez"),
-            ("00015", "Sofía Elena Jiménez Morales"),
-            ("00016", "Andrés Felipe Castillo Torres"),
-            ("00017", "Alejandra Itzel Sánchez Cruz")
-          ] %}
-          {% for folio, nombre in faltantes %}
-          <tr class="border-b hover:bg-gray-100">
-            <td class="py-2 text-red-600 font-bold">#{{ folio }}</td>
-            <td class="py-2">{{ nombre }}</td>
-          </tr>
-          {% endfor %}
+          {% if ordenes_quimico and ordenes_quimico|length > 0 %}
+            {% for orden in ordenes_quimico %}
+              <tr class="border-b hover:bg-gray-50">
+                <td class="py-2 text-red-600 font-bold">
+                  #{{ "%05d"|format(orden.id) }}
+                </td>
+                <td class="py-2 px-2">
+                  {{ orden.nombre_paciente }}
+                </td>
+              </tr> 
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="2" class="text-center text-gray-500 py-2">
+                No hay órdenes para mostrar.
+              </td>
+            </tr>
+          {% endif %}
         </tbody>
       </table>
     </div>

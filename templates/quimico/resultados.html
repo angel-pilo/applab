@@ -1,219 +1,235 @@
 {% extends "base.html" %}
 
-{% block title %}Faltantes de reportar{% endblock %}
+{% block title %}Resultados de laboratorio{% endblock %}
 
 {% block content %}
-<head>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
-  <script src="https://kit.fontawesome.com/a076d05399.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
 
-<div class="w-full max-w-7xl mx-auto px-6 py-8">
+<script>
+  window.faltantesData = {{ faltantes|tojson|safe }};
+</script>  <!-- si no meto esto no se muestra nada en los paneles -->
+<script src="{{ url_for('static', filename='js/quimico.js') }}"></script>
+<script>
+function finalizarOrden(button) {
+  // Cambiar el texto y color del botón
+  button.innerHTML = "Enviado a Mostrador";  // Cambia el texto
+  button.classList.add("bg-gray-400", "text-white", "opacity-50");  // Añadir clases para cambiar color de fondo y texto
+  
+  button.disabled = true;
+}
+
+
+</script>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   <!-- Encabezado -->
   <div class="flex items-center space-x-2 mb-6">
     <button class="text-2xl" onclick="window.history.back()">
       <i class="fas fa-arrow-left"></i>
     </button>
-    <h1 class="text-3xl font-bold">Faltantes de reportar</h1>
+    <h1 class="text-3xl font-bold">Resultados de laboratorio</h1>
   </div>
 
-  <!-- Contenido dividido en tabla y panel -->
-  <div class="flex flex-col lg:flex-row items-start gap-6 justify-center">
-    <!-- Tabla principal -->
-    <div class="bg-white rounded-[1rem] shadow-md overflow-x-auto max-w-[1200px] w-full">
-      <table class="min-w-full text-base text-left">
-        <thead>
-          <tr class="border-b">
-            <th class="px-6 py-4 text-red-600 font-bold">Folio ⬇</th>
-            <th class="px-6 py-4 font-semibold text-gray-700">Nombre del paciente</th>
-            <th class="px-6 py-4 font-semibold text-gray-700">Lugar</th>
-            <th class="px-6 py-4 text-center font-semibold text-gray-700">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% set pacientes = [
-            ("00010", "María Fernanda López Hernández", "Consultorio Pediátrico 3", "red"),
-            ("00008", "José Manuel Pérez Rodríguez", "Habitación E-104", "green"),
-            ("00007", "Ana Sofía Ramírez García", "Consultorio General 1", "red"),
-            ("00006", "Juan Carlos Martínez Torres", "Terapia Intensiva", "red"),
-            ("00005", "Valeria González Chávez", "Área de Triage", "green")
-          ] %}
-          {% for folio, nombre, lugar, color in pacientes %}
-          <tr class="border-b">
-            <td class="px-6 py-4 font-bold flex items-center gap-2 text-{{ color }}-600">
-              <span class="h-3 w-3 rounded-full bg-{{ color }}-600 inline-block"></span> #{{ folio }}
-            </td>
-            <td class="px-6 py-4">{{ nombre }}</td>
-            <td class="px-6 py-4">{{ lugar }}</td>
-            <td class="px-6 py-4 flex gap-2 justify-center">
-                <a href="{{ url_for('app_routes.captura_resultados', folio=folio) }}"
-                 class="btn-cancelar px-4 py-1 rounded-[1rem]">Agregar Resultados</a>
-              {% if color == "green" %}
-                <button class="btn-disabled px-4 py-1 rounded-[1rem]" disabled>Finalizado</button>
+  <!-- Layout principal: tabla + panel lateral -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Panel principal (órdenes en químico) -->
+    <div class="lg:col-span-2">
+      <div class="bg-white rounded-[1rem] shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-800">Órdenes para resultados</h2>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b">
+                <th class="px-6 py-2 text-red-600 font-semibold">Folio</th>
+                <th class="px-6 py-2 font-semibold text-gray-700">Nombre del paciente</th>
+                <th class="px-6 py-2 font-semibold text-gray-700">Cuarto / Origen</th>
+                <th class="px-6 py-2 text-center font-semibold text-gray-700">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if ordenes and ordenes|length > 0 %}
+                {% for orden in ordenes %}
+                  {% set folio_str = "%05d"|format(orden.id) %}
+                  <tr class="border-b hover:bg-gray-50">
+                    <td class="px-6 py-4 font-bold flex items-center gap-2 text-red-600">
+                      <span class="h-3 w-3 rounded-full bg-red-600 inline-block"></span>
+                      #{{ folio_str }}
+                    </td>
+                    <td class="px-6 py-4">
+                      {{ orden.nombre_paciente }}
+                    </td>
+                    <td class="px-6 py-4">
+                      {{ orden.cuarto }}
+                    </td>
+                    <td class="px-6 py-4 flex gap-2 justify-center">
+                    <a href="{{ url_for('app_routes.captura_resultados', orden_id=folio_str) }}" class="btn-cancelar px-4 py-1 rounded-[1rem]">
+                        Agregar Resultados
+                    </a>
+                    <button
+                      type="button"
+                      class="finalizar-btn btn-guardar px-4 py-1 rounded-[1rem] transition-all duration-300 ease-in-out"
+                      onclick="finalizarOrden(this)"
+                    >
+                      Finalizar
+                    </button>
+                    </td>
+                  </tr>
+                {% endfor %}
               {% else %}
-                <button class="btn-guardar px-4 py-1 rounded-[1rem]">Finalizar</button>
+                <tr>
+                  <td colspan="4" class="text-center text-gray-500 py-4">
+                    No hay órdenes pendientes de resultados.
+                  </td>
+                </tr>
               {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <!-- Panel lateral -->
-    <div class="w-full lg:w-[360px] bg-white rounded-[1rem] shadow-md p-4">
-      <h2 class="text-lg font-bold text-center mb-4">Faltantes de muestra</h2>
-      <table class="w-full text-sm text-left cursor-pointer" onclick="abrirModalFaltantes()">
+    <!-- Panel lateral (faltantes de muestra) -->
+    <div class="lg:col-span-1">
+      <div class="bg-white rounded-[1rem] shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-800">Faltantes de muestra</h2>
+          <button
+            type="button"
+            class="text-sm text-blue-600 hover:underline"
+            onclick="abrirModalFaltantes()"
+          >
+            Ver todos
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table
+            class="w-full text-left text-xs cursor-pointer"
+            onclick="abrirModalFaltantes()"
+          >
+            <thead>
+              <tr class="border-b">
+                <th class="py-2 text-red-600 font-semibold">Folio</th>
+                <th class="py-2 font-semibold text-gray-700">Paciente</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if faltantes and faltantes|length > 0 %}
+                {% for orden in faltantes[:5] %}
+                  <tr class="border-b hover:bg-gray-50">
+                    <td class="py-2 text-red-600 font-bold">
+                      #{{ "%05d"|format(orden.id) }}
+                    </td>
+                    <td class="py-2">
+                      {{ orden.nombre_paciente }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="2" class="text-center text-gray-500 py-2">
+                    No hay órdenes pendientes de muestra.
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 1: Faltantes de muestra (lista completa) -->
+<div
+  id="modal-faltantes"
+  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
+>
+  <div class="bg-white rounded-[1rem] w-[95%] max-w-3xl p-6 relative shadow-lg">
+    <h2 class="text-xl font-bold text-center mb-4">Faltantes de muestra</h2>
+
+    <div class="overflow-x-auto mb-4">
+      <table class="w-full text-sm text-left">
         <thead>
           <tr class="border-b">
-            <th class="pb-2 text-red-600 font-semibold">Folio ⬇</th>
+            <th class="pb-2 text-red-600 font-bold">Folio ⬇</th>
             <th class="pb-2">Nombre del paciente</th>
+            <th class="pb-2">Cuarto / Origen</th>
+            <th class="pb-2 text-center">Acción</th>
           </tr>
         </thead>
-        <tbody>
-          {% set faltantes = [
-            ("00011", "María José Hernández Gómez", "Consultorio Pediátrico 3"),
-            ("00012", "Jorge Luis Vargas Martínez", "Terapia Intensiva"),
-            ("00013", "Carmen Patricia Flores López", "Consultorio General 1"),
-            ("00014", "Carlos Eduardo Pérez Gutiérrez", "Habitación E-104"),
-            ("00015", "Sofía Elena Jiménez Morales", "Área de Triage")
-          ] %}
-          {% for folio, nombre, lugar in faltantes %}
-          <tr class="border-b hover:bg-gray-100">
-            <td class="py-2 text-red-600 font-bold">#{{ folio }}</td>
-            <td class="py-2">{{ nombre }}</td>
-          </tr>
-          {% endfor %}
+        <tbody id="modal-faltantes-body">
+          <!-- Se llenará dinámicamente -->
         </tbody>
       </table>
     </div>
-  </div> 
-</div>
-
-<!-- Modal para faltantes de muestra -->
-<div id="modal-faltantes" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-  <div class="bg-white rounded-[1rem] w-[90%] max-w-4xl p-6 relative shadow-lg">
-    <h2 class="text-xl font-bold text-center mb-6">Faltantes de Muestra</h2>
-
-    <table class="w-full text-base text-left mb-6">
-      <thead>
-        <tr class="border-b">
-          <th class="pb-2 text-red-600 font-bold">Folio ⬇</th>
-          <th class="pb-2">Nombre del paciente</th>
-          <th class="pb-2">Lugar</th>
-          <th class="pb-2 text-center">Acción</th>
-        </tr>
-      </thead>
-      <tbody id="modal-faltantes-body">
-        <!-- Se llenará dinámicamente -->
-      </tbody>
-    </table>
 
     <div class="flex justify-center">
-      <button onclick="cerrarModalFaltantes()" class="btn-cancelar px-6 py-2 rounded-[1rem]">Cerrar</button>
+      <button
+        type="button"
+        onclick="cerrarModalFaltantes()"
+        class="btn-cancelar px-6 py-2 rounded-[1rem]"
+      >
+        Cerrar
+      </button>
     </div>
+
+    <!-- Botón X arriba a la derecha -->
+    <button
+      type="button"
+      onclick="cerrarModalFaltantes()"
+      class="absolute top-2 right-3 text-gray-400 hover:text-gray-600"
+    >
+      <i class="fas fa-times"></i>
+    </button>
   </div>
 </div>
 
-<!-- Modal de Análisis -->
-<div id="modal-analisis" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+<!-- Modal 2: Análisis (solo lectura, sin checkbox) -->
+<div
+  id="modal-analisis"
+  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
+>
   <div class="bg-white rounded-[1rem] w-[90%] max-w-xl p-6 relative shadow-lg">
-    <h2 class="text-xl font-bold text-center mb-4">Análisis</h2>
+    <h2 class="text-xl font-bold text-center mb-4">Análisis de la orden</h2>
 
-    <table class="w-full text-sm text-left mb-6">
-      <thead>
-        <tr class="border-b">
-          <th class="pb-2">Análisis</th>
-          <th class="pb-2">Tipo de prueba</th>
-        </tr>
-      </thead>
-      <tbody id="analisis-body">
-        <!-- Se insertan dinámicamente -->
-      </tbody>
-    </table>
+    <div class="overflow-x-auto mb-4">
+      <table class="w-full text-sm text-left mb-2">
+        <thead>
+          <tr class="border-b">
+            <th class="pb-2 font-semibold text-gray-700">Análisis</th>
+            <th class="pb-2 font-semibold text-gray-700">Tipo de prueba</th>
+          </tr>
+        </thead>
+        <tbody id="analisis-body">
+          <!-- Se llenará dinámicamente -->
+        </tbody>
+      </table>
+    </div>
 
     <div class="flex justify-center">
-      <button onclick="cerrarModal()" class="btn-cancelar px-6 py-2 rounded-[1rem]">Cerrar</button>
+      <button
+        type="button"
+        onclick="cerrarModalAnalisis()"
+        class="btn-cancelar px-6 py-2 rounded-[1rem]"
+      >
+        Cerrar
+      </button>
     </div>
+
+    <!-- Botón X -->
+    <button
+      type="button"
+      onclick="cerrarModalAnalisis()"
+      class="absolute top-2 right-3 text-gray-400 hover:text-gray-600"
+    >
+      <i class="fas fa-times"></i>
+    </button>
   </div>
 </div>
 
-<script>
-const modalFaltantes = document.getElementById("modal-faltantes");
-const modalFaltantesBody = document.getElementById("modal-faltantes-body");
-
-const todosFaltantes = [
-  ["00011", "María José Hernández Gómez", "Consultorio Pediátrico 3"],
-  ["00012", "Jorge Luis Vargas Martínez", "Terapia Intensiva"],
-  ["00013", "Carmen Patricia Flores López", "Consultorio General 1"],
-  ["00014", "Carlos Eduardo Pérez Gutiérrez", "Habitación E-104"],
-  ["00015", "Sofía Elena Jiménez Morales", "Área de Triage"]
-];
-
-function abrirModalFaltantes() {
-  modalFaltantesBody.innerHTML = todosFaltantes.map(([folio, nombre, lugar]) => `
-    <tr class="border-b">
-      <td class="py-2 text-red-600 font-bold">#${folio}</td>
-      <td class="py-2">${nombre}</td>
-      <td class="py-2">${lugar}</td>
-      <td class="py-2 text-center">
-        <button onclick="abrirModalAnalisis('${folio}')" class="btn-cancelar px-4 py-1 rounded-[1rem]">Análisis</button>
-      </td>
-    </tr>
-  `).join('');
-  modalFaltantes.classList.remove("hidden");
-}
-
-function cerrarModalFaltantes() {
-  modalFaltantes.classList.add("hidden");
-}
-
-//segundo modal para detalles del analisis
-const modal = document.getElementById("modal-analisis");
-const analisisBody = document.getElementById("analisis-body");
-
-const datosEjemplo = {
-  "00011": [
-    ["BH (Biometría Hemática)", "Sanguínea"],
-    ["EGO", "Orina"]
-  ],
-  "00012": [
-    ["Coprológico", "Heces"]
-  ],
-  "00013": [
-    ["Grupo Sanguíneo", "Sangre"]
-  ],
-  "00014": [
-    ["Cultivo de Heridas", "Secreción"]
-  ],
-  "00015": [
-    ["Grupo Sanguíneo", "Sangre"]
-  ]
-};
-
-function abrirModalAnalisis(folio) {
-  analisisBody.innerHTML = "";
-  const pruebas = datosEjemplo[folio] || [];
-
-  if (pruebas.length === 0) {
-    analisisBody.innerHTML = "<tr><td colspan='3' class='text-center text-gray-500'>Sin análisis registrados</td></tr>";
-  } else {
-    pruebas.forEach(([nombre, tipo]) => {
-      analisisBody.innerHTML += `
-        <tr class="border-b">
-          <td class="py-2">${nombre}</td>
-          <td class="py-2">${tipo}</td>
-        </tr>`;
-    });
-  }
-
-  modal.classList.remove("hidden");
-}
-
-function cerrarModal() {
-  modal.classList.add("hidden");
-}
-
-</script>
 {% endblock %}
