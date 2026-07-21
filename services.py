@@ -233,25 +233,6 @@ def actualizar_doctor(doctor_id, data):
         return None
 
 
-def desactivar_doctor(doctor_id):
-    """Desactiva (elimina lógicamente) al doctor"""
-    try:
-        response = supabase.table('doctores').update({'activo': False}).eq('id', doctor_id).execute()
-        return response.data[0] if response.data else None
-    except Exception as e:
-        print(f"Error al desactivar doctor: {e}")
-        return None
-
-
-def activar_doctor(doctor_id):
-    """Activa a un doctor previamente desactivado"""
-    try:
-        response = supabase.table('doctores').update({'activo': True}).eq('id', doctor_id).execute()
-        return response.data[0] if response.data else None
-    except Exception as e:
-        print(f"Error al activar doctor: {e}")
-        return None
-
 # Crear paciente (sin validación)
 def crear_paciente(data):
     try:
@@ -442,15 +423,6 @@ def obtener_reactivos():
     except Exception as e:
         print(f"Error al obtener reactivos: {e}")
         return []
-
-# Validar si ya existe un reactivo con el mismo nombre y proveedor
-def reactivo_duplicado(nombre, proveedor_id):
-    try:
-        response = supabase.table("reactivos").select("id").eq("nombre", nombre).eq("proveedor_id", proveedor_id).execute()
-        return len(response.data) > 0
-    except Exception as e:
-        print(f"Error al verificar duplicado de reactivo: {e}")
-        return False
 
 # Crear un nuevo reactivo
 def crear_reactivo(data):

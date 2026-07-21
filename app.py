@@ -12,7 +12,7 @@ from supabase_client import supabase
 # --- Menú por rol ---
 try:
     from menus import ROLE_MENU
-except Exception:
+except ImportError:
     ROLE_MENU = {
         "Admin": [
             {"text": "Pruebas", "icon": "fa-clipboard-check", "url": "app_routes.pruebas_clinicas"},
@@ -40,15 +40,22 @@ def create_app() -> Flask:
     app = Flask(__name__)
 
     # --- Configuración base ---
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "supersecreto")
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
     app.config["SUPABASE_URL"] = os.getenv("SUPABASE_URL", "")
     app.config["SUPABASE_KEY"] = os.getenv("SUPABASE_KEY", "")
     if supabase is not None:
         app.config["SUPABASE"] = supabase
 
     # --- Validación de envs (si estás sin Supabase en dev y quieres seguir, comenta este bloque) ---
-    if not app.config["SUPABASE_URL"] or not app.config["SUPABASE_KEY"]:
-        raise RuntimeError("Faltan SUPABASE_URL y/o SUPABASE_KEY en .env")
+    missing_settings = [
+        name
+        for name in ("SECRET_KEY", "SUPABASE_URL", "SUPABASE_KEY")
+        if not app.config[name]
+    ]
+    if missing_settings:
+        raise RuntimeError(
+            f"Faltan variables de entorno obligatorias: {', '.join(missing_settings)}"
+        )
 
     # --- Registro de rutas (import tardío para evitar import circular) ---
     from routes import app_routes
@@ -94,4 +101,5 @@ def create_app() -> Flask:
 if __name__ == "__main__":
     app = create_app()
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
+    app.run(host="0.0.0.0", port=port, debug=debug)

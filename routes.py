@@ -1,11 +1,9 @@
 import os
 import bcrypt
+import re
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for, jsonify
 from functools import wraps
 from services import *
-from utils import *
-from werkzeug.utils import secure_filename
-from werkzeug.security import check_password_hash
 from datetime import datetime
 import json
 from supabase_client import supabase
@@ -33,6 +31,11 @@ role_map = {
 
 # Decorador para restringir acceso según rol
 def require_role(roles):
+    if isinstance(roles, str):
+        roles = {role.strip() for role in roles.split(",")}
+    else:
+        roles = set(roles)
+
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -41,6 +44,41 @@ def require_role(roles):
             return f(*args, **kwargs)
         return wrapper
     return decorator
+
+
+def as_int_or_none(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def validate_order_data(data):
+    nombre = (data.get("nombre") or "").strip()
+    patient_id = (data.get("patient_id") or "").strip()
+    hospital_id = (data.get("hospital") or "").strip()
+    cuarto = (data.get("cuarto") or "").strip()
+    doctor_id = (data.get("doctor") or "").strip()
+    errors = []
+
+    if not nombre or not patient_id:
+        errors.append("Selecciona un paciente desde la lista de sugerencias.")
+    if not hospital_id:
+        errors.append("Selecciona un hospital.")
+    if not cuarto:
+        errors.append("Ingresa el número/nombre de cuarto.")
+    if not doctor_id:
+        errors.append("Selecciona un doctor.")
+    if cuarto and not re.fullmatch(r"[A-Za-z0-9\-# ]{1,15}", cuarto):
+        errors.append("El campo 'Cuarto' solo permite letras, números, espacio, -, # (máx. 15).")
+    if patient_id and not existe_paciente_activo(as_int_or_none(patient_id)):
+        errors.append("El paciente seleccionado no existe o está inactivo.")
+    if hospital_id and not existe_hospital_activo(as_int_or_none(hospital_id)):
+        errors.append("El hospital seleccionado no existe o está inactivo.")
+    if doctor_id and not existe_doctor_activo(as_int_or_none(doctor_id)):
+        errors.append("El doctor seleccionado no existe o está inactivo.")
+
+    return errors
 
 # Ruta principal
 @app_routes.route("/")
@@ -63,7 +101,11 @@ def dashboard():
     if "usuario" not in session:
         return redirect(url_for("app_routes.login"))
     
-    return render_template("dashboard.html")
+    rol = session.get("rol", "")
+    if rol not in role_map.values():
+        session.clear()
+        return redirect(url_for("app_routes.login"))
+    return redirect(url_for(f"app_routes.{rol.lower()}_dashboard"))
 
 
 @app_routes.route('/login', methods=['GET', 'POST'])
@@ -218,7 +260,6 @@ import bcrypt
 @require_role("Admin")
 def add_employee():
     if request.method == "POST":
-        print("Datos del formulario:", request.form)  # Depuración: Imprimir los datos del formulario
 
         # Obtener y validar datos del formulario
         required_fields = [
@@ -260,17 +301,14 @@ def add_employee():
         # Verificar si el usuario ya existe
         existing_user = supabase.table('usuarios').select('id').eq('username', username).execute()
         if existing_user.data:
-            print("Usuario existente:", existing_user.data)  # Depuración
             return "El nombre de usuario ya está en uso. Por favor elige otro.", 400
 
         # Encriptar la contraseña con bcrypt
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        print(f"Contraseña encriptada: {hashed_password}")  # Depuración
 
         # Insertar usuario
         user_data = {"username": username, "password": hashed_password}
         user_response = supabase.table('usuarios').insert(user_data).execute()
-        print("Respuesta de la inserción de usuario:", user_response.data)  # Depuración
         usuario_id = user_response.data[0]['id']
 
         # Insertar empleado
@@ -295,13 +333,11 @@ def add_employee():
             "foto_perfil": foto_perfil
         }
         employee_response = supabase.table('empleados').insert(employee_data).execute()
-        print("Respuesta de la inserción de empleado:", employee_response.data)  # Depuración
         empleado_id = employee_response.data[0]['id']
 
         # Insertar rol en la tabla empleado_roles
         employee_role_data = {"empleado_id": empleado_id, "rol_id": rol_id}
         role_response = supabase.table('empleado_roles').insert(employee_role_data).execute()
-        print("Respuesta de la inserción de rol:", role_response.data)  # Depuración
 
         return redirect(url_for('app_routes.manage_employees'))  # Redirección tras éxito
 
@@ -627,10 +663,12 @@ def activate_hospital(hospital_id):
     
 # Rutas de sidebar según rol
 @app_routes.route("/reportes")
+@require_role("Admin")
 def reportes():
     return render_template("admin/reportes.html")
 
 @app_routes.route("/configuracion")
+@require_role(role_map.values())
 def configuracion():
     # Solo usuarios logueados
     if "usuario" not in session:
@@ -647,11 +685,13 @@ def configuracion():
 
 
 @app_routes.route("/faltantes")
+@require_role("Mostrador")
 def faltantes():
-    return render_template("mostrador/faltantes.html")
+    return redirect(url_for("app_routes.listos"))
 
 
 @app_routes.route("/pacientes")
+@require_role("Enfermero")
 def pacientes():
     return render_template("enfermero/pacientes.html")
 
@@ -1482,32 +1522,7 @@ def manage_orden():
         doctor_id = (request.form.get("doctor") or "").strip()
         observaciones = (request.form.get("observaciones") or "").strip()
 
-        errors = []
-        if not nombre or not patient_id:
-            errors.append("Selecciona un paciente desde la lista de sugerencias.")
-        if not hospital_id:
-            errors.append("Selecciona un hospital.")
-        if not cuarto:
-            errors.append("Ingresa el número/nombre de cuarto.")
-        if not doctor_id:
-            errors.append("Selecciona un doctor.")
-
-        import re
-        if cuarto and not re.match(r'^[A-Za-z0-9\-# ]{1,15}$', cuarto):
-            errors.append("El campo 'Cuarto' solo permite letras, números, espacio, -, # (máx. 15).")
-
-        def as_int_or_none(v):
-            try:
-                return int(v)
-            except Exception:
-                return None
-
-        if patient_id and not existe_paciente_activo(as_int_or_none(patient_id)):
-            errors.append("El paciente seleccionado no existe o está inactivo.")
-        if hospital_id and not existe_hospital_activo(as_int_or_none(hospital_id)):
-            errors.append("El hospital seleccionado no existe o está inactivo.")
-        if doctor_id and not existe_doctor_activo(as_int_or_none(doctor_id)):
-            errors.append("El doctor seleccionado no existe o está inactivo.")
+        errors = validate_order_data(request.form)
 
         if errors:
             for e in errors:
@@ -1553,44 +1568,7 @@ def manage_orden():
 @require_role("Mostrador")
 def api_validar_orden():
     data = request.get_json() or {}
-    nombre = (data.get("nombre") or "").strip()
-    patient_id = (data.get("patient_id") or "").strip()
-    hospital_id = (data.get("hospital") or "").strip()
-    cuarto = (data.get("cuarto") or "").strip()
-    doctor_id = (data.get("doctor") or "").strip()
-
-    errors = []
-
-    # Reglas de obligatoriedad
-    if not nombre or not patient_id:
-        errors.append("Selecciona un paciente desde la lista de sugerencias.")
-    if not hospital_id:
-        errors.append("Selecciona un hospital.")
-    if not cuarto:
-        errors.append("Ingresa el número/nombre de cuarto.")
-    if not doctor_id:
-        errors.append("Selecciona un doctor.")
-
-    # Reglas de formato simples para 'cuarto'
-    if cuarto and not __import__('re').match(r'^[A-Za-z0-9\-# ]{1,15}$', cuarto):
-        errors.append("El campo 'Cuarto' solo permite letras, números, espacio, -, # (máx. 15).")
-
-    # Reglas contra BD (solo si hay datos)
-    # Casting seguro a int cuando apliquen IDs
-    def as_int_or_none(v):
-        try:
-            return int(v)
-        except Exception:
-            return None
-
-    if patient_id and not existe_paciente_activo(as_int_or_none(patient_id)):
-        errors.append("El paciente seleccionado no existe o está inactivo.")
-
-    if hospital_id and not existe_hospital_activo(as_int_or_none(hospital_id)):
-        errors.append("El hospital seleccionado no existe o está inactivo.")
-
-    if doctor_id and not existe_doctor_activo(as_int_or_none(doctor_id)):
-        errors.append("El doctor seleccionado no existe o está inactivo.")
+    errors = validate_order_data(data)
 
     ok = len(errors) == 0
     return jsonify({"ok": ok, "errors": errors}), (200 if ok else 400)
@@ -1978,6 +1956,7 @@ def resultados():
     )
 
 @app_routes.route('/orden/<int:orden_id>/captura_resultados', methods=['GET'])
+@require_role("Quimico")
 def captura_resultados(orden_id):
     # Paso 1: Obtener las pruebas asociadas con la orden desde 'orden_pruebas_detalle'
     pruebas_query = supabase.table('orden_pruebas_detalle') \
@@ -1986,7 +1965,6 @@ def captura_resultados(orden_id):
         .execute()
 
     # Depurar: Verificar si estamos obteniendo las pruebas correctamente
-    print(f"Pruebas Query: {pruebas_query.data}")  # Verificar las pruebas
 
     # Verificar si hay pruebas asociadas a la orden
     if not pruebas_query.data:
@@ -2001,7 +1979,6 @@ def captura_resultados(orden_id):
         .execute()
 
     # Depurar: Verificar si estamos obteniendo el paciente_id correctamente
-    print(f"Orden Query: {orden_query.data}")  # Verificar los datos de la orden
 
     # Verificar si la orden existe y contiene el 'paciente_id'
     if not orden_query.data:
@@ -2016,7 +1993,6 @@ def captura_resultados(orden_id):
         .execute()
 
     # Depurar: Verificar si estamos obteniendo los datos del paciente correctamente
-    print(f"Paciente Query: {paciente_query.data}")  # Verificar los datos del paciente
 
     # Verificar si el paciente existe
     if not paciente_query.data:
@@ -2036,29 +2012,19 @@ def captura_resultados(orden_id):
         prueba['valores_normales'] = valores_normales_query.data  # Asignar los valores normales a la prueba
 
     # Depurar: Verificar los datos que vamos a pasar a la plantilla
-    print(f"Paciente: {paciente}")  # Verificar que el paciente tiene el nombre correcto
-    print(f"Pruebas: {pruebas}")  # Verificar que las pruebas tienen los valores normales
 
     # Pasar el paciente y las pruebas junto con la orden a la plantilla
     return render_template('quimico/resultados_captura.html', orden=orden_id, paciente=paciente, pruebas=pruebas)
 
 
 @app_routes.route('/ordenes/resultados', methods=['GET'])
+@require_role("Quimico")
 def obtener_ordenes_pendientes():
-    # Obtener todas las órdenes que tienen pruebas pero no resultados
-    ordenes_query = supabase.table('ordenes') \
-        .select('ordenes.id, pacientes.nombres AS nombre_paciente, ordenes.cuarto') \
-        .join('pacientes', 'pacientes.id', 'ordenes.paciente_id') \
-        .left_outer_join('orden_pruebas_detalle', 'orden_pruebas_detalle.orden_id', 'ordenes.id') \
-        .left_outer_join('resultados_clinicos', 'resultados_clinicos.orden_prueba_id', 'orden_pruebas_detalle.id') \
-        .is_null('resultados_clinicos.id', True)  # Verifica si no hay resultados asociados
-
-    ordenes = ordenes_query.execute().data
-
-    return render_template('resultados.html', ordenes=ordenes)
+    return redirect(url_for("app_routes.resultados"))
 
 
 @app_routes.route('/guardar_resultados', methods=['POST'])
+@require_role("Quimico")
 def guardar_resultados():
     orden_id = request.form['orden_id']
     paciente_id = request.form['paciente_id']
@@ -2069,16 +2035,25 @@ def guardar_resultados():
         return jsonify({"error": "El resultado parcial es requerido"}), 400
 
     # Intentamos obtener el resultado actual de la base de datos
-    existing_result = supabase.table('resultados_paciente').select('*').eq('orden_id', orden_id).eq('paciente_id', paciente_id).single().execute()
+    existing_result = (
+        supabase.table('resultados_paciente')
+        .select('*')
+        .eq('orden_id', orden_id)
+        .eq('paciente_id', paciente_id)
+        .limit(1)
+        .execute()
+    )
 
-    if existing_result.status_code == 200:
+    if existing_result.data:
         # Si ya existe un resultado, vamos a actualizarlo parcialmente
-        current_result = existing_result.data['resultado']
+        current_result = existing_result.data[0].get('resultado')
 
         # Si hay datos previos, los agregamos al resultado parcial
         if current_result:
-            current_result = json.loads(current_result)
-            current_result.append(resultado_parcial)  # Añadir el nuevo resultado parcial
+            current_result = json.loads(current_result) if isinstance(current_result, str) else current_result
+        else:
+            current_result = []
+        current_result.append(resultado_parcial)
 
         # Actualizar el resultado parcial
         supabase.table('resultados_paciente').update({
@@ -2106,6 +2081,7 @@ def guardar_resultados():
 
 
 @app_routes.route('/finalizar_resultados', methods=['POST'])
+@require_role("Quimico")
 def finalizar_resultados():
     orden_id = request.json.get('orden_id')  # ID de la orden
     # Verificar que todos los campos estén llenos y los resultados están completos
@@ -2135,12 +2111,6 @@ def finalizar_resultados():
     return jsonify({"message": "Resultados finalizados y listos para mostrador"}), 200
 
 @app_routes.route('/mostrar_resultados', methods=['GET'])
+@require_role("Mostrador")
 def mostrar_resultados():
-    # Obtener todas las órdenes finalizadas con resultados listos para mostrador
-    resultados_query = supabase.table('resultados_paciente') \
-        .select('*') \
-        .eq('semaforo', True)  # Solo los resultados que están listos para mostrador
-    
-    resultados = resultados_query.execute().data
-    
-    return render_template('mostrador/resultado_mostrador.html', resultados=resultados)
+    return redirect(url_for("app_routes.listos"))
