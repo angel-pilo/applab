@@ -111,59 +111,15 @@ def dashboard():
 @app_routes.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        usuario = request.form.get('username')
-        password = request.form.get('password')
-
-        # Consultar usuario y verificar si está activo
-        user_query = supabase.table("usuarios").select("*").eq("username", usuario).eq("estado_usuario", True).execute()
-
-        # Verificar si el usuario existe
-        if not user_query.data:
-            flash('Usuario no encontrado o desactivado.', 'error')
-            return redirect(url_for('app_routes.login'))
-
-        user = user_query.data[0]  # Obtener el primer usuario activo
-
-        # Validar contraseña
-        if not verificar_usuario(usuario, password):
+        usuario = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
+        user = verificar_usuario(usuario, password)
+        if not user:
             flash('Usuario o contraseña incorrectos.', 'error')
             return redirect(url_for('app_routes.login'))
 
-        # Obtener id, nombres y foto_perfil del usuario en una sola consulta
-        empleado_query = (
-            supabase.table("empleados")
-            .select("id, nombres, foto_perfil")
-            .eq("usuario_id", user['id'])
-            .execute()
-        )
-
-        # Extraer los datos si la consulta fue exitosa
-        if empleado_query.data:
-            empleado = empleado_query.data[0]  # Tomamos el primer resultado
-            empleado_id = empleado.get("id")
-            nombres = empleado.get("nombres")
-            foto_perfil = empleado.get("foto_perfil")
-        else:
-            empleado_id = None
-            nombres = None
-            foto_perfil = None
-
-
-        if not empleado_query.data:
-            flash('Error: No se encontró un empleado asociado al usuario.', 'error')
-            return redirect(url_for('app_routes.login'))
-
-        empleado_id = empleado_query.data[0]['id']
-
-        # Obtener rol del empleado
-        rol_query = supabase.table("empleado_roles").select("rol_id").eq("empleado_id", empleado_id).execute()
-
-        if not rol_query.data:
-            flash('Error: El empleado no tiene roles asignados.', 'error')
-            return redirect(url_for('app_routes.login'))
-
         # Asignar rol
-        rol_id = rol_query.data[0]['rol_id']
+        rol_id = as_int_or_none(user.get('rol_id'))
         rol = role_map.get(rol_id)
 
         if not rol:
@@ -173,8 +129,8 @@ def login():
         # Guardar sesión
         session["usuario"] = usuario
         session["rol"] = rol
-        session["nombres"] = nombres
-        session["foto_perfil"] = foto_perfil
+        session["nombres"] = user.get("nombres")
+        session["foto_perfil"] = user.get("foto_perfil")
 
         session['user_id'] = user['id']  # Establecer user_id en la sesión correctamente
 

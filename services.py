@@ -1,47 +1,63 @@
 import bcrypt
+import logging
 from supabase_client import supabase
+
+
+logger = logging.getLogger(__name__)
 
 def verificar_usuario(usuario, password):
     """Verifica si un usuario existe y su contraseña es correcta."""
-    try:
-        # Obtiene el usuario por nombre de usuario
-        result = supabase.table('usuarios').select('id, password').eq('username', usuario).execute()
-
-        if result.data and len(result.data) > 0:
-            user = result.data[0]
-            user_id = user['id']
-            hashed_password = user['password']
-
-            # Verifica la contraseña utilizando bcrypt
-            if bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8')):
-                # Obtener el empleado correspondiente al usuario
-                empleado_result = supabase.table('empleados').select('id').eq('usuario_id', user_id).execute()
-
-                if empleado_result.data:
-                    empleado_id = empleado_result.data[0]['id']
-
-                    # Obtener el rol del empleado
-                    rol_result = supabase.table('empleado_roles').select('rol_id').eq('empleado_id', empleado_id).execute()
-
-                    if not rol_result.data:
-                        return None  # Usuario sin rol
-
-                    rol_id = rol_result.data[0]['rol_id']
-
-                    # Obtener información adicional del empleado
-                    empleado_info = supabase.table('empleados').select('nombres, foto_perfil').eq('usuario_id', user_id).execute()
-                    if empleado_info.data:
-                        user.update({
-                            'nombres': empleado_info.data[0]['nombres'],
-                            'foto_perfil': empleado_info.data[0]['foto_perfil'],
-                            'rol_id': rol_id
-                        })
-                        return user
-
-    except Exception:
+    if not usuario or not password:
         return None
-    
-    return None
+
+    try:
+        result = (
+            supabase.table("usuarios")
+            .select("id, password, estado_usuario")
+            .eq("username", usuario)
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            return None
+
+        user = result.data[0]
+        hashed_password = user.get("password")
+        if not user.get("estado_usuario") or not hashed_password:
+            return None
+        if not bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8")):
+            return None
+
+        empleado_result = (
+            supabase.table("empleados")
+            .select("id, nombres, foto_perfil")
+            .eq("usuario_id", user["id"])
+            .limit(1)
+            .execute()
+        )
+        if not empleado_result.data:
+            return None
+
+        empleado = empleado_result.data[0]
+        rol_result = (
+            supabase.table("empleado_roles")
+            .select("rol_id")
+            .eq("empleado_id", empleado["id"])
+            .limit(1)
+            .execute()
+        )
+        if not rol_result.data:
+            return None
+
+        return {
+            "id": user["id"],
+            "nombres": empleado.get("nombres"),
+            "foto_perfil": empleado.get("foto_perfil"),
+            "rol_id": rol_result.data[0].get("rol_id"),
+        }
+    except Exception:
+        logger.exception("No se pudo verificar al usuario")
+        return None
 
 
 def obtener_empleados():

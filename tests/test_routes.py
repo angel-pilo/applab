@@ -15,6 +15,7 @@ os.environ.setdefault(
 import routes
 from app import create_app
 from flask import render_template
+from supabase_client import normalize_supabase_url
 
 
 class OrderValidationTests(unittest.TestCase):
@@ -36,6 +37,20 @@ class OrderValidationTests(unittest.TestCase):
         errors = routes.validate_order_data({})
 
         self.assertEqual(len(errors), 4)
+
+
+class SupabaseConfigurationTests(unittest.TestCase):
+    def test_rest_endpoint_is_normalized_to_project_url(self):
+        self.assertEqual(
+            normalize_supabase_url("https://project.supabase.co/rest/v1/"),
+            "https://project.supabase.co",
+        )
+
+    def test_project_url_is_preserved(self):
+        self.assertEqual(
+            normalize_supabase_url("https://project.supabase.co"),
+            "https://project.supabase.co",
+        )
 
 
 class AuthorizationTests(unittest.TestCase):
@@ -62,6 +77,26 @@ class AuthorizationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].endswith("/quimico"))
+
+    @patch.object(
+        routes,
+        "verificar_usuario",
+        return_value={
+            "id": 10,
+            "nombres": "Administrador",
+            "foto_perfil": None,
+            "rol_id": 1,
+        },
+    )
+    def test_admin_login_redirects_to_dashboard(self, _):
+        response = self.app.test_client().post(
+            "/login",
+            data={"username": "admin", "password": "correcta"},
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/admin"))
 
 
 class AdminTemplateTests(unittest.TestCase):
