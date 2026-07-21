@@ -638,14 +638,29 @@ def actualizar_prueba(prueba_id, nombre, tipo, precio):
 
 
 def actualizar_reactivos_de_prueba(prueba_id, lista_reactivos_ids):
+    """Reemplaza las relaciones de reactivos de una prueba."""
     try:
-        del_response = supabase.table('pruebas_reactivos').delete().eq('prueba_id', prueba_id).execute()
-        if del_response.error:
-            print(f"Error eliminando reactivos previos: {del_response.error}")
-            return None
-        return asignar_reactivos_a_prueba(prueba_id, lista_reactivos_ids)
+        supabase.table('pruebas_reactivos').delete().eq('prueba_id', prueba_id).execute()
+        if lista_reactivos_ids:
+            return asignar_reactivos_a_prueba(prueba_id, lista_reactivos_ids)
+        return []
     except Exception as e:
         print(f"Error al actualizar reactivos: {e}")
+        return None
+
+
+def eliminar_valores_normales_de_prueba(prueba_id):
+    """Elimina los valores de referencia anteriores antes de guardar la edición."""
+    try:
+        response = (
+            supabase.table('valores_normales')
+            .delete()
+            .eq('prueba_id', prueba_id)
+            .execute()
+        )
+        return response.data or []
+    except Exception as e:
+        print(f"Error al eliminar valores normales de la prueba: {e}")
         return None
 
 

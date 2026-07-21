@@ -89,6 +89,45 @@ class EmployeeServiceTests(unittest.TestCase):
         self.assertTrue(employees[0]["estado"])
 
 
+class ClinicalTestServiceTests(unittest.TestCase):
+    class FakeQuery:
+        def __init__(self):
+            self.selected_table = None
+            self.filters = []
+
+        def table(self, table_name):
+            self.selected_table = table_name
+            return self
+
+        def delete(self):
+            return self
+
+        def eq(self, field, value):
+            self.filters.append((field, value))
+            return self
+
+        def execute(self):
+            return SimpleNamespace(data=[])
+
+    def test_replacing_reagents_supports_current_api_response(self):
+        fake = self.FakeQuery()
+        with patch.object(services, "supabase", fake):
+            result = services.actualizar_reactivos_de_prueba(8, [])
+
+        self.assertEqual(result, [])
+        self.assertEqual(fake.selected_table, "pruebas_reactivos")
+        self.assertIn(("prueba_id", 8), fake.filters)
+
+    def test_normal_values_can_be_deleted_before_edit_save(self):
+        fake = self.FakeQuery()
+        with patch.object(services, "supabase", fake):
+            result = services.eliminar_valores_normales_de_prueba(8)
+
+        self.assertEqual(result, [])
+        self.assertEqual(fake.selected_table, "valores_normales")
+        self.assertIn(("prueba_id", 8), fake.filters)
+
+
 class AuthorizationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
