@@ -4,12 +4,6 @@
 
 {% block content %}
 
-<script src="https://cdn.tailwindcss.com"></script>
-<link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
-/>
-
 <style>
   .autocomplete-suggestions {
     border: 1px solid #ddd;
@@ -63,8 +57,8 @@
   else url_for('app_routes.add_prueba')
 %}
 
-<form method="POST" action="{{ form_action }}" id="form-prueba">
-  <div class="w-full px-4 md:px-8 lg:px-16 xl:px-32 mt-8 space-y-8">
+<form method="POST" action="{{ form_action }}" id="form-prueba" class="clinical-test-form">
+  <div class="admin-form-shell mt-8 space-y-8">
     <!-- Encabezado -->
     <div class="flex items-center mb-2">
       <button class="text-2xl" type="button" onclick="window.history.back()">
@@ -76,8 +70,11 @@
     </div>
 
     <!-- 1. Información de la prueba + Reactivos -->
-    <div class="bg-white p-8 rounded-2xl shadow-md w-full">
-        <h2 class="text-xl font-bold mb-4">Información de la prueba</h2>
+    <div class="bg-white p-8 rounded-2xl shadow-md w-full clinical-test-section">
+        <div class="clinical-step-heading">
+          <span class="clinical-step-number">1</span>
+          <div><h2 class="text-xl font-bold">Información de la prueba</h2><p>Define los datos generales y los reactivos necesarios.</p></div>
+        </div>
         <div class="border-b border-gray-300 mb-4"></div>
 
         <div class="flex flex-wrap gap-4">
@@ -193,8 +190,11 @@
     </div>
 
     <!-- 2. Valores normales -->
-<div class="bg-white p-8 rounded-2xl shadow-md w-full">
-    <h2 class="text-xl font-bold mb-4">Valores normales</h2>
+<div class="bg-white p-8 rounded-2xl shadow-md w-full clinical-test-section">
+    <div class="clinical-step-heading">
+      <span class="clinical-step-number">2</span>
+      <div><h2 class="text-xl font-bold">Elementos de la prueba</h2><p>Agrega cada resultado que reportará la prueba, por ejemplo glucosa, urea o creatinina.</p></div>
+    </div>
     <div class="border-b border-gray-300 mb-4"></div>
 
     <!-- Controles para crear un valor normal -->
@@ -202,26 +202,25 @@
         <!-- Nombre del valor normal -->
         <div class="flex flex-col mb-4 md:mb-0">
             <label for="nombre-valor" class="font-semibold mb-2">
-                Nombre del parámetro
+                Nombre del elemento
             </label>
             <input
                 type="text"
                 id="nombre-valor"
                 class="border rounded-lg p-2 w-full md:w-80"
-                placeholder="Ej. Hemoglobina"
-                value="{{ prueba.valores_normales[0].nombre if is_edit and prueba.valores_normales and prueba.valores_normales | length > 0 else '' }}"
+                placeholder="Ej. Glucosa"
             />
             <div id="nombre-error-empty" class="error-message hidden">
                 Por favor ingresa un nombre.
             </div>
             <div id="nombre-error-exist" class="error-message hidden">
-                Este valor normal ya existe.
+                Este elemento ya fue agregado.
             </div>
         </div>
 
         <!-- Tipo de separación -->
         <div class="flex flex-col md:ml-4">
-            <label class="font-semibold mb-2">Tipo de separación</label>
+            <label class="font-semibold mb-2">Tipo de valor de referencia</label>
             <div class="flex flex-wrap items-center mb-4 mt-2">
                 <label class="mr-4">
                     <input
@@ -297,8 +296,21 @@
             id="btn-add-valor"
             class="bg-white text-blue-500 border border-blue-500 px-4 py-2 rounded-lg shadow-md hover:bg-blue-50"
         >
-            Agregar valor normal
+            <i class="fas fa-plus mr-2" aria-hidden="true"></i>Agregar elemento
         </button>
+    </div>
+
+    <div class="clinical-elements-heading">
+      <div>
+        <h3>3. Configura los valores de referencia</h3>
+        <p>Completa el rango o resultado esperado para cada elemento.</p>
+      </div>
+      <span id="elementos-count" class="clinical-elements-count">0 elementos</span>
+    </div>
+    <div id="elementos-empty" class="clinical-elements-empty">
+      <i class="fas fa-vials" aria-hidden="true"></i>
+      <strong>Aún no hay elementos</strong>
+      <span>Escribe un nombre, elige cómo se interpreta y presiona “Agregar elemento”.</span>
     </div>
 
     <!-- Contenedor donde se agregan las tarjetas -->
@@ -307,11 +319,12 @@
         {% if prueba.valores_normales %}
             {% for valor in prueba.valores_normales %}
                 <div class="bg-white shadow-md rounded-2xl p-4 border valor-normal-card" data-nombre="{{ valor.nombre }}" data-tipo_separacion="{{ valor.tipo_separacion }}">
-                    <div class="flex justify-between items-center mb-2">
+                    <div class="flex justify-between items-center mb-2 header-valor cursor-pointer">
                         <h3 class="text-lg font-bold">{{ valor.nombre }} - {{ valor.tipo_separacion }}</h3>
-                        <button type="button" class="text-red-500 eliminar-valor">
+                        <button type="button" class="text-red-500 eliminar-valor" aria-label="Eliminar {{ valor.nombre }}" title="Eliminar elemento">
                             <i class="fas fa-trash-alt"></i>
                         </button>
+                        <button type="button" class="text-black" aria-label="Mostrar u ocultar valores"><i class="fas fa-chevron-up arrow-icon"></i></button>
                     </div>
                     <div class="contenido-fila mt-4">
                         <!-- Aquí se agregan los valores para cada tipo de separación -->
@@ -512,7 +525,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function crearTarjetaValor(nombre, tipoSeparacion) {
     const card = document.createElement("div");
     card.className =
-      "bg-white shadow-md rounded-2xl p-6 mt-4 valor-normal-card";
+      "bg-white shadow-md rounded-2xl p-6 mt-4 valor-normal-card clinical-element-card";
     card.dataset.nombre = nombre;
     card.dataset.tipoSeparacion = tipoSeparacion;
 
@@ -531,7 +544,7 @@ document.addEventListener("DOMContentLoaded", function () {
             </button>
           </div>
         </div>
-        <div class="contenido-fila mt-4 hidden">
+        <div class="contenido-fila mt-4">
           <div class="flex items-center space-x-4 mt-2">
             <span class="w-1/4">Hombres</span>
             <div class="w-1/3 flex items-center space-x-2">
@@ -567,7 +580,7 @@ document.addEventListener("DOMContentLoaded", function () {
             </button>
           </div>
         </div>
-        <div class="contenido-fila mt-4 hidden">
+        <div class="contenido-fila mt-4">
           <div class="flex items-center space-x-4 mt-2">
             <span class="w-1/4">0 a 1 año</span>
             <div class="w-1/3 flex items-center space-x-2">
@@ -611,7 +624,7 @@ document.addEventListener("DOMContentLoaded", function () {
             </button>
           </div>
         </div>
-        <div class="contenido-fila mt-4 hidden">
+        <div class="contenido-fila mt-4">
           <div class="flex items-center space-x-4 mt-2">
             <span class="w-1/4">Hombres 18–45</span>
             <div class="w-1/3 flex items-center space-x-2">
@@ -647,7 +660,7 @@ document.addEventListener("DOMContentLoaded", function () {
             </button>
           </div>
         </div>
-        <div class="contenido-fila mt-4 hidden">
+        <div class="contenido-fila mt-4">
           <div class="flex items-center space-x-4 mt-2">
             <span class="w-1/4">Rango</span>
             <div class="w-1/3 flex items-center space-x-2">
@@ -675,7 +688,7 @@ document.addEventListener("DOMContentLoaded", function () {
             </button>
           </div>
         </div>
-        <div class="contenido-fila mt-4 hidden">
+        <div class="contenido-fila mt-4">
           <div class="flex items-center space-x-4 mt-2">
             <span class="w-1/4">Valor normal</span>
             <select data-field="posneg_normal" class="w-1/3 border border-gray-300 rounded-full p-2">
@@ -698,7 +711,7 @@ document.addEventListener("DOMContentLoaded", function () {
             </button>
           </div>
         </div>
-        <div class="contenido-fila mt-4 hidden">
+        <div class="contenido-fila mt-4">
           <div class="flex items-center space-x-4 mt-2">
             <span class="w-1/4">Máximo permitido</span>
             <input data-field="menorque_max" type="text" class="w-1/3 border border-gray-300 rounded-full p-2" placeholder="Valor">
@@ -731,11 +744,43 @@ document.addEventListener("DOMContentLoaded", function () {
       btnEliminar.addEventListener("click", function (e) {
         e.stopPropagation();
         card.remove();
+        actualizarEstadoElementos();
       });
     }
 
     contenedorValores.appendChild(card);
+    actualizarEstadoElementos();
+    return card;
   }
+
+  function actualizarEstadoElementos() {
+    const cantidad = contenedorValores.querySelectorAll(".valor-normal-card").length;
+    const contador = document.getElementById("elementos-count");
+    const vacio = document.getElementById("elementos-empty");
+    if (contador) contador.textContent = `${cantidad} ${cantidad === 1 ? "elemento" : "elementos"}`;
+    if (vacio) vacio.classList.toggle("hidden", cantidad > 0);
+  }
+
+  // En edición, conecta también las tarjetas renderizadas por el servidor.
+  contenedorValores.querySelectorAll(".valor-normal-card").forEach(card => {
+    card.classList.add("clinical-element-card");
+    const header = card.querySelector(".header-valor");
+    const contenido = card.querySelector(".contenido-fila");
+    const arrow = card.querySelector(".arrow-icon");
+    const eliminar = card.querySelector(".eliminar-valor");
+    header?.addEventListener("click", event => {
+      if (event.target.closest(".eliminar-valor")) return;
+      contenido?.classList.toggle("hidden");
+      arrow?.classList.toggle("fa-chevron-down");
+      arrow?.classList.toggle("fa-chevron-up");
+    });
+    eliminar?.addEventListener("click", event => {
+      event.stopPropagation();
+      card.remove();
+      actualizarEstadoElementos();
+    });
+  });
+  actualizarEstadoElementos();
 
   function nombreValorExiste(nombre) {
     return Array.from(

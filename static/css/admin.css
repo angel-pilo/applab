@@ -198,6 +198,119 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     }
 }
 
+/* Formulario guiado para pruebas clínicas. */
+.clinical-test-form .admin-form-shell {
+    width: min(1180px, calc(100% - 2rem));
+    margin-inline: auto;
+}
+
+.clinical-test-section {
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.clinical-step-heading {
+    display: flex;
+    gap: 0.875rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.clinical-step-heading p,
+.clinical-elements-heading p {
+    margin-top: 0.2rem;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.clinical-step-number {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 2rem;
+    place-items: center;
+    border-radius: 999px;
+    background: #2563eb;
+    color: #fff;
+    font-weight: 700;
+}
+
+.clinical-elements-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.clinical-elements-heading h3 {
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.clinical-elements-count {
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.clinical-elements-empty {
+    display: flex;
+    min-height: 9rem;
+    margin-top: 1rem;
+    padding: 1.5rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: 1px dashed #bfdbfe;
+    border-radius: 1rem;
+    background: #f8fbff;
+    color: #64748b;
+    text-align: center;
+}
+
+.clinical-elements-empty.hidden { display: none; }
+.clinical-elements-empty i { color: #3b82f6; font-size: 1.5rem; }
+.clinical-elements-empty strong { color: #334155; }
+
+.clinical-element-card {
+    border: 1px solid #dbeafe;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.07);
+}
+
+.clinical-element-card .header-valor {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eef2f7;
+}
+
+.clinical-element-card .eliminar-valor {
+    display: grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    place-items: center;
+    border-radius: 0.65rem;
+}
+
+.clinical-element-card .eliminar-valor:hover { background: #fef2f2; }
+
+@media (max-width: 640px) {
+    .clinical-test-form .admin-form-shell { width: min(100% - 1rem, 1180px); }
+    .clinical-test-section { padding: 1.25rem; }
+    .clinical-elements-heading { align-items: flex-start; }
+    .clinical-element-card { padding: 1rem; }
+    .clinical-element-card .contenido-fila > div { align-items: flex-start; flex-direction: column; gap: 0.5rem; }
+    .clinical-element-card .contenido-fila .w-1\/4,
+    .clinical-element-card .contenido-fila .w-1\/3 { width: 100%; }
+}
+
 /* Base común para tablas administrativas, incluidas las vistas heredadas. */
 .admin-surface table {
     width: 100%;
