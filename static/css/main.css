@@ -249,6 +249,56 @@ body {
     box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); /* sombra más intensa al pasar el ratón */
 }
 
+/* Acciones consistentes para los listados administrativos */
+.admin-primary-action {
+    min-height: 2.5rem;
+    padding: 0.55rem 1rem;
+    white-space: nowrap;
+    border-width: 1px;
+    box-shadow: 0 2px 5px rgba(0, 95, 204, 0.12);
+}
+
+.admin-action-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    min-width: max-content;
+}
+
+.admin-action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 5rem;
+    min-height: 2rem;
+    padding: 0.35rem 0.75rem;
+    border-width: 1px;
+    border-radius: 0.75rem;
+    box-shadow: none;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.admin-action-button:focus-visible,
+.admin-primary-action:focus-visible {
+    outline: 3px solid rgba(59, 130, 246, 0.25);
+    outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+    .admin-action-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-action-button {
+        width: 100%;
+    }
+}
+
 .btn-guardar {
     background-color: white;
     color: #007BFF;

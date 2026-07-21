@@ -137,6 +137,13 @@ class AdminTemplateTests(unittest.TestCase):
                     html = render_template(template_name, **context)
                     self.assertIn("Administración", html)
                     self.assertIn("filter-menu", html)
+                    self.assertIn("admin-primary-action", html)
+                    self.assertIn("admin-action-group", html)
+
+    def test_every_template_compiles(self):
+        for template_name in self.app.jinja_env.list_templates():
+            with self.subTest(template=template_name):
+                self.app.jinja_env.get_template(template_name)
 
 
 if __name__ == "__main__":

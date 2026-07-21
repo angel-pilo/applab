@@ -19,10 +19,10 @@
     <td class="px-5 py-4 font-semibold text-gray-900">{{ patient.nombres }} {{ patient.apellidos }}</td>
     <td class="px-5 py-4">{{ patient.telefono or '—' }}</td><td class="px-5 py-4">{{ patient.correo or '—' }}</td>
     <td class="estado px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ 'bg-emerald-50 text-emerald-700' if patient.activo else 'bg-gray-200 text-gray-600' }}">{{ 'Activo' if patient.activo else 'Inactivo' }}</span></td>
-    <td class="px-5 py-4 text-right">
-      {% if patient.activo %}<button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_patient', patient_id=patient.id) }}'">Editar</button>{% if rol == 'Admin' %}<button class="btn-eliminar" onclick="confirmDeletePatient('{{ patient.id }}')">Eliminar</button>{% endif %}
-      {% elif rol == 'Admin' %}<button class="btn-activar" onclick="confirmActivatePatient('{{ patient.id }}')">Activar</button>{% endif %}
-    </td>
+    <td class="px-5 py-4"><div class="admin-action-group">
+      {% if patient.activo %}<button class="btn-editar admin-action-button" onclick="window.location.href='{{ url_for('app_routes.edit_patient', patient_id=patient.id) }}'">Editar</button>{% if rol == 'Admin' %}<button class="btn-eliminar admin-action-button" onclick="confirmDeletePatient('{{ patient.id }}')">Eliminar</button>{% endif %}
+      {% elif rol == 'Admin' %}<button class="btn-activar admin-action-button" onclick="confirmActivatePatient('{{ patient.id }}')">Activar</button>{% endif %}
+    </div></td>
   </tr>
   {% else %}<tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No hay pacientes registrados.</td></tr>{% endfor %}
 {% endblock %}

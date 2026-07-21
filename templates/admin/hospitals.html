@@ -28,7 +28,7 @@
     <td class="px-5 py-4 font-medium">#{{ hospital.id }}</td><td class="px-5 py-4 font-semibold text-gray-900">{{ hospital.nombre }}</td><td class="px-5 py-4">{{ hospital.telefono or '—' }}</td><td class="px-5 py-4">{{ hospital.correo or '—' }}</td>
     <td class="px-5 py-4">{{ hospital.calle }}, {{ hospital.numero_ext }}, {{ hospital.municipio }}, {{ hospital.estado }}</td>
     <td class="estado px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ 'bg-emerald-50 text-emerald-700' if hospital.activo else 'bg-gray-200 text-gray-600' }}">{{ 'Activo' if hospital.activo else 'Inactivo' }}</span></td>
-    <td class="acciones px-5 py-4 text-right">{% if hospital.activo %}<button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_hospital', hospital_id=hospital.id) }}'">Editar</button><button class="btn-eliminar" onclick="confirmDelete('{{ hospital.id }}')">Eliminar</button>{% else %}<button class="btn-activar" onclick="confirmActivate({{ hospital.id }})">Activar</button>{% endif %}</td>
+    <td class="acciones px-5 py-4"><div class="admin-action-group">{% if hospital.activo %}<button class="btn-editar admin-action-button" onclick="window.location.href='{{ url_for('app_routes.edit_hospital', hospital_id=hospital.id) }}'">Editar</button><button class="btn-eliminar admin-action-button" onclick="confirmDelete('{{ hospital.id }}')">Eliminar</button>{% else %}<button class="btn-activar admin-action-button" onclick="confirmActivate({{ hospital.id }})">Activar</button>{% endif %}</div></td>
   </tr>
   {% else %}<tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">No hay hospitales registrados.</td></tr>{% endfor %}
 {% endblock %}

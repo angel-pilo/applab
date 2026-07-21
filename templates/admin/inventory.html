@@ -21,7 +21,7 @@
             <input type="text" id="search-input" placeholder="Buscar reactivo" class="w-full p-2 border rounded" oninput="searchInventory()">
             <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
         </div>
-        <button class="btn-editar ml-4" style="border-radius: 1rem;" onclick="window.location.href='{{ url_for('app_routes.add_reactivo') }}'">Añadir reactivo</button>
+        <button class="btn-editar admin-primary-action ml-4" onclick="window.location.href='{{ url_for('app_routes.add_reactivo') }}'">Añadir reactivo</button>
     </div>
     <!-- Mensaje que se muestra cuando no hay resultados -->
     <div id="not-found-message" class="hidden text-red-500 mb-4 ">
@@ -56,13 +56,15 @@
                             <td class="py-2 px-15">{{ reactivo.cantidad_inicial }}</td>
                             <td class="py-2 px-15">${{ reactivo.precio_unidad }}</td>
                             <td class="py-2 px-15">{{ 'Activo' if reactivo.activo else 'Inactivo' }}</td>
-                            <td class="py-2 px-15">
+                            <td class="py-2 px-4">
+                              <div class="admin-action-group">
                                 {% if reactivo.activo %}
-                                    <button class="btn-editar" style="border-radius: 1rem;" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_reactivo', reactivo_id=reactivo.id) }}'">Editar</button>
-                                    <button class="btn-eliminar" style="border-radius: 1rem;" onclick="event.stopPropagation(); confirmDeleteReactivo('{{ reactivo.id }}')">Eliminar</button>
+                                    <button class="btn-editar admin-action-button" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_reactivo', reactivo_id=reactivo.id) }}'">Editar</button>
+                                    <button class="btn-eliminar admin-action-button" onclick="event.stopPropagation(); confirmDeleteReactivo('{{ reactivo.id }}')">Eliminar</button>
                                 {% else %}
-                                    <button class="btn-activar" style="border-radius: 1rem;" onclick="event.stopPropagation(); confirmActivateReactivo('{{ reactivo.id }}')">Activar</button>
+                                    <button class="btn-activar admin-action-button" onclick="event.stopPropagation(); confirmActivateReactivo('{{ reactivo.id }}')">Activar</button>
                                 {% endif %}
+                              </div>
                             </td>
                         </tr>
                         {% endfor %}

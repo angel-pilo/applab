@@ -40,7 +40,7 @@
             <input type="text" id="search-input" placeholder="Buscar empleado" class="w-full p-2 border rounded" oninput="searchEmployee()">
             <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
         </div>
-        <button class="btn-editar ml-4" style="border-radius: 1rem;" onclick="window.location.href='{{ url_for('app_routes.add_employee') }}'">
+        <button class="btn-editar admin-primary-action ml-4" onclick="window.location.href='{{ url_for('app_routes.add_employee') }}'">
             Añadir empleado
         </button>
     </div>
@@ -94,15 +94,17 @@
                                 <td class="py-2 px-15">{{ empleado.apellidos }}</td>
                                 <td class="py-2 px-15">{{ empleado.rol_nombre }}</td>
                                 <td class="py-2 px-15">{{ 'Activo' if empleado.estado else 'Inactivo' }}</td>
-                                <td class="py-2 px-15">
+                                <td class="py-2 px-4">
+                                  <div class="admin-action-group">
                                     {% if empleado.estado %}
-                                        <button class="btn-editar" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_employee', empleado_id=empleado.id) }}'">Editar</button>
-                                        <button class="btn-eliminar" onclick="event.stopPropagation(); confirmDelete('{{ empleado.id }}')" style="border-radius: 1rem;">Eliminar</button>
+                                        <button class="btn-editar admin-action-button" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_employee', empleado_id=empleado.id) }}'">Editar</button>
+                                        <button class="btn-eliminar admin-action-button" onclick="event.stopPropagation(); confirmDelete('{{ empleado.id }}')">Eliminar</button>
                                     {% else %}
-                                    <button onclick="confirmActivate({{ empleado.id }})" class="btn-activar">
+                                    <button onclick="event.stopPropagation(); confirmActivate({{ empleado.id }})" class="btn-activar admin-action-button">
                                         Activar
                                     </button>
                                     {% endif %}
+                                  </div>
                                 </td>
                             </tr>
                             {% endfor %}

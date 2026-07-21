@@ -25,7 +25,7 @@
                    class="w-full py-2 pl-4 pr-10 border rounded-full focus:outline-none focus:ring-2 focus:ring-red-500">
             <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
         </div>
-         <button class="btn-editar" style="border-radius: 1rem;"
+         <button class="btn-editar admin-primary-action"
                 onclick="window.location.href='{{ url_for('app_routes.add_prueba') }}'">
             Registrar prueba
         </button>
@@ -62,20 +62,22 @@
                             {{ 'Activo' if prueba.activo else 'Inactivo' }}
                         </td>
                         <td class="py-2 px-4">
+                          <div class="admin-action-group">
                             {% if prueba.activo %}
-                                <button class="btn-editar"
+                                <button class="btn-editar admin-action-button"
                                         onclick="window.location.href='{{ url_for('app_routes.edit_prueba', prueba_id=prueba.id) }}'">
                                     Editar
                                 </button>
-                                <button class="btn-eliminar"
+                                <button class="btn-eliminar admin-action-button"
                                         onclick="confirmDelete('{{ prueba.id }}')">
                                     Eliminar
                                 </button>
                             {% else %}
-                                <button onclick="confirmActivate({{ prueba.id }})" class="btn-activar">
+                                <button onclick="confirmActivate({{ prueba.id }})" class="btn-activar admin-action-button">
                                     Activar
                                 </button>
                             {% endif %}
+                          </div>
                         </td>
                     </tr>
                     {% endfor %}
