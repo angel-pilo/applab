@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}editar empleado{% endblock %}
+{% block title %}{{ 'Editar empleado' if is_edit else 'Registrar empleado' }}{% endblock %}
 
 {% block content %}
 
 <div class="flex-1 p-8 transition-all duration-300">
     <div class="flex items-center space-x-2 mb-6">
         <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-        <h1 class="text-3xl font-bold">Agregar nuevo empleado</h1>
+        <h1 class="text-3xl font-bold">{{ 'Editar empleado' if is_edit else 'Registrar empleado' }}</h1>
     </div>
     <form onsubmit="return validateForm()" method="POST" enctype="multipart/form-data">
         <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md">
@@ -75,7 +75,7 @@
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2" for="password">Contraseña<span class="text-red-500">*</span></label>
-                        <input type="password" id="password" name="password" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Deja en blanco para mantener la contraseña actual">
+                        <input type="password" id="password" name="password" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="{{ 'Deja en blanco para mantener la contraseña actual' if is_edit else 'Ingresa una contraseña segura' }}" {% if not is_edit %}required{% endif %}>
                     </div>
                 </div>
                 <div id="drop-zone" class="md:col-span-1">
@@ -149,7 +149,7 @@
             </div>
         </div>
         <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
-            <button type="submit" class="btn-guardar">Guardar</button>
+            <button type="submit" class="btn-guardar">{{ 'Guardar cambios' if is_edit else 'Registrar empleado' }}</button>
             <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
         </div>
     </form>

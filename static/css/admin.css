@@ -91,3 +91,218 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .max-w-7xl {
     max-width: 96%;
 }
+/* Sistema visual compartido para formularios administrativos */
+.admin-surface #main-content {
+    color: #111827;
+}
+
+.admin-surface #main-content > .flex-1 {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding: 2rem 1rem;
+}
+
+.admin-surface form {
+    width: 100%;
+}
+
+.admin-surface form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #374151;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+}
+
+.admin-surface form input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
+.admin-surface form select,
+.admin-surface form textarea {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.75rem;
+    background: #fff;
+    color: #111827;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.admin-surface form textarea {
+    min-height: 7rem;
+    resize: vertical;
+}
+
+.admin-surface form input:focus,
+.admin-surface form select:focus,
+.admin-surface form textarea:focus {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.admin-surface form input[readonly],
+.admin-surface form input:disabled,
+.admin-surface form select:disabled {
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.admin-surface form input[type="radio"],
+.admin-surface form input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #dc2626;
+}
+
+.admin-surface form label.inline-flex {
+    display: inline-flex;
+    margin-bottom: 0;
+    align-items: center;
+    font-weight: 500;
+}
+
+.admin-surface form > div:not(:last-child) .bg-white,
+.admin-surface form > .bg-white {
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.admin-surface form .btn-guardar,
+.admin-surface form .btn-cancelar {
+    display: inline-flex;
+    min-width: 7rem;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 1rem;
+    border-width: 1px;
+    border-radius: 0.75rem;
+    box-shadow: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    .admin-surface #main-content > .flex-1 {
+        padding-inline: 0;
+    }
+
+    .admin-surface form .btn-guardar,
+    .admin-surface form .btn-cancelar {
+        width: 100%;
+    }
+}
+
+/* Base común para tablas administrativas, incluidas las vistas heredadas. */
+.admin-surface table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
+    font-size: 0.875rem;
+}
+
+.admin-surface table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+    color: #6b7280;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.admin-surface table tbody td {
+    padding: 0.875rem 1rem;
+    vertical-align: middle;
+}
+
+.admin-surface table tbody tr {
+    transition: background-color 140ms ease;
+}
+
+.admin-surface table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.admin-surface table th:last-child,
+.admin-surface table td:last-child {
+    text-align: right;
+}
+
+.admin-surface #employee-details:not(.hidden) {
+    display: grid;
+}
+
+/* Panel lateral compartido para detalles de empleados y reactivos. */
+.admin-surface section:has(#employee-details) {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 1100;
+    width: min(28rem, calc(100vw - 2rem));
+    height: 100vh;
+    padding: 1rem;
+    background: #fff;
+    box-shadow: -18px 0 45px rgba(15, 23, 42, 0.18);
+    overflow-y: auto;
+    transform: translateX(0);
+    transition: transform 200ms ease, visibility 200ms ease;
+}
+
+.admin-surface section:has(#employee-details) > div {
+    border: 0;
+    box-shadow: none;
+    padding: 1rem;
+}
+
+.admin-surface section:has(#employee-details.hidden) {
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(100%);
+}
+
+.admin-surface.admin-detail-open::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 1090;
+    background: rgba(15, 23, 42, 0.38);
+    backdrop-filter: blur(1px);
+}
+
+.admin-detail-close {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-left: auto;
+    margin-bottom: 1rem;
+    place-items: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    background: #fff;
+    color: #4b5563;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+.admin-detail-close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+@media (max-width: 640px) {
+    .admin-surface section:has(#employee-details) {
+        width: calc(100vw - 1rem);
+        padding: 0.75rem;
+    }
+}

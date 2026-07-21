@@ -297,7 +297,13 @@ def add_employee():
 
         return redirect(url_for('app_routes.manage_employees'))  # Redirección tras éxito
 
-    return render_template('admin/add_employee.html', estados=estados)
+    return render_template(
+        'admin/edit_employee.html',
+        empleado={},
+        is_edit=False,
+        role_map=role_map,
+        estados=estados,
+    )
 
 
 
@@ -534,7 +540,7 @@ def add_hospital():
         flash("Hospital registrado exitosamente", "success")
         return redirect(url_for('app_routes.manage_hospitals'))
     
-    return render_template('admin/add_hospital.html', estados=estados)
+    return render_template('admin/add_hospital.html', hospital={}, is_edit=False, estados=estados)
 
 # Ruta para editar un hospital
 @app_routes.route('/admin/edit_hospital/<int:hospital_id>', methods=['GET', 'POST'])
@@ -563,7 +569,7 @@ def edit_hospital(hospital_id):
         flash("Hospital actualizado exitosamente", "success")
         return redirect(url_for('app_routes.manage_hospitals'))
 
-    return render_template('admin/edit_hospital.html', hospital=hospital, estados=estados)
+    return render_template('admin/add_hospital.html', hospital=hospital, is_edit=True, estados=estados)
 
 # Ruta para eliminar (desactivar) un hospital
 @app_routes.route('/admin/delete_hospital/<int:hospital_id>', methods=['POST'])

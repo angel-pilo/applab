@@ -72,6 +72,7 @@ function showDetails(employee) {
     document.getElementById('employee-joining-date').innerText = employee.joiningDate;
     document.getElementById('no-selection-message').classList.add('hidden');
     document.getElementById('employee-details').classList.remove('hidden');
+    openAdminDetailDrawer();
 }
 
 function confirmDelete(employeeId) {
@@ -269,12 +270,12 @@ function applyFilters() {
     toggleFilterMenu(); // Close the filter menu after applying filters
 }
 
-window.onload = function() {
-    document.getElementById('no-selection-message').classList.remove('hidden');
-    document.getElementById('employee-details').classList.add('hidden');
+window.addEventListener('load', function() {
+    document.getElementById('no-selection-message')?.classList.remove('hidden');
+    document.getElementById('employee-details')?.classList.add('hidden');
     const radioButtons = document.querySelectorAll('input[name="employee"]');
     radioButtons.forEach(radio => radio.checked = false);
-}
+});
 
         function validateForm() {
             const requiredFields = document.querySelectorAll('[required]');

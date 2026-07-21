@@ -1,5 +1,6 @@
 import os
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -13,6 +14,7 @@ os.environ.setdefault(
 )
 
 import routes
+import services
 from app import create_app
 from flask import render_template
 from supabase_client import normalize_supabase_url
@@ -51,6 +53,40 @@ class SupabaseConfigurationTests(unittest.TestCase):
             normalize_supabase_url("https://project.supabase.co"),
             "https://project.supabase.co",
         )
+
+
+class EmployeeServiceTests(unittest.TestCase):
+    def test_employee_user_id_remains_scalar(self):
+        class FakeQuery:
+            def __init__(self, table):
+                self.table = table
+
+            def select(self, *_):
+                return self
+
+            def in_(self, *_):
+                return self
+
+            def execute(self):
+                if self.table == "empleados":
+                    return SimpleNamespace(data=[{
+                        "id": 1,
+                        "nombres": "Ana",
+                        "apellidos": "López",
+                        "usuario_id": 10,
+                        "contacto_emergencia": None,
+                        "condiciones_medicas": None,
+                        "fecha_nacimiento": "1990-01-01",
+                        "empleado_roles": [{"rol_id": {"id": 1, "nombre": "Admin"}}],
+                    }])
+                return SimpleNamespace(data=[{"id": 10, "estado_usuario": True}])
+
+        fake_supabase = SimpleNamespace(table=lambda name: FakeQuery(name))
+        with patch.object(services, "supabase", fake_supabase):
+            employees = services.obtener_empleados()
+
+        self.assertEqual(employees[0]["usuario_id"], 10)
+        self.assertTrue(employees[0]["estado"])
 
 
 class AuthorizationTests(unittest.TestCase):
@@ -129,6 +165,27 @@ class AdminTemplateTests(unittest.TestCase):
                 "hospitales": [active],
                 "estados_registrados": ["Jalisco"],
             },
+            "admin/employees.html": {
+                "empleados": [SimpleNamespace(
+                    id=1, estado=True, nombres="Ana", apellidos="López",
+                    rol_nombre="Admin", contacto_emergencia="Contacto",
+                    condiciones_medicas="", fecha_nacimiento="1990-01-01",
+                    usuario_id=10,
+                )],
+            },
+            "admin/inventory.html": {
+                "reactivos": [SimpleNamespace(
+                    id=1, activo=True, nombre="Reactivo A",
+                    tipo_reactivo="Química", cantidad_inicial=10,
+                    precio_unidad=25,
+                )],
+            },
+            "admin/pruebas.html": {
+                "pruebas": [SimpleNamespace(
+                    id=1, activo=True, nombre="Biometría",
+                    tipo="Sangre", reactivos=["Reactivo A"],
+                )],
+            },
         }
 
         with self.app.test_request_context():
@@ -144,6 +201,83 @@ class AdminTemplateTests(unittest.TestCase):
         for template_name in self.app.jinja_env.list_templates():
             with self.subTest(template=template_name):
                 self.app.jinja_env.get_template(template_name)
+
+    def test_employee_and_inventory_use_detail_drawer(self):
+        catalog_js = Path("static/js/admin_catalog.js").read_text(encoding="utf-8")
+        admin_js = Path("static/js/admin.js").read_text(encoding="utf-8")
+        inventory_js = Path("static/js/inventario.js").read_text(encoding="utf-8")
+
+        self.assertIn("function openAdminDetailDrawer", catalog_js)
+        self.assertIn("function closeAdminDetailDrawer", catalog_js)
+        self.assertIn("openAdminDetailDrawer();", admin_js)
+        self.assertIn("openAdminDetailDrawer();", inventory_js)
+
+    def test_shared_create_and_edit_forms_render_in_both_modes(self):
+        hospital = SimpleNamespace(
+            nombre="Hospital Central",
+            telefono="5551234567",
+            correo="hospital@example.com",
+            calle="Centro",
+            numero_ext="10",
+            numero_int="",
+            codigo_postal="44100",
+            municipio="Guadalajara",
+            estado="Jalisco",
+            anotaciones="",
+        )
+        employee = SimpleNamespace(
+            rol_id=1,
+            sexo="M",
+            fecha_nacimiento="1990-01-01",
+            nombres="Admin",
+            apellidos="Principal",
+            telefono="5551234567",
+            correo="admin@example.com",
+            username="admin",
+            calle="Centro",
+            numero_ext="10",
+            numero_int="",
+            codigo_postal="44100",
+            municipio="Guadalajara",
+            estado="Jalisco",
+            curp_rfc="TEST900101",
+            turno="Matutino",
+            condiciones_medicas="",
+            contacto_emergencia="Contacto 5550000000",
+        )
+
+        with self.app.test_request_context("/admin/add_hospital"):
+            create_hospital = render_template(
+                "admin/add_hospital.html",
+                hospital={},
+                is_edit=False,
+                estados=["Jalisco"],
+            )
+            edit_hospital = render_template(
+                "admin/add_hospital.html",
+                hospital=hospital,
+                is_edit=True,
+                estados=["Jalisco"],
+            )
+            create_employee = render_template(
+                "admin/edit_employee.html",
+                empleado={},
+                is_edit=False,
+                role_map={1: "Admin"},
+                estados=["Jalisco"],
+            )
+            edit_employee = render_template(
+                "admin/edit_employee.html",
+                empleado=employee,
+                is_edit=True,
+                role_map={1: "Admin"},
+                estados=["Jalisco"],
+            )
+
+        self.assertIn("Registrar hospital", create_hospital)
+        self.assertIn("Guardar cambios", edit_hospital)
+        self.assertIn("Registrar empleado", create_employee)
+        self.assertIn("Guardar cambios", edit_employee)
 
 
 if __name__ == "__main__":

@@ -63,7 +63,6 @@ def verificar_usuario(usuario, password):
 def obtener_empleados():
     """Obtiene una lista de empleados con los campos especificados."""
     try:
-        # Consulta corregida con sintaxis válida para joins
         empleados_result = supabase.table('empleados').select(
             '''
             id,
@@ -73,7 +72,6 @@ def obtener_empleados():
             contacto_emergencia,
             condiciones_medicas,
             fecha_nacimiento,
-            usuario_id(estado_usuario),  
             empleado_roles(rol_id(id, nombre)) 
             '''
         ).execute()
@@ -82,24 +80,36 @@ def obtener_empleados():
             print("No se encontraron empleados.")
             return []
 
+        user_ids = [emp.get("usuario_id") for emp in empleados_result.data if emp.get("usuario_id")]
+        estados_por_usuario = {}
+        if user_ids:
+            usuarios_result = (
+                supabase.table("usuarios")
+                .select("id, estado_usuario")
+                .in_("id", user_ids)
+                .execute()
+            )
+            estados_por_usuario = {
+                usuario["id"]: usuario.get("estado_usuario", False)
+                for usuario in (usuarios_result.data or [])
+            }
+
         empleados_con_datos = []
         for emp in empleados_result.data:
-            # Extraer estado_usuario del join con usuarios
-            estado_usuario = emp.get("usuario_id", {}).get("estado_usuario", False)
-            
             # Extraer rol_id y nombre del rol
             roles = emp.get("empleado_roles", [{}])
             rol_data = roles[0].get("rol_id", {}) if roles else {}
+            usuario_id = emp.get("usuario_id")
             
             empleados_con_datos.append({
                 "id": emp["id"],
                 "nombres": emp["nombres"],
                 "apellidos": emp["apellidos"],
-                "usuario_id": emp["usuario_id"].get("id") if isinstance(emp["usuario_id"], dict) else emp["usuario_id"],
-                "contacto_emergencia": emp["contacto_emergencia"],
-                "condiciones_medicas": emp["condiciones_medicas"],
-                "fecha_nacimiento": emp["fecha_nacimiento"],
-                "estado": estado_usuario,
+                "usuario_id": usuario_id,
+                "contacto_emergencia": emp.get("contacto_emergencia") or "",
+                "condiciones_medicas": emp.get("condiciones_medicas") or "",
+                "fecha_nacimiento": emp.get("fecha_nacimiento") or "",
+                "estado": estados_por_usuario.get(usuario_id, False),
                 "rol_id": rol_data.get("id"),
                 "rol_nombre": rol_data.get("nombre", "Sin rol")
             })

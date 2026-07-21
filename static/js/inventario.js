@@ -91,6 +91,7 @@ function selectReactivo(id, nombre, tipo, cantidad, precio) {
     document.getElementById("reactivo-price").innerText = precio;
     document.getElementById('no-selection-message').classList.add('hidden');
     document.getElementById('employee-details').classList.remove('hidden');
+    openAdminDetailDrawer();
 
     // Realizar una solicitud al backend para obtener los detalles completos del reactivo
     fetch(`/admin/get_reactivo_details/${id}`)

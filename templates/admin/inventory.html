@@ -1,137 +1,25 @@
-{% extends "base.html" %}
+{% extends "admin/catalog_base.html" %}
+{% set page_title = "Inventario de reactivos" %}
+{% set page_description = "Consulta existencias, precios, vencimientos y proveedores." %}
+{% set add_url = url_for('app_routes.add_reactivo') %}
+{% set add_label = "Registrar reactivo" %}
+{% set search_id = "search-input" %}
+{% set search_placeholder = "Buscar reactivo..." %}
+{% set empty_search_message = "No se encontró ningún reactivo." %}
 
-{% block title %}Inventario de Reactivos{% endblock %}
+{% block table_head %}<th class="px-5 py-3">ID</th><th class="px-5 py-3">Nombre</th><th class="px-5 py-3">Tipo</th><th class="px-5 py-3">Cantidad</th><th class="px-5 py-3">Precio</th><th class="px-5 py-3">Estado</th><th class="px-5 py-3 text-right">Acciones</th>{% endblock %}
+{% block table_body %}
+  {% for reactivo in reactivos|sort(attribute='id') %}
+  <tr class="cursor-pointer transition hover:bg-gray-50 {% if not reactivo.activo %}bg-gray-50 text-gray-500{% endif %}" onclick="document.getElementById('reactivo-{{ reactivo.id }}').checked = true; selectReactivo({{ reactivo.id }}, '{{ reactivo.nombre|e }}', '{{ reactivo.tipo_reactivo|e }}', '{{ reactivo.cantidad_inicial|e }}', '{{ reactivo.precio_unidad|e }}')">
+    <td class="px-5 py-4 font-medium"><input type="radio" name="reactivo" value="{{ reactivo.id }}" class="mr-2" id="reactivo-{{ reactivo.id }}">#{{ reactivo.id }}</td><td class="px-5 py-4 font-semibold text-gray-900">{{ reactivo.nombre }}</td><td class="px-5 py-4">{{ reactivo.tipo_reactivo }}</td><td class="px-5 py-4">{{ reactivo.cantidad_inicial }}</td><td class="px-5 py-4">${{ reactivo.precio_unidad }}</td>
+    <td class="px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ 'bg-emerald-50 text-emerald-700' if reactivo.activo else 'bg-gray-200 text-gray-600' }}">{{ 'Activo' if reactivo.activo else 'Inactivo' }}</span></td>
+    <td class="px-5 py-4"><div class="admin-action-group">{% if reactivo.activo %}<button class="btn-editar admin-action-button" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_reactivo', reactivo_id=reactivo.id) }}'">Editar</button><button class="btn-eliminar admin-action-button" onclick="event.stopPropagation(); openAdminConfirmation({endpoint: '{{ url_for('app_routes.delete_reactivo', reactivo_id=reactivo.id) }}', entity: 'este reactivo', action: 'eliminar'})">Eliminar</button>{% else %}<button class="btn-activar admin-action-button" onclick="event.stopPropagation(); openAdminConfirmation({endpoint: '{{ url_for('app_routes.activate_reactivo', reactivo_id=reactivo.id) }}', entity: 'este reactivo', action: 'activar'})">Activar</button>{% endif %}</div></td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">No hay reactivos registrados.</td></tr>{% endfor %}
+{% endblock %}
 
-{% block content %}
-
-<head>
-    <script src="{{ url_for('static', filename='js/inventario.js') }}"></script>
-</head>
-
-<div class="container mx-auto p-4">
-    <div class="flex items-center mb-4">
-        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-        <h1 class="text-4xl font-bold ml-4">Inventario de Reactivos</h1>
-    </div>
-</div>
-
-<div class="container mx-auto p-4 mt-8">
-    <div class="flex items-center mb-4">
-        <div class="relative w-1/2">
-            <input type="text" id="search-input" placeholder="Buscar reactivo" class="w-full p-2 border rounded" oninput="searchInventory()">
-            <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
-        </div>
-        <button class="btn-editar admin-primary-action ml-4" onclick="window.location.href='{{ url_for('app_routes.add_reactivo') }}'">Añadir reactivo</button>
-    </div>
-    <!-- Mensaje que se muestra cuando no hay resultados -->
-    <div id="not-found-message" class="hidden text-red-500 mb-4 ">
-        No se encontraron reactivos que coincidan con la búsqueda.
-    </div>
-
-    <div class="flex">
-        <div class="w-2/3">
-            <div class="overflow-y-auto max-h-[calc(10*4rem)] border rounded-lg shadow-md">
-                <table class="min-w-full bg-white rounded-lg shadow-md">
-                    <thead class="sticky-header">
-                        <tr class="border-b">
-                            <th class="py-2 px-4 text-left text-red-500">ID <i class="fas fa-arrow-down"></i></th>
-                            <th class="py-2 px-15 text-left">Nombre</th>
-                            <th class="py-2 px-15 text-left">Tipo de reactivo</th>
-                            <th class="py-2 px-15 text-left">Cantidad</th>
-                            <th class="py-2 px-15 text-left">Precio</th>
-                            <th class="py-2 px-15 text-left">Estado</th>
-                            <th class="py-2 px-15 text-left">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for reactivo in reactivos|sort(attribute='id') %}
-                        <tr class="border-b cursor-pointer {% if not reactivo.activo %}bg-gray-100{% endif %}" 
-                            onclick="document.getElementById('reactivo-{{ reactivo.id }}').checked = true; selectReactivo({{ reactivo.id }}, '{{ reactivo.nombre }}', '{{ reactivo.tipo_reactivo }}', '{{ reactivo.cantidad_inicial }}', '{{ reactivo.precio_unidad }}')">
-                            <td class="py-2 px-4">
-                                <input type="radio" name="reactivo" value="{{ reactivo.id }}" class="mr-2" id="reactivo-{{ reactivo.id }}">
-                                #{{ reactivo.id }}
-                            </td>
-                            <td class="py-2 px-15">{{ reactivo.nombre }}</td>
-                            <td class="py-2 px-15">{{ reactivo.tipo_reactivo }}</td>
-                            <td class="py-2 px-15">{{ reactivo.cantidad_inicial }}</td>
-                            <td class="py-2 px-15">${{ reactivo.precio_unidad }}</td>
-                            <td class="py-2 px-15">{{ 'Activo' if reactivo.activo else 'Inactivo' }}</td>
-                            <td class="py-2 px-4">
-                              <div class="admin-action-group">
-                                {% if reactivo.activo %}
-                                    <button class="btn-editar admin-action-button" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_reactivo', reactivo_id=reactivo.id) }}'">Editar</button>
-                                    <button class="btn-eliminar admin-action-button" onclick="event.stopPropagation(); confirmDeleteReactivo('{{ reactivo.id }}')">Eliminar</button>
-                                {% else %}
-                                    <button class="btn-activar admin-action-button" onclick="event.stopPropagation(); confirmActivateReactivo('{{ reactivo.id }}')">Activar</button>
-                                {% endif %}
-                              </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Panel de detalles -->
-        <div class="w-1/3 ml-4 mt-16">
-            <div class="bg-white p-4 rounded-lg shadow-md" style="border-radius: 1rem;">
-                <h2 class="text-xl font-bold mb-4">Detalles</h2>
-                <div id="no-selection-message" class="text-gray-500">Seleccione un empleado para mostrar información previa.</div>
-                <div id="employee-details" class="hidden">
-                    <p><strong>Nombre del reactivo:</strong> <span id="reactivo-name"></span></p>
-                    <p><strong>Tipo de reactivo:</strong> <span id="reactivo-type"></span></p>
-                    <p><strong>Cantidad en inventario:</strong> <span id="reactivo-quantity"></span></p>
-                    <p><strong>Precio por unidad:</strong> $<span id="reactivo-price"></span></p>
-                    <p><strong>Fecha de entrada:</strong> <span id="reactivo-entry-date"></span></p>
-                    <p><strong>Fecha de vencimiento:</strong> <span id="reactivo-expiry-date"></span></p>
-                    <p><strong>Proveedor:</strong> <span id="reactivo-supplier"></span></p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de Confirmación de Eliminación -->
-<div id="delete-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-    <div class="bg-white p-6 rounded-lg shadow-lg" style="border-radius: 1rem;">
-        <h2 class="text-xl font-bold mb-4">Confirmar Eliminación</h2>
-        <p>¿Estás seguro de que deseas eliminar este reactivo?</p>
-        <input type="hidden" id="delete-reactivo-id">
-
-        <div id="modal-message" class="mt-2 text-center"></div>
-
-        <div class="mt-4">
-            <label for="password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
-            <input type="password" id="password" class="mt-1 p-2 border rounded w-full" style="border-radius: 1rem;">
-        </div>
-
-        <div class="mt-4 flex justify-end">
-            <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
-            <button class="bg-red-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="deleteReactivo()">Eliminar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de Confirmación de Activación -->
-<div id="activation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-    <div class="bg-white p-6 rounded-lg shadow-lg" style="border-radius: 1rem;">
-        <h2 class="text-xl font-bold mb-4">Confirmar Activación</h2>
-        <p>¿Estás seguro de que deseas activar este reactivo?</p>
-        <input type="hidden" id="activate-reactivo-id">
-
-        <div id="activation-modal-message" class="mt-2 text-center"></div>
-
-        <div class="mt-4">
-            <label for="activate-password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
-            <input type="password" id="activate-password" class="mt-1 p-2 border rounded w-full" style="border-radius: 1rem;">
-        </div>
-
-        <div class="mt-4 flex justify-end">
-            <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
-            <button class="bg-green-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="activateReactivo()">Activar</button>
-        </div>
-    </div>
-</div>
-
+{% block catalog_extras %}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8"><div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"><h2 class="text-lg font-bold text-gray-900">Detalle del reactivo</h2><p id="no-selection-message" class="mt-2 text-sm text-gray-500">Selecciona un reactivo para consultar su información.</p><div id="employee-details" class="mt-4 hidden grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><p><strong>Nombre:</strong> <span id="reactivo-name"></span></p><p><strong>Tipo:</strong> <span id="reactivo-type"></span></p><p><strong>Cantidad:</strong> <span id="reactivo-quantity"></span></p><p><strong>Precio:</strong> $<span id="reactivo-price"></span></p><p><strong>Entrada:</strong> <span id="reactivo-entry-date"></span></p><p><strong>Vencimiento:</strong> <span id="reactivo-expiry-date"></span></p><p><strong>Proveedor:</strong> <span id="reactivo-supplier"></span></p></div></div></section>
+{% include 'admin/components/confirmation_modal.html' %}
+<script src="{{ url_for('static', filename='js/inventario.js') }}"></script>
 {% endblock %}
