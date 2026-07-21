@@ -133,6 +133,7 @@ def login():
         session["foto_perfil"] = user.get("foto_perfil")
 
         session['user_id'] = user['id']  # Establecer user_id en la sesión correctamente
+        session['empleado_id'] = user.get('empleado_id')
 
         return redirect(url_for(f"app_routes.{rol.lower()}_dashboard"))
 
@@ -1621,7 +1622,7 @@ def reporte():
                 cantidad = 1
 
             # 1) Intentar usar subtotal directo
-            raw_subtotal = d.get("subtotal")
+            raw_subtotal = d.get("precio_total")
             try:
                 subtotal = float(raw_subtotal) if raw_subtotal is not None else 0.0
             except (TypeError, ValueError):

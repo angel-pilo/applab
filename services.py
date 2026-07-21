@@ -51,6 +51,7 @@ def verificar_usuario(usuario, password):
 
         return {
             "id": user["id"],
+            "empleado_id": empleado["id"],
             "nombres": empleado.get("nombres"),
             "foto_perfil": empleado.get("foto_perfil"),
             "rol_id": rol_result.data[0].get("rol_id"),
