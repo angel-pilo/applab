@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
     closeButton.addEventListener('click', closeAdminDetailDrawer);
     drawer.firstElementChild?.prepend(closeButton);
 
+    drawer.addEventListener('click', event => {
+        if (event.target === drawer) closeAdminDetailDrawer();
+    });
+
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && !details.classList.contains('hidden')) {
             closeAdminDetailDrawer();
