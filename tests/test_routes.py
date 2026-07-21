@@ -1,5 +1,6 @@
 import os
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -13,6 +14,7 @@ os.environ.setdefault(
 
 import routes
 from app import create_app
+from flask import render_template
 
 
 class OrderValidationTests(unittest.TestCase):
@@ -60,6 +62,46 @@ class AuthorizationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].endswith("/quimico"))
+
+
+class AdminTemplateTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = create_app()
+
+    def test_catalog_templates_render_with_shared_layout(self):
+        active = SimpleNamespace(
+            id=1,
+            activo=True,
+            nombres="Ana",
+            apellidos="López",
+            nombre="Registro",
+            tipo="local",
+            telefono="5551234567",
+            correo="ana@example.com",
+            tipo_consultorio="hospital",
+            hospital_nombre="Hospital Central",
+            calle="Centro",
+            numero_ext="10",
+            municipio="Centro",
+            estado="Jalisco",
+        )
+        contexts = {
+            "admin/patients.html": {"pacientes": [active], "rol": "Admin"},
+            "admin/proveedores.html": {"proveedores": [active], "rol": "Admin"},
+            "admin/doctores.html": {"doctores": [active]},
+            "admin/hospitals.html": {
+                "hospitales": [active],
+                "estados_registrados": ["Jalisco"],
+            },
+        }
+
+        with self.app.test_request_context():
+            for template_name, context in contexts.items():
+                with self.subTest(template=template_name):
+                    html = render_template(template_name, **context)
+                    self.assertIn("Administración", html)
+                    self.assertIn("filter-menu", html)
 
 
 if __name__ == "__main__":

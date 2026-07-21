@@ -1,159 +1,40 @@
-{% extends "base.html" %}
+{% extends "admin/catalog_base.html" %}
+{% set page_title = "Hospitales" %}
+{% set page_description = "Consulta y administra hospitales, ubicaciones y contactos." %}
+{% set add_url = url_for('app_routes.add_hospital') %}
+{% set add_label = "Añadir hospital" %}
+{% set search_id = "search-hospital" %}
+{% set search_placeholder = "Buscar hospital..." %}
+{% set empty_search_message = "No se encontró ningún hospital." %}
 
-{% block title %}Hospitales{% endblock %}
+{% block filters %}
+  <p class="mb-3 text-sm font-semibold text-gray-800">Estado del registro</p>
+  <div class="space-y-2 text-sm text-gray-600">
+    <label class="flex items-center gap-2"><input type="radio" name="filter-status" value="all" checked> Todos</label>
+    <label class="flex items-center gap-2"><input type="radio" name="filter-status" value="activo"> Activos</label>
+    <label class="flex items-center gap-2"><input type="radio" name="filter-status" value="inactivo"> Inactivos</label>
+  </div>
+  <label for="filter-state" class="mb-2 mt-4 block text-sm font-semibold text-gray-800">Estado de México</label>
+  <select id="filter-state" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm">
+    <option value="all">Todos</option>{% for estado in estados_registrados %}<option value="{{ estado|lower }}">{{ estado }}</option>{% endfor %}
+  </select>
+  <button id="apply-filters" type="button" class="mt-4 w-full rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">Aplicar filtros</button>
+{% endblock %}
 
-{% block content %}
-<head>
-    <style>
-        thead th {
-            position: sticky;
-            top: 0;
-            background-color: white;
-            z-index: 1;  /* Se baja el z-index para que no se superponga */
-        }
-        
-        #delete-modal, #activation-modal {
-            z-index: 1000;  /* Asegura que los modales estén por encima */
-            position: fixed;
-        }              
-    </style>
-</head>
+{% block table_head %}<th class="px-5 py-3">ID</th><th class="px-5 py-3">Nombre</th><th class="px-5 py-3">Teléfono</th><th class="px-5 py-3">Correo</th><th class="px-5 py-3">Dirección</th><th class="px-5 py-3">Estado</th><th class="px-5 py-3 text-right">Acciones</th>{% endblock %}
+{% block table_body %}
+  {% for hospital in hospitales %}
+  <tr data-hospital-id="{{ hospital.id }}" class="transition hover:bg-gray-50 {% if not hospital.activo %}bg-gray-50 text-gray-500{% endif %}">
+    <td class="px-5 py-4 font-medium">#{{ hospital.id }}</td><td class="px-5 py-4 font-semibold text-gray-900">{{ hospital.nombre }}</td><td class="px-5 py-4">{{ hospital.telefono or '—' }}</td><td class="px-5 py-4">{{ hospital.correo or '—' }}</td>
+    <td class="px-5 py-4">{{ hospital.calle }}, {{ hospital.numero_ext }}, {{ hospital.municipio }}, {{ hospital.estado }}</td>
+    <td class="estado px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ 'bg-emerald-50 text-emerald-700' if hospital.activo else 'bg-gray-200 text-gray-600' }}">{{ 'Activo' if hospital.activo else 'Inactivo' }}</span></td>
+    <td class="acciones px-5 py-4 text-right">{% if hospital.activo %}<button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_hospital', hospital_id=hospital.id) }}'">Editar</button><button class="btn-eliminar" onclick="confirmDelete('{{ hospital.id }}')">Eliminar</button>{% else %}<button class="btn-activar" onclick="confirmActivate({{ hospital.id }})">Activar</button>{% endif %}</td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">No hay hospitales registrados.</td></tr>{% endfor %}
+{% endblock %}
 
-<div class="container mx-auto p-4">
-    <div class="flex items-center mb-4">
-        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-        <h1 class="text-4xl font-bold ml-4">Hospitales</h1>
-    </div>
-</div>
-
-<div class="container mx-auto p-4 mt-8">
-    <!-- Buscador y botón de añadir hospital en la misma fila -->
-    <div class="flex items-center justify-between mb-2">
-        <input type="text" id="search-hospital" placeholder="Buscar hospital..." class="w-1/3 p-2 border rounded">
-        <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.add_hospital') }}'">
-            Añadir Hospital
-        </button>
-    </div>
-
-    <!-- Botón de Filtros alineado a la izquierda debajo del buscador -->
-    <div class="flex justify-start mb-4">
-        <button class="bg-gray-200 p-2" style="border-radius: 1rem;" onclick="toggleFilterMenu()">
-            <i class="fas fa-filter"></i> Filtro
-        </button>
-    </div>
-
-    <!-- Menú de Filtros -->
-    <div id="filter-menu" class="absolute bg-white border rounded shadow-lg p-4 hidden">
-        <label class="block text-gray-700 font-bold mb-2">Filtrar por Estado del Hospital</label>
-        <div class="mb-2">
-            <input type="radio" name="filter-status" value="all" class="mr-2" checked> Todos
-        </div>
-        <div class="mb-2">
-            <input type="radio" name="filter-status" value="activo" class="mr-2"> Activos
-        </div>
-        <div class="mb-2">
-            <input type="radio" name="filter-status" value="inactivo" class="mr-2"> Inactivos
-        </div>
-
-        <label class="block text-gray-700 font-bold mb-2 mt-4">Filtrar por Estado de México</label>
-        <select id="filter-state" class="w-full px-4 py-2 border rounded-[1rem]">
-            <option value="all">Todos</option>
-            {% for estado in estados_registrados %}
-                <option value="{{ estado|lower }}">{{ estado }}</option>
-            {% endfor %}
-        </select>       
-
-        <!-- Botón para aplicar filtros -->
-        <div class="mt-4 flex justify-end">
-            <button id="apply-filters" class="bg-blue-500 text-white px-4 py-2 rounded shadow-md hover:bg-blue-600">
-                Aplicar Filtros
-            </button>
-        </div>
-    </div>
-
-    <!-- Mensaje cuando no se encuentren hospitales -->
-    <div id="not-found-message" class="hidden text-red-500 mb-4">
-        No se encontró ningún hospital. <a href="{{ url_for('app_routes.add_hospital') }}" class="text-blue-500 underline">Registrar hospital</a>
-    </div>
-    <div class="overflow-y-auto max-h-[calc(10*4rem)] border rounded-lg shadow-md">
-        <table class="min-w-full bg-white rounded-lg shadow-md">
-            <thead>
-                <tr class="border-b">
-                    <th class="py-2 px-4 text-left">ID</th>
-                    <th class="py-2 px-4 text-left">Nombre</th>
-                    <th class="py-2 px-4 text-left">Teléfono</th>
-                    <th class="py-2 px-4 text-left">Correo</th>
-                    <th class="py-2 px-4 text-left">Dirección</th>
-                    <th class="py-2 px-4 text-left">Estado</th>
-                    <th class="py-2 px-4">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for hospital in hospitales %}
-                <tr data-hospital-id="{{ hospital.id }}" class="border-b {% if not hospital.activo %}bg-gray-100{% endif %}">
-                    <td class="py-2 px-4">{{ hospital.id }}</td>
-                    <td class="py-2 px-4">{{ hospital.nombre }}</td>
-                    <td class="py-2 px-4">{{ hospital.telefono }}</td>
-                    <td class="py-2 px-4">{{ hospital.correo }}</td>
-                    <td class="py-2 px-4">{{ hospital.calle }}, {{ hospital.numero_ext }}, {{ hospital.municipio }}, {{ hospital.estado }}</td>
-                    <td class="py-2 px-4 estado">{{ 'Activo' if hospital.activo else 'Inactivo' }}</td>
-                    <td class="py-2 px-4 acciones">
-                        {% if hospital.activo %}
-                            <button class="btn-editar" onclick="window.location.href='{{ url_for('app_routes.edit_hospital', hospital_id=hospital.id) }}'">Editar</button>
-                            <button class="btn-eliminar" onclick="confirmDelete('{{ hospital.id }}')">Eliminar</button>
-                        {% else %}
-                            <button onclick="confirmActivate({{ hospital.id }})" class="btn-activar">Activar</button>
-                        {% endif %}
-                    </td>                
-                </tr>
-                {% endfor %}
-            </tbody>        
-        </table>
-    </div>
-</div>
-
-<!-- Delete Confirmation Modal -->
-<div id="delete-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-    <div class="bg-white p-6 rounded-lg shadow-lg" style="border-radius: 1rem;">
-        <h2 class="text-xl font-bold mb-4">Confirmar Eliminación</h2>
-        <p>¿Estás seguro de que deseas eliminar este hospital?</p>
-        <input type="hidden" id="delete-hospital-id">
-
-        <div id="modal-message" class="mt-2 text-center"></div>
-
-        <div class="mt-4">
-            <label for="password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
-            <input type="password" id="password" class="mt-1 p-2 border rounded w-full" style="border-radius: 1rem;">
-        </div>
-
-        <div class="mt-4 flex justify-end">
-            <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
-            <button class="bg-red-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="deleteHospital()">Continuar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Activation Confirmation Modal -->
-<div id="activation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-    <div class="bg-white p-6 rounded-lg shadow-lg" style="border-radius: 1rem;">
-        <h2 class="text-xl font-bold mb-4">Confirmar Activación</h2>
-        <p>¿Estás seguro de que deseas activar este hospital?</p>
-        <input type="hidden" id="activate-hospital-id">
-
-        <div id="activation-modal-message" class="mt-2 text-center"></div>
-
-        <div class="mt-4">
-            <label for="activate-password" class="block text-sm font-medium text-gray-700">Contraseña:</label>
-            <input type="password" id="activate-password" class="mt-1 p-2 border rounded w-full" style="border-radius: 1rem;">
-        </div>
-
-        <div class="mt-4 flex justify-end">
-            <button class="bg-gray-200 text-gray-700 px-4 py-2 mr-2" style="border-radius: 1rem;" onclick="closeModal()">Cancelar</button>
-            <button class="bg-green-500 text-white px-4 py-2" style="border-radius: 1rem;" onclick="activateHospital()">Activar</button>
-        </div>
-    </div>
-</div>
-
+{% block catalog_extras %}
+<div id="delete-modal" class="fixed inset-0 z-[1000] hidden items-center justify-center bg-gray-900/50 p-4"><div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"><h2 class="text-xl font-bold">Confirmar eliminación</h2><p class="mt-2 text-gray-600">¿Deseas eliminar este hospital?</p><input type="hidden" id="delete-hospital-id"><div id="modal-message" class="mt-2 text-center"></div><label for="password" class="mt-4 block text-sm font-medium">Contraseña</label><input type="password" id="password" class="mt-1 w-full rounded-xl border p-2"><div class="mt-5 flex justify-end gap-2"><button class="rounded-xl bg-gray-100 px-4 py-2" onclick="closeModal()">Cancelar</button><button class="rounded-xl bg-red-600 px-4 py-2 text-white" onclick="deleteHospital()">Continuar</button></div></div></div>
+<div id="activation-modal" class="fixed inset-0 z-[1000] hidden items-center justify-center bg-gray-900/50 p-4"><div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"><h2 class="text-xl font-bold">Confirmar activación</h2><p class="mt-2 text-gray-600">¿Deseas activar este hospital?</p><input type="hidden" id="activate-hospital-id"><div id="activation-modal-message" class="mt-2 text-center"></div><label for="activate-password" class="mt-4 block text-sm font-medium">Contraseña</label><input type="password" id="activate-password" class="mt-1 w-full rounded-xl border p-2"><div class="mt-5 flex justify-end gap-2"><button class="rounded-xl bg-gray-100 px-4 py-2" onclick="closeModal()">Cancelar</button><button class="rounded-xl bg-emerald-600 px-4 py-2 text-white" onclick="activateHospital()">Activar</button></div></div></div>
 <script src="{{ url_for('static', filename='js/hospitals.js') }}"></script>
-
 {% endblock %}

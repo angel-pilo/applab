@@ -3,6 +3,7 @@ function confirmDelete(hospitalId) {
 
     if (modal) {
         modal.classList.remove('hidden');
+        modal.classList.add('flex');
         document.getElementById('delete-hospital-id').value = hospitalId;
     } else {
         console.error("No se encontró el modal de eliminación");
@@ -53,6 +54,7 @@ function confirmActivate(hospitalId) {
 
     if (modal) {
         modal.classList.remove('hidden');
+        modal.classList.add('flex');
         document.getElementById('activate-hospital-id').value = hospitalId;
     } else {
         console.error("No se encontró el modal de activación");
