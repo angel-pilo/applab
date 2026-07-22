@@ -41,6 +41,30 @@ class OrderValidationTests(unittest.TestCase):
         self.assertEqual(len(errors), 4)
 
 
+class ClinicalTestValidationTests(unittest.TestCase):
+    def test_at_least_one_element_is_required(self):
+        self.assertEqual(
+            routes.validate_clinical_test_elements([]),
+            ["Agrega al menos un elemento a la prueba."],
+        )
+
+    def test_empty_reference_values_are_rejected(self):
+        errors = routes.validate_clinical_test_elements([{
+            "nombre": "Glucosa",
+            "tipo_separacion": "min-max",
+            "estructura": {"min": None, "max": 110, "unidad": "mg/dL"},
+        }])
+        self.assertTrue(errors)
+
+    def test_complete_reference_values_are_accepted(self):
+        errors = routes.validate_clinical_test_elements([{
+            "nombre": "Glucosa",
+            "tipo_separacion": "min-max",
+            "estructura": {"min": 70, "max": 110, "unidad": "mg/dL"},
+        }])
+        self.assertEqual(errors, [])
+
+
 class SupabaseConfigurationTests(unittest.TestCase):
     def test_rest_endpoint_is_normalized_to_project_url(self):
         self.assertEqual(
@@ -126,6 +150,21 @@ class ClinicalTestServiceTests(unittest.TestCase):
         self.assertEqual(result, [])
         self.assertEqual(fake.selected_table, "valores_normales")
         self.assertIn(("prueba_id", 8), fake.filters)
+
+    def test_reagent_must_be_active_and_complete(self):
+        complete = {
+            "nombre": "Reactivo A",
+            "tipo_reactivo": "Química",
+            "costo_unidad": 10,
+            "precio_unidad": 15,
+            "proveedor_id": 2,
+            "fecha_entrada": "2026-07-21",
+            "cantidad_inicial": 5,
+            "activo": True,
+        }
+        self.assertTrue(services.reactivo_tiene_datos_completos(complete))
+        self.assertFalse(services.reactivo_tiene_datos_completos({**complete, "proveedor_id": None}))
+        self.assertFalse(services.reactivo_tiene_datos_completos({**complete, "activo": False}))
 
 
 class AuthorizationTests(unittest.TestCase):

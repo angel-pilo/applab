@@ -80,6 +80,65 @@ def validate_order_data(data):
 
     return errors
 
+
+def validate_clinical_test_elements(elements):
+    """Valida que cada elemento tenga completa su estructura de referencia."""
+    if not isinstance(elements, list) or not elements:
+        return ["Agrega al menos un elemento a la prueba."]
+
+    errors = []
+    for index, element in enumerate(elements, start=1):
+        name = (element.get("nombre") or "").strip() if isinstance(element, dict) else ""
+        kind = (element.get("tipo_separacion") or "").strip() if isinstance(element, dict) else ""
+        structure = element.get("estructura") if isinstance(element, dict) else None
+        label = name or f"Elemento {index}"
+
+        if not name or not kind or not isinstance(structure, dict):
+            errors.append(f"{label}: faltan sus datos principales.")
+            continue
+
+        ranges = []
+        unit_required = kind != "positivo-negativo"
+        if kind == "sexo":
+            ranges = [structure.get("M"), structure.get("F")]
+        elif kind in {"edades", "edad-sexo"}:
+            ranges = structure.get("rangos") or []
+        elif kind == "min-max":
+            ranges = [structure]
+        elif kind == "menor-que":
+            if structure.get("max") is None:
+                errors.append(f"{label}: completa el valor máximo permitido.")
+            if not str(structure.get("unidad") or "").strip():
+                errors.append(f"{label}: escribe la unidad de medida.")
+            continue
+        elif kind == "positivo-negativo":
+            if structure.get("valor_normal") not in {"positivo", "negativo"}:
+                errors.append(f"{label}: selecciona el resultado normal.")
+            continue
+        else:
+            errors.append(f"{label}: el tipo de referencia no es válido.")
+            continue
+
+        if not ranges or any(not isinstance(item, dict) for item in ranges):
+            errors.append(f"{label}: faltan los rangos de referencia.")
+            continue
+
+        for item in ranges:
+            if item.get("min") is None or item.get("max") is None:
+                errors.append(f"{label}: completa todos los valores mínimo y máximo.")
+                break
+            if item["min"] > item["max"]:
+                errors.append(f"{label}: el mínimo no puede ser mayor que el máximo.")
+                break
+
+        unit = structure.get("unidad")
+        if kind == "sexo" and ranges:
+            unit = ranges[0].get("unidad")
+        if unit_required and not str(unit or "").strip():
+            errors.append(f"{label}: escribe la unidad de medida.")
+
+    return errors
+
 # Ruta principal
 @app_routes.route("/")
 def home():
@@ -1302,7 +1361,15 @@ def add_prueba():
         # JSON de valores normales
         valores_normales_json = request.form.get('valores_normales_json', '[]')
 
-        # Validación básica
+        try:
+            valores_normales = json.loads(valores_normales_json or '[]')
+        except (json.JSONDecodeError, TypeError):
+            valores_normales = []
+
+        element_errors = validate_clinical_test_elements(valores_normales)
+        reactivos_validos, reactivos_error = validar_reactivos_para_prueba(reactivos_ids)
+
+        # Validación básica antes de crear cualquier registro.
         if not nombre or not tipo or not precio:
             flash("Todos los campos son obligatorios.", "error")
             reactivos = obtener_todos_los_reactivos()
@@ -1311,6 +1378,22 @@ def add_prueba():
                 is_edit=False,
                 reactivos=reactivos,
                 prueba={'valores_normales': []}  # Asegurar lista vacía para valores_normales
+            )
+        if element_errors:
+            flash(element_errors[0], "error")
+            return render_template(
+                'admin/add_prueba.html',
+                is_edit=False,
+                reactivos=obtener_todos_los_reactivos(),
+                prueba={'valores_normales': valores_normales}
+            )
+        if not reactivos_validos:
+            flash(reactivos_error, "error")
+            return render_template(
+                'admin/add_prueba.html',
+                is_edit=False,
+                reactivos=obtener_todos_los_reactivos(),
+                prueba={'valores_normales': valores_normales}
             )
 
         # Crear prueba clínica básica
@@ -1331,13 +1414,6 @@ def add_prueba():
         # Asignar reactivos
         if reactivos_ids:
             asignar_reactivos_a_prueba(prueba_id, reactivos_ids)
-
-        # Procesar valores normales
-        try:
-            valores_normales = json.loads(valores_normales_json) if valores_normales_json else []
-        except json.JSONDecodeError:
-            valores_normales = []
-            flash("Hubo un problema al interpretar los valores normales, no se guardaron.", "error")
 
         if valores_normales:
             for valor in valores_normales:
@@ -1379,9 +1455,23 @@ def edit_prueba(prueba_id):
         # JSON de valores normales
         valores_normales_json = request.form.get('valores_normales_json', '[]')
 
-        # Validación básica
+        try:
+            valores_normales = json.loads(valores_normales_json or '[]')
+        except (json.JSONDecodeError, TypeError):
+            valores_normales = []
+
+        element_errors = validate_clinical_test_elements(valores_normales)
+        reactivos_validos, reactivos_error = validar_reactivos_para_prueba(reactivos_ids)
+
+        # Validación básica antes de modificar registros existentes.
         if not nombre or not tipo or not precio:
             flash("Todos los campos son obligatorios.", "error")
+            return redirect(url_for('app_routes.edit_prueba', prueba_id=prueba_id))
+        if element_errors:
+            flash(element_errors[0], "error")
+            return redirect(url_for('app_routes.edit_prueba', prueba_id=prueba_id))
+        if not reactivos_validos:
+            flash(reactivos_error, "error")
             return redirect(url_for('app_routes.edit_prueba', prueba_id=prueba_id))
 
         # Actualizar prueba básica
@@ -1389,12 +1479,6 @@ def edit_prueba(prueba_id):
 
         # Actualizar reactivos
         actualizar_reactivos_de_prueba(prueba_id, reactivos_ids)
-
-        # Actualizar valores normales
-        try:
-            valores_normales = json.loads(valores_normales_json or '[]')
-        except Exception as e:
-            valores_normales = []
 
         # Eliminar valores normales antiguos y agregar los nuevos
         eliminar_valores_normales_de_prueba(prueba_id)

@@ -709,6 +709,52 @@ def obtener_todos_los_reactivos():
         return []
 
 
+def reactivo_tiene_datos_completos(reactivo):
+    """Comprueba los datos mínimos requeridos para usar un reactivo."""
+    text_fields = ("nombre", "tipo_reactivo", "fecha_entrada")
+    relation_fields = ("proveedor_id",)
+    numeric_fields = ("costo_unidad", "precio_unidad", "cantidad_inicial")
+    return (
+        isinstance(reactivo, dict)
+        and reactivo.get("activo") is True
+        and all(str(reactivo.get(field) or "").strip() for field in text_fields)
+        and all(reactivo.get(field) is not None for field in relation_fields)
+        and all(reactivo.get(field) is not None for field in numeric_fields)
+    )
+
+
+def validar_reactivos_para_prueba(reactivos_ids):
+    """Valida existencia, estado y datos de todos los reactivos seleccionados."""
+    try:
+        ids = list(dict.fromkeys(int(value) for value in reactivos_ids))
+    except (TypeError, ValueError):
+        return False, "La selección de reactivos no es válida."
+
+    if not ids:
+        return False, "Selecciona al menos un reactivo."
+
+    try:
+        response = (
+            supabase.table("reactivos")
+            .select("id,nombre,tipo_reactivo,costo_unidad,precio_unidad,proveedor_id,fecha_entrada,cantidad_inicial,activo")
+            .in_("id", ids)
+            .execute()
+        )
+        records = response.data or []
+    except Exception as e:
+        print(f"Error al validar reactivos de la prueba: {e}")
+        return False, "No fue posible validar los reactivos seleccionados."
+
+    if len(records) != len(ids):
+        return False, "Uno de los reactivos seleccionados ya no existe."
+
+    incomplete = [record.get("nombre") or f"#{record.get('id')}" for record in records if not reactivo_tiene_datos_completos(record)]
+    if incomplete:
+        return False, f"Completa o activa el reactivo: {', '.join(incomplete)}."
+
+    return True, ""
+
+
 #para validar para orden
 def existe_paciente_activo(paciente_id):
     try:

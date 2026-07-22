@@ -59,15 +59,23 @@
 
 <form method="POST" action="{{ form_action }}" id="form-prueba" class="clinical-test-form">
   <div class="admin-form-shell mt-8 space-y-8">
-    <!-- Encabezado -->
-    <div class="flex items-center mb-2">
-      <button class="text-2xl" type="button" onclick="window.history.back()">
+    <!-- Encabezado administrativo compartido -->
+    <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+      <button type="button" onclick="window.history.back()"
+              class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
+              aria-label="Volver">
         <i class="fas fa-arrow-left"></i>
       </button>
-      <h1 class="text-3xl font-bold ml-2">
-        {{ 'Editar prueba' if is_edit else 'Registrar nueva prueba' }}
-      </h1>
-    </div>
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p>
+        <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">
+          {{ 'Editar prueba clínica' if is_edit else 'Registrar prueba clínica' }}
+        </h1>
+        <p class="mt-2 text-sm text-gray-500">
+          {{ 'Actualiza sus elementos, valores de referencia y reactivos asociados.' if is_edit else 'Define sus elementos, valores de referencia y reactivos necesarios.' }}
+        </p>
+      </div>
+    </header>
 
     <!-- 1. Información de la prueba + Reactivos -->
     <div class="bg-white p-8 rounded-2xl shadow-md w-full clinical-test-section">
@@ -369,6 +377,7 @@
 
     <!-- Botón principal de submit -->
     <div class="flex justify-end mb-12">
+      <p id="form-prueba-error" class="hidden mr-auto self-center text-sm font-semibold text-red-600" role="alert"></p>
       <button
         type="submit"
         class="bg-blue-600 text-white px-6 py-2 rounded-xl shadow hover:bg-blue-700"
@@ -761,25 +770,57 @@ document.addEventListener("DOMContentLoaded", function () {
     if (vacio) vacio.classList.toggle("hidden", cantidad > 0);
   }
 
-  // En edición, conecta también las tarjetas renderizadas por el servidor.
-  contenedorValores.querySelectorAll(".valor-normal-card").forEach(card => {
-    card.classList.add("clinical-element-card");
-    const header = card.querySelector(".header-valor");
-    const contenido = card.querySelector(".contenido-fila");
-    const arrow = card.querySelector(".arrow-icon");
-    const eliminar = card.querySelector(".eliminar-valor");
-    header?.addEventListener("click", event => {
-      if (event.target.closest(".eliminar-valor")) return;
-      contenido?.classList.toggle("hidden");
-      arrow?.classList.toggle("fa-chevron-down");
-      arrow?.classList.toggle("fa-chevron-up");
+  function cargarEstructuraEnTarjeta(card, tipo, estructura = {}) {
+    const setValue = (field, value) => {
+      const input = card.querySelector(`[data-field="${field}"]`);
+      if (input && value !== null && value !== undefined) input.value = value;
+    };
+
+    if (tipo === "sexo") {
+      setValue("sexo_M_min", estructura.M?.min);
+      setValue("sexo_M_max", estructura.M?.max);
+      setValue("sexo_F_min", estructura.F?.min);
+      setValue("sexo_F_max", estructura.F?.max);
+      setValue("sexo_unidad", estructura.M?.unidad || estructura.F?.unidad || estructura.unidad);
+    } else if (tipo === "edades") {
+      const rangos = estructura.rangos || [];
+      setValue("edades_0_1_min", rangos[0]?.min);
+      setValue("edades_0_1_max", rangos[0]?.max);
+      setValue("edades_1_12_min", rangos[1]?.min);
+      setValue("edades_1_12_max", rangos[1]?.max);
+      setValue("edades_13_mas_min", rangos[2]?.min);
+      setValue("edades_13_mas_max", rangos[2]?.max);
+      setValue("edades_unidad", estructura.unidad);
+    } else if (tipo === "edad-sexo") {
+      const rangos = estructura.rangos || [];
+      const hombres = rangos.find(rango => rango.sexo === "M") || rangos[0];
+      const mujeres = rangos.find(rango => rango.sexo === "F") || rangos[1];
+      setValue("edadsexo_M_18_45_min", hombres?.min);
+      setValue("edadsexo_M_18_45_max", hombres?.max);
+      setValue("edadsexo_F_18_45_min", mujeres?.min);
+      setValue("edadsexo_F_18_45_max", mujeres?.max);
+      setValue("edadsexo_unidad", estructura.unidad);
+    } else if (tipo === "min-max") {
+      setValue("minmax_min", estructura.min);
+      setValue("minmax_max", estructura.max);
+      setValue("minmax_unidad", estructura.unidad);
+    } else if (tipo === "positivo-negativo") {
+      setValue("posneg_normal", estructura.valor_normal);
+    } else if (tipo === "menor-que") {
+      setValue("menorque_max", estructura.max);
+      setValue("menorque_unidad", estructura.unidad);
+    }
+  }
+
+  // Reconstruye todas las tarjetas de edición con el mismo componente que las nuevas.
+  if (isEdit && Array.isArray(prueba?.valores_normales)) {
+    contenedorValores.innerHTML = "";
+    prueba.valores_normales.forEach(elemento => {
+      const card = crearTarjetaValor(elemento.nombre, elemento.tipo_separacion);
+      cargarEstructuraEnTarjeta(card, elemento.tipo_separacion, elemento.estructura || {});
     });
-    eliminar?.addEventListener("click", event => {
-      event.stopPropagation();
-      card.remove();
-      actualizarEstadoElementos();
-    });
-  });
+  }
+
   actualizarEstadoElementos();
 
   function nombreValorExiste(nombre) {
@@ -832,9 +873,51 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   if (form) {
-    form.addEventListener("submit", function () {
+    form.addEventListener("submit", function (event) {
       const tarjetas = document.querySelectorAll(".valor-normal-card");
       const valores = [];
+      const formError = document.getElementById("form-prueba-error");
+      let firstInvalid = null;
+
+      document.querySelectorAll("[data-field]").forEach(field => {
+        field.classList.remove("border-red-500", "ring-2", "ring-red-100");
+      });
+
+      if (!hiddenContainer.querySelector('input[name="reactivos"]')) {
+        event.preventDefault();
+        formError.textContent = "Selecciona al menos un reactivo con datos completos.";
+        formError.classList.remove("hidden");
+        reactivoInput.focus();
+        return;
+      }
+
+      if (!tarjetas.length) {
+        event.preventDefault();
+        formError.textContent = "Agrega al menos un elemento a la prueba.";
+        formError.classList.remove("hidden");
+        document.getElementById("nombre-valor")?.focus();
+        return;
+      }
+
+      tarjetas.forEach(card => {
+        card.querySelectorAll("[data-field]").forEach(field => {
+          const value = (field.value || "").trim();
+          if (!value) {
+            field.classList.add("border-red-500", "ring-2", "ring-red-100");
+            firstInvalid ||= field;
+          }
+        });
+      });
+
+      if (firstInvalid) {
+        event.preventDefault();
+        formError.textContent = "Completa todos los valores y unidades antes de guardar.";
+        formError.classList.remove("hidden");
+        firstInvalid.closest(".contenido-fila")?.classList.remove("hidden");
+        firstInvalid.focus();
+        return;
+      }
+      formError.classList.add("hidden");
 
       tarjetas.forEach(card => {
         const nombre = card.dataset.nombre;
