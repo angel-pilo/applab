@@ -69,7 +69,6 @@
 </script>
 
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
   <!-- Iconos -->
   <link
@@ -81,19 +80,19 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
-<body class="font-sans overflow-x-hidden {% if request.path.startswith('/admin/') %}admin-surface{% endif %}">
+<body class="font-sans overflow-x-hidden app-body {% if request.path.startswith('/admin/') %}admin-surface{% endif %}">
   <!-- Layout principal: sidebar + columna derecha -->
-  <div class="min-h-screen flex">
+  <div class="app-layout">
     <!-- Sidebar fija a la izquierda -->
     {% include 'components/sidebar.html' %}
 
     <!-- Columna derecha: navbar + contenido + footer (sin flex-col) -->
-    <div class="flex-1">
+    <div class="app-workspace">
       <!-- Navbar arriba -->
       {% include 'components/navbar.html' %}
 
       <!-- Contenido: altura natural, sin flex-1 -->
-      <main id="main-content" class="p-4">
+      <main id="main-content" class="app-main">
         {% block content %}{% endblock %}
       </main>
 

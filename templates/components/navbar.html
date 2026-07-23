@@ -1,107 +1,66 @@
-{# Navbar sticky, responsive, sin <head> duplicados #}
-<header class="sticky top-0 inset-x-0 z-40 bg-white border-b border-gray-200">
-  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="h-16 flex items-center justify-between">
-      <!-- Izquierda: Hamburger (móvil) + Marca -->
-      <div class="flex items-center gap-3">
-        <button
-          class="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          aria-label="Abrir menú"
-          onclick="toggleSidebar(false)">
-          <i class="fas fa-bars text-lg"></i>
-        </button>
-
-        <a href="#" class="flex items-center gap-2">
-          <i class="fas fa-flask text-blue-600"></i>
-          <span class="font-semibold tracking-wide hidden sm:inline">AppLab</span>
-        </a>
+<header class="app-navbar">
+  <div class="app-navbar-inner">
+    <div class="app-navbar-start">
+      <button id="sidebar-open" type="button" class="app-nav-icon app-menu-button"
+              aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false">
+        <i class="fas fa-bars" aria-hidden="true"></i>
+      </button>
+      <div class="app-navbar-title">
+        <strong>{{ session.get('rol', 'AppLab') }}</strong>
+        <span>Gestión de laboratorio</span>
       </div>
+    </div>
 
-      <!-- Derecha: Notificaciones + Perfil -->
-      <div class="flex items-center gap-1 sm:gap-2">
-        <!-- Notificaciones -->
-        <div class="relative" data-dropdown>
-          <button id="navNotifBtn"
-                  class="relative inline-flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-haspopup="true" aria-expanded="false" aria-controls="navNotifPanel">
-            <i class="fas fa-bell text-lg"></i>
-            <span class="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center
-                         text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white">3</span>
-          </button>
-
-          <!-- Panel notificaciones -->
-          <div id="navNotifPanel"
-               class="dropdown hidden absolute right-0 mt-2 w-80 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
-            <div class="px-4 py-3 border-b">
-              <p class="font-semibold text-gray-800">Notificaciones</p>
-            </div>
-            <div class="max-h-64 overflow-auto divide-y">
-              <div class="px-4 py-3 hover:bg-gray-50">
-                <p class="text-sm text-gray-700">Resultado disponible para el paciente #A123</p>
-                <span class="text-xs text-gray-400">Hace 5 min</span>
-              </div>
-              <div class="px-4 py-3 hover:bg-gray-50">
-                <p class="text-sm text-gray-700">Stock bajo: Reactivo “X”</p>
-                <span class="text-xs text-gray-400">Hace 1 h</span>
-              </div>
-              <div class="px-4 py-3 hover:bg-gray-50">
-                <p class="text-sm text-gray-700">Nueva orden creada</p>
-                <span class="text-xs text-gray-400">Ayer</span>
-              </div>
-            </div>
-            <div class="px-4 py-2 border-t bg-gray-50 text-right">
-              <a href="{{ url_for('app_routes.backlog') if 'app_routes.backlog' in available_endpoints else '#' }}"
-                 class="text-sm text-blue-600 hover:underline">Ver todas</a>
-            </div>
+    <div class="app-navbar-actions">
+      <div class="app-dropdown">
+        <button id="navNotifBtn" type="button" class="app-nav-icon"
+                aria-label="Notificaciones" aria-haspopup="true"
+                aria-expanded="false" aria-controls="navNotifPanel">
+          <i class="fas fa-bell" aria-hidden="true"></i>
+          <span class="app-notification-dot">3</span>
+        </button>
+        <div id="navNotifPanel" class="app-dropdown-panel app-notifications" hidden>
+          <div class="app-dropdown-heading">
+            <div><strong>Notificaciones</strong><span>Actividad reciente</span></div>
+            <span class="app-dropdown-count">3</span>
+          </div>
+          <div class="app-notification-list">
+            <a href="#"><span class="app-notification-icon is-blue"><i class="fas fa-file-medical"></i></span><span><strong>Resultado disponible</strong><small>Paciente #A123 · Hace 5 min</small></span></a>
+            <a href="#"><span class="app-notification-icon is-amber"><i class="fas fa-vial"></i></span><span><strong>Reactivo con stock bajo</strong><small>Revisa el inventario · Hace 1 h</small></span></a>
+            <a href="#"><span class="app-notification-icon is-cyan"><i class="fas fa-clipboard-list"></i></span><span><strong>Nueva orden registrada</strong><small>Mostrador · Ayer</small></span></a>
           </div>
         </div>
+      </div>
 
-        <!-- Perfil -->
-        <div class="relative" data-dropdown>
-          <button id="navProfileBtn"
-                  class="inline-flex items-center gap-2 pl-2 pr-3 h-10 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-haspopup="true" aria-expanded="false" aria-controls="navProfilePanel">
-            <img src="{{ session['foto_perfil'] }}" alt="Foto de perfil"
-                 class="w-8 h-8 rounded-full object-cover"/>
-            <div class="hidden sm:flex flex-col items-start leading-tight">
-              <span class="text-sm text-gray-900 max-w-[10rem] truncate">{{ session['nombres'] }}</span>
-              <span class="text-[11px] text-gray-500 -mt-0.5">{{ session['rol'] }}</span>
-            </div>
-            <i class="fas fa-chevron-down text-xs text-gray-500"></i>
-          </button>
-
-          <!-- Panel perfil -->
-          <div id="navProfilePanel"
-               class="dropdown hidden absolute right-0 mt-2 w-64 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
-            <div class="px-4 py-3 border-b flex items-center gap-3">
-              <img src="{{ session['foto_perfil'] }}" alt="Foto de perfil"
-                   class="w-10 h-10 rounded-full object-cover"/>
-              <div class="min-w-0">
-                <p class="text-sm font-medium text-gray-900 truncate">{{ session['nombres'] }}</p>
-                <p class="text-xs text-gray-500 truncate">{{ session['rol'] }}</p>
-              </div>
-            </div>
-            <div class="py-1">
-              <a href="#" class="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm text-gray-700">
-                <i class="fas fa-user-circle w-4"></i> Mi perfil
-              </a>
-              <a href="#" class="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm text-gray-700">
-                <i class="fas fa-cog w-4"></i> Configuración
-              </a>
-              <a href="{{ url_for('app_routes.backlog') if 'app_routes.backlog' in available_endpoints else '#' }}"
-                 class="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm text-gray-700">
-                <i class="fas fa-history w-4"></i> Backlog
-              </a>
-            </div>
-            <div class="border-t bg-gray-50">
-              <button class="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-red-600"
-                      onclick="window.location.href='{{ url_for('app_routes.logout') }}'">
-                <i class="fas fa-sign-out-alt w-4"></i> Cerrar sesión
-              </button>
-            </div>
+      <div class="app-dropdown">
+        <button id="navProfileBtn" type="button" class="app-profile-button"
+                aria-haspopup="true" aria-expanded="false" aria-controls="navProfilePanel">
+          {% if session.get('foto_perfil') %}
+            <img src="{{ session.get('foto_perfil') }}" alt="" class="app-avatar">
+          {% else %}
+            <span class="app-avatar app-avatar-fallback" aria-hidden="true">{{ (session.get('nombres') or 'U')[0]|upper }}</span>
+          {% endif %}
+          <span class="app-profile-copy">
+            <strong>{{ session.get('nombres', 'Usuario') }}</strong>
+            <small>{{ session.get('rol', '') }}</small>
+          </span>
+          <i class="fas fa-chevron-down app-profile-chevron" aria-hidden="true"></i>
+        </button>
+        <div id="navProfilePanel" class="app-dropdown-panel app-profile-panel" hidden>
+          <div class="app-profile-summary">
+            {% if session.get('foto_perfil') %}
+              <img src="{{ session.get('foto_perfil') }}" alt="" class="app-avatar app-avatar-large">
+            {% else %}
+              <span class="app-avatar app-avatar-large app-avatar-fallback" aria-hidden="true">{{ (session.get('nombres') or 'U')[0]|upper }}</span>
+            {% endif %}
+            <span><strong>{{ session.get('nombres', 'Usuario') }}</strong><small>{{ session.get('rol', '') }}</small></span>
           </div>
+          {% if session.get('rol') == 'Admin' and 'app_routes.configuracion' in available_endpoints %}
+            <a href="{{ url_for('app_routes.configuracion') }}"><i class="fas fa-cog"></i><span>Configuración</span></a>
+          {% endif %}
+          <a href="{{ url_for('app_routes.logout') }}" class="is-danger"><i class="fas fa-sign-out-alt"></i><span>Cerrar sesión</span></a>
         </div>
       </div>
     </div>
-  </nav>
+  </div>
 </header>

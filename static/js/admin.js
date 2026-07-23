@@ -35,13 +35,13 @@ function closeProfile() {
 window.onclick = function(event) {
     if (!event.target.matches('.fa-bell') && !event.target.closest('#notificationPopup')) {
         const notificationPopup = document.getElementById('notificationPopup');
-        if (notificationPopup.classList.contains('active')) {
+        if (notificationPopup && notificationPopup.classList.contains('active')) {
             notificationPopup.classList.remove('active');
         }
     }
     if (!event.target.closest('.flex.items-center.space-x-2') && !event.target.closest('#profilePopup')) {
         const profilePopup = document.getElementById('profilePopup');
-        if (profilePopup.classList.contains('active')) {
+        if (profilePopup && profilePopup.classList.contains('active')) {
             profilePopup.classList.remove('active');
         }
     }
