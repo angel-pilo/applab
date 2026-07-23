@@ -169,3 +169,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+# Archivos de ejecución local (PID y logs)
+.runtime/
