@@ -167,6 +167,41 @@ class ClinicalTestServiceTests(unittest.TestCase):
         self.assertFalse(services.reactivo_tiene_datos_completos({**complete, "activo": False}))
 
 
+class InventoryServiceTests(unittest.TestCase):
+    def test_inventory_entry_uses_atomic_supabase_function(self):
+        class FakeRpc:
+            def __init__(self):
+                self.name = None
+                self.params = None
+
+            def rpc(self, name, params):
+                self.name = name
+                self.params = params
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data={
+                    "movimiento_id": 3,
+                    "existencia_anterior": 10,
+                    "existencia_nueva": 15,
+                })
+
+        fake = FakeRpc()
+        with patch.object(services, "supabase", fake):
+            ok, result = services.registrar_entrada_reactivo(
+                reactivo_id=2,
+                cantidad=5,
+                costo_unitario=12.5,
+                numero_lote="L-01",
+                empleado_id=1,
+            )
+
+        self.assertTrue(ok)
+        self.assertEqual(fake.name, "registrar_entrada_inventario")
+        self.assertEqual(fake.params["p_cantidad"], 5)
+        self.assertEqual(result["existencia_nueva"], 15)
+
+
 class AuthorizationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

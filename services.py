@@ -483,6 +483,44 @@ def actualizar_reactivo(reactivo_id, data):
         print(f"Error al actualizar reactivo: {e}")
         return None
 
+
+def registrar_entrada_reactivo(reactivo_id, cantidad, costo_unitario=None,
+                               numero_lote=None, fecha_vencimiento=None,
+                               observaciones=None, empleado_id=None):
+    """Registra una entrada y actualiza la existencia de forma atómica en Supabase."""
+    try:
+        params = {
+            "p_reactivo_id": int(reactivo_id),
+            "p_cantidad": int(cantidad),
+            "p_costo_unitario": float(costo_unitario) if costo_unitario not in (None, "") else None,
+            "p_numero_lote": (numero_lote or "").strip() or None,
+            "p_fecha_vencimiento": fecha_vencimiento or None,
+            "p_observaciones": (observaciones or "").strip() or None,
+            "p_empleado_id": int(empleado_id) if empleado_id else None,
+        }
+        response = supabase.rpc("registrar_entrada_inventario", params).execute()
+        return True, response.data
+    except (TypeError, ValueError):
+        return False, "Los datos de la entrada no son válidos."
+    except Exception as e:
+        print(f"Error al registrar entrada de inventario: {e}")
+        return False, "No se pudo registrar la entrada. Verifica que la migración de inventario esté aplicada."
+
+
+def obtener_movimientos_inventario(limit=20):
+    """Obtiene los movimientos recientes con el nombre del reactivo."""
+    try:
+        response = (
+            supabase.table("movimientos_inventario")
+            .select("id,tipo,cantidad,existencia_anterior,existencia_nueva,costo_unitario,numero_lote,fecha_vencimiento,creado_en,reactivo_id(id,nombre)")
+            .order("creado_en", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return response.data or []
+    except Exception:
+        return []
+
 def crear_prueba(nombre, tipo, precio):
     """Crea una nueva prueba clínica con el precio."""
     try:

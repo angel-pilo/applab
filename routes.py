@@ -1183,6 +1183,55 @@ def manage_inventory():
     reactivos = obtener_reactivos()  # Llamada a la función que obtiene los reactivos de la base de datos
     return render_template("admin/inventory.html", reactivos=reactivos)
 
+
+@app_routes.route("/admin/inventory/entry", methods=["GET", "POST"])
+@require_role("Admin")
+def registrar_entrada_inventario():
+    reactivos = [reactivo for reactivo in obtener_reactivos() if reactivo.get("activo")]
+
+    if request.method == "POST":
+        reactivo_id = request.form.get("reactivo_id", "").strip()
+        cantidad_raw = request.form.get("cantidad", "").strip()
+        costo_raw = request.form.get("costo_unitario", "").strip()
+
+        try:
+            cantidad = int(cantidad_raw)
+            costo = float(costo_raw) if costo_raw else None
+        except ValueError:
+            cantidad, costo = 0, None
+
+        if not reactivo_id or cantidad <= 0 or (costo is not None and costo < 0):
+            flash("Selecciona un reactivo e ingresa una cantidad válida.", "error")
+            return render_template(
+                "admin/inventory_entry.html",
+                reactivos=reactivos,
+                movimientos=obtener_movimientos_inventario(),
+            )
+
+        ok, result = registrar_entrada_reactivo(
+            reactivo_id=reactivo_id,
+            cantidad=cantidad,
+            costo_unitario=costo,
+            numero_lote=request.form.get("numero_lote"),
+            fecha_vencimiento=request.form.get("fecha_vencimiento"),
+            observaciones=request.form.get("observaciones"),
+            empleado_id=session.get("empleado_id"),
+        )
+        if ok:
+            nueva_existencia = result.get("existencia_nueva") if isinstance(result, dict) else None
+            suffix = f" Nueva existencia: {nueva_existencia}." if nueva_existencia is not None else ""
+            flash(f"Entrada registrada correctamente.{suffix}", "success")
+            return redirect(url_for("app_routes.manage_inventory"))
+
+        flash(result, "error")
+
+    return render_template(
+        "admin/inventory_entry.html",
+        reactivos=reactivos,
+        movimientos=obtener_movimientos_inventario(),
+    )
+
+
 # Ruta para agregar un nuevo reactivo
 @app_routes.route("/admin/add_reactivo", methods=["GET", "POST"])
 @require_role("Admin")

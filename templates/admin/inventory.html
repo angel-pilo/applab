@@ -5,13 +5,26 @@
 {% set add_label = "Registrar reactivo" %}
 {% set search_id = "search-input" %}
 {% set search_placeholder = "Buscar reactivo..." %}
+{% set catalog_class = "inventory-catalog" %}
 {% set empty_search_message = "No se encontró ningún reactivo." %}
+
+{% block header_actions %}
+  <a href="{{ url_for('app_routes.registrar_entrada_inventario') }}" class="admin-secondary-action inline-flex items-center justify-center gap-2">
+    <i class="fas fa-boxes text-xs"></i>
+    Registrar entrada
+  </a>
+  <a href="{{ add_url }}" class="btn-editar admin-primary-action inline-flex items-center justify-center gap-2">
+    <i class="fas fa-plus text-xs"></i>
+    {{ add_label }}
+  </a>
+{% endblock %}
 
 {% block table_head %}<th class="px-5 py-3">ID</th><th class="px-5 py-3">Nombre</th><th class="px-5 py-3">Tipo</th><th class="px-5 py-3">Cantidad</th><th class="px-5 py-3">Precio</th><th class="px-5 py-3">Estado</th><th class="px-5 py-3 text-right">Acciones</th>{% endblock %}
 {% block table_body %}
   {% for reactivo in reactivos|sort(attribute='id') %}
-  <tr class="cursor-pointer transition hover:bg-gray-50 {% if not reactivo.activo %}bg-gray-50 text-gray-500{% endif %}" onclick="document.getElementById('reactivo-{{ reactivo.id }}').checked = true; selectReactivo({{ reactivo.id }}, '{{ reactivo.nombre|e }}', '{{ reactivo.tipo_reactivo|e }}', '{{ reactivo.cantidad_inicial|e }}', '{{ reactivo.precio_unidad|e }}')">
-    <td class="px-5 py-4 font-medium"><input type="radio" name="reactivo" value="{{ reactivo.id }}" class="mr-2" id="reactivo-{{ reactivo.id }}">#{{ reactivo.id }}</td><td class="px-5 py-4 font-semibold text-gray-900">{{ reactivo.nombre }}</td><td class="px-5 py-4">{{ reactivo.tipo_reactivo }}</td><td class="px-5 py-4">{{ reactivo.cantidad_inicial }}</td><td class="px-5 py-4">${{ reactivo.precio_unidad }}</td>
+  {% set existencia = reactivo.existencia_actual if reactivo.existencia_actual is defined and reactivo.existencia_actual is not none else reactivo.cantidad_inicial %}
+  <tr class="cursor-pointer transition hover:bg-gray-50 {% if not reactivo.activo %}bg-gray-50 text-gray-500{% endif %}" onclick="document.getElementById('reactivo-{{ reactivo.id }}').checked = true; selectReactivo({{ reactivo.id }}, '{{ reactivo.nombre|e }}', '{{ reactivo.tipo_reactivo|e }}', '{{ existencia|e }}', '{{ reactivo.precio_unidad|e }}')">
+    <td class="px-5 py-4 font-medium"><input type="radio" name="reactivo" value="{{ reactivo.id }}" class="mr-2" id="reactivo-{{ reactivo.id }}">#{{ reactivo.id }}</td><td class="px-5 py-4 font-semibold text-gray-900">{{ reactivo.nombre }}</td><td class="px-5 py-4">{{ reactivo.tipo_reactivo }}</td><td class="px-5 py-4">{{ existencia }}</td><td class="px-5 py-4">${{ reactivo.precio_unidad }}</td>
     <td class="px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ 'bg-emerald-50 text-emerald-700' if reactivo.activo else 'bg-gray-200 text-gray-600' }}">{{ 'Activo' if reactivo.activo else 'Inactivo' }}</span></td>
     <td class="px-5 py-4"><div class="admin-action-group">{% if reactivo.activo %}<button class="btn-editar admin-action-button" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_reactivo', reactivo_id=reactivo.id) }}'">Editar</button><button class="btn-eliminar admin-action-button" onclick="event.stopPropagation(); openAdminConfirmation({endpoint: '{{ url_for('app_routes.delete_reactivo', reactivo_id=reactivo.id) }}', entity: 'este reactivo', action: 'eliminar'})">Eliminar</button>{% else %}<button class="btn-activar admin-action-button" onclick="event.stopPropagation(); openAdminConfirmation({endpoint: '{{ url_for('app_routes.activate_reactivo', reactivo_id=reactivo.id) }}', entity: 'este reactivo', action: 'activar'})">Activar</button>{% endif %}</div></td>
   </tr>
