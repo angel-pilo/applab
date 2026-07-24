@@ -1194,20 +1194,44 @@ def add_reactivo():
         if 'proveedor' in data:
             data['proveedor_id'] = data.pop('proveedor')
 
-        if 'id' in data:
-            ok, result = actualizar_reactivo(data['id'], data)
-            if ok:
-                flash("Reactivo actualizado correctamente.", "success")
-            else:
-                flash(result, "error")
-                return render_template("admin/add_reactivo.html", reactivo=data, proveedores=obtener_proveedores())
+        for field in ("numero_lote", "fecha_vencimiento", "ubicacion_inventario", "anotaciones"):
+            if not (data.get(field) or "").strip():
+                data[field] = None
+
+        required = ("nombre", "tipo_reactivo", "proveedor_id", "costo_unidad",
+                    "precio_unidad", "fecha_entrada", "cantidad_inicial")
+        if any(not str(data.get(field) or "").strip() for field in required):
+            flash("Completa todos los campos obligatorios del reactivo.", "error")
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=data,
+                proveedores=obtener_proveedores(),
+                is_edit=False,
+            )
+
+        try:
+            if float(data["costo_unidad"]) < 0 or float(data["precio_unidad"]) < 0 or int(data["cantidad_inicial"]) < 0:
+                raise ValueError
+        except ValueError:
+            flash("Costo, precio y cantidad deben ser valores válidos y no negativos.", "error")
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=data,
+                proveedores=obtener_proveedores(),
+                is_edit=False,
+            )
+
+        ok, result = crear_reactivo(data)
+        if ok:
+            flash(result, "success")
         else:
-            ok, result = crear_reactivo(data)
-            if ok:
-                flash(result, "success")
-            else:
-                flash(result, "error")
-                return render_template("admin/add_reactivo.html", reactivo=None, proveedores=obtener_proveedores())
+            flash(result, "error")
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=data,
+                proveedores=obtener_proveedores(),
+                is_edit=False,
+            )
 
         return redirect(url_for('app_routes.manage_inventory'))
 
@@ -1233,7 +1257,7 @@ def edit_reactivo(reactivo_id):
     # Verifica si el reactivo fue encontrado
     if not reactivo:
         flash("Reactivo no encontrado", "error")
-        return redirect(url_for('app_routes.inventory_reactivos'))
+        return redirect(url_for('app_routes.manage_inventory'))
     
     # Si el método es POST, es cuando se va a editar el reactivo
     if request.method == 'POST':
@@ -1244,11 +1268,33 @@ def edit_reactivo(reactivo_id):
         precio_unidad = request.form.get('precio_unidad')
         proveedor_id = request.form.get('proveedor')  # El proveedor seleccionado
         fecha_entrada = request.form.get('fecha_entrada')
-        cantidad_inicial = request.form.get('cantidad_inicial')
         numero_lote = request.form.get('numero_lote')
         fecha_vencimiento = request.form.get('fecha_vencimiento')
         ubicacion_inventario = request.form.get('ubicacion_inventario')
         anotaciones = request.form.get('anotaciones')
+
+        if any(not str(value or "").strip() for value in (
+            nombre, tipo_reactivo, costo_unidad, precio_unidad, proveedor_id, fecha_entrada
+        )):
+            flash("Completa todos los campos obligatorios del reactivo.", "error")
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=reactivo,
+                proveedores=proveedores,
+                is_edit=True,
+            )
+
+        try:
+            if float(costo_unidad) < 0 or float(precio_unidad) < 0:
+                raise ValueError
+        except ValueError:
+            flash("Costo y precio deben ser valores válidos y no negativos.", "error")
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=reactivo,
+                proveedores=proveedores,
+                is_edit=True,
+            )
         
         # Actualiza el reactivo en la base de datos
         supabase.table('reactivos').update({
@@ -1258,11 +1304,10 @@ def edit_reactivo(reactivo_id):
             'precio_unidad': precio_unidad,
             'proveedor_id': proveedor_id,
             'fecha_entrada': fecha_entrada,
-            'cantidad_inicial': cantidad_inicial,
-            'numero_lote': numero_lote,
-            'fecha_vencimiento': fecha_vencimiento,
-            'ubicacion_inventario': ubicacion_inventario,
-            'anotaciones': anotaciones
+            'numero_lote': numero_lote.strip() or None,
+            'fecha_vencimiento': fecha_vencimiento or None,
+            'ubicacion_inventario': ubicacion_inventario.strip() or None,
+            'anotaciones': anotaciones.strip() or None
         }).eq('id', reactivo_id).execute()
         
         flash("Reactivo actualizado correctamente", "success")
@@ -1327,7 +1372,7 @@ def get_reactivo_details(reactivo_id):
             return jsonify({
                 "nombre": reactivo['nombre'],
                 "tipo_reactivo": reactivo['tipo_reactivo'],
-                "cantidad_inicial": reactivo['cantidad_inicial'],
+                "cantidad_inicial": reactivo.get('existencia_actual', reactivo['cantidad_inicial']),
                 "precio_unidad": reactivo['precio_unidad'],
                 "fecha_entrada": reactivo['fecha_entrada'],
                 "fecha_vencimiento": reactivo['fecha_vencimiento'],
