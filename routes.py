@@ -1019,6 +1019,7 @@ def edit_patient(patient_id):
         ok, result = actualizar_paciente_seguro(patient_id, data)
         if not ok:
             flash(result, "error")
+            data["id"] = patient_id
             return render_template('admin/add_patient.html', is_edit=True, estados=estados, hospitales=hospitales, patient=data)
 
         flash("Paciente actualizado correctamente.", "success")

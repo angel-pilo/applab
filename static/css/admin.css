@@ -432,6 +432,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     gap: 1.1rem;
 }
 
+.admin-form-grid-three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-field-span-two {
+    grid-column: span 2;
+}
+
 .admin-field {
     min-width: 0;
 }
@@ -446,6 +454,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     color: #334155;
     font-size: 0.78rem;
     font-weight: 700;
+}
+
+.admin-field legend {
+    display: block;
+    margin-bottom: 0.42rem;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.admin-field legend span {
+    color: #dc2626;
 }
 
 .admin-field label span {
@@ -477,6 +497,82 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .admin-field textarea:focus {
     border-color: #60a5fa;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.11);
+}
+
+.admin-field input.is-invalid,
+.admin-field select.is-invalid,
+.admin-field textarea.is-invalid,
+.admin-field fieldset.is-invalid {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.admin-choice-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+.admin-choice {
+    position: relative;
+    cursor: pointer;
+}
+
+.admin-choice input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.admin-choice > span {
+    display: flex;
+    min-height: 2.8rem;
+    padding: 0.65rem 0.8rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border: 1px solid #dbe3ec;
+    border-radius: 0.75rem;
+    color: #526273;
+    background: #fff;
+    font-size: 0.78rem;
+    font-weight: 650;
+    transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+
+.admin-choice input:checked + span {
+    border-color: #60a5fa;
+    color: #1d4ed8;
+    background: #eff6ff;
+}
+
+.admin-choice input:focus-visible + span {
+    outline: 3px solid rgba(59, 130, 246, 0.18);
+    outline-offset: 2px;
+}
+
+.admin-field.is-invalid .admin-choice > span {
+    border-color: #ef4444;
+    background: #fff7f7;
+}
+
+.patient-form-alert {
+    display: flex;
+    padding: 0.8rem 1rem;
+    align-items: center;
+    gap: 0.65rem;
+    border: 1px solid #fecaca;
+    border-radius: 0.8rem;
+    color: #b91c1c;
+    background: #fef2f2;
+    font-size: 0.8rem;
+    font-weight: 650;
+}
+
+.patient-form-alert.hidden {
+    display: none;
 }
 
 .admin-field input[readonly] {
@@ -593,7 +689,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         grid-template-columns: 1fr;
     }
 
+    .admin-form-grid-three {
+        grid-template-columns: 1fr;
+    }
+
     .admin-field-full {
+        grid-column: auto;
+    }
+
+    .admin-field-span-two {
         grid-column: auto;
     }
 

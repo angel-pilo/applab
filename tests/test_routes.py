@@ -16,7 +16,7 @@ os.environ.setdefault(
 import routes
 import services
 from app import create_app
-from flask import render_template
+from flask import render_template, session
 from supabase_client import normalize_supabase_url
 
 
@@ -391,6 +391,43 @@ class AdminTemplateTests(unittest.TestCase):
         self.assertIn("Guardar cambios", edit_hospital)
         self.assertIn("Registrar empleado", create_employee)
         self.assertIn("Guardar cambios", edit_employee)
+
+    def test_patient_form_renders_in_create_and_edit_modes(self):
+        patient = SimpleNamespace(
+            id=9,
+            nombres="María",
+            apellidos="López",
+            sexo="F",
+            fecha_nacimiento="1994-05-10",
+            telefono="3312345678",
+            correo="maria@example.com",
+            calle="Juárez",
+            numero_ext="10",
+            numero_int="",
+            codigo_postal="44100",
+            municipio="Guadalajara",
+            estado="Jalisco",
+            condiciones_medicas="",
+        )
+
+        with self.app.test_request_context("/admin/add_patient"):
+            session["rol"] = "Admin"
+            create_html = render_template(
+                "admin/add_patient.html",
+                patient={},
+                is_edit=False,
+                estados=["Jalisco"],
+            )
+            edit_html = render_template(
+                "admin/add_patient.html",
+                patient=patient,
+                is_edit=True,
+                estados=["Jalisco"],
+            )
+
+        self.assertIn("Registrar paciente", create_html)
+        self.assertIn("Información clínica", create_html)
+        self.assertIn("Guardar cambios", edit_html)
 
 
 if __name__ == "__main__":
