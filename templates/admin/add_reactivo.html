@@ -1,138 +1,113 @@
 {% extends "base.html" %}
 
-{% block title %}Registrar Reactivo{% endblock %}
+{% block title %}{{ 'Editar reactivo' if is_edit else 'Registrar reactivo' }}{% endblock %}
 
 {% block content %}
-
-<head>
-    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
-</head>
-
-<div class="flex-1 p-8 transition-all duration-300">
-    <div class="flex items-center space-x-2 mb-6">
-        <button class="text-2xl" onclick="window.history.back()">
-            <i class="fas fa-arrow-left"></i>
-        </button>
-        <h1 class="text-3xl font-bold">{{ 'Editar Reactivo' if is_edit else 'Registrar Reactivo' }}</h1>
+<div class="admin-form-shell py-6 sm:py-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <button type="button" onclick="window.history.back()"
+            class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
+            aria-label="Volver">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">
+        {{ 'Editar reactivo' if is_edit else 'Registrar reactivo' }}
+      </h1>
+      <p class="mt-2 text-sm text-gray-500">
+        {{ 'Actualiza sus datos generales sin alterar el historial de existencias.' if is_edit else 'Crea el reactivo y establece su primera existencia en inventario.' }}
+      </p>
     </div>
+  </header>
 
-    <form method="POST" action="{{ url_for('app_routes.edit_reactivo', reactivo_id=reactivo.id) if is_edit else url_for('app_routes.add_reactivo') }}">
-        <div class="max-w-7xl mx-auto space-y-8">
+  <form method="POST"
+        action="{{ url_for('app_routes.edit_reactivo', reactivo_id=reactivo.id) if is_edit else url_for('app_routes.add_reactivo') }}"
+        class="mt-6 space-y-5">
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-vial"></i></span>
+        <div><h2>Información general</h2><p>Identificación, proveedor y valores comerciales.</p></div>
+      </div>
 
-            <!-- Datos Generales -->
-            <div class="bg-white p-6 rounded-[1rem] shadow-md">
-                <h2 class="text-xl font-semibold mb-6">Datos Generales</h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label for="nombre" class="block text-gray-700 font-bold mb-2">Nombre del reactivo <span class="text-red-500">*</span></label>
-                        <input type="text" id="nombre" name="nombre" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ reactivo.nombre if reactivo else '' }}" required>
-                    </div>
-                    <div>
-                        <label for="tipo_reactivo" class="block text-gray-700 font-bold mb-2">Tipo de reactivo <span class="text-red-500">*</span></label>
-                        <input type="text" id="tipo_reactivo" name="tipo_reactivo" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ reactivo.tipo_reactivo if reactivo else '' }}" required>
-                    </div>
-                    <div>
-                        <label for="proveedor" class="block text-gray-700 font-bold mb-2">Proveedor <span class="text-red-500">*</span></label>
-                        <select id="proveedor" name="proveedor" class="w-full px-4 py-2 border rounded-[1rem]" required>
-                            <option value="" disabled selected>Seleccionar proveedor</option>
-                            {% for proveedor in proveedores %}
-                                <option value="{{ proveedor.id }}" {% if reactivo and proveedor.id == reactivo.proveedor_id %}selected{% endif %}>{{ proveedor.nombre }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="costo_unidad" class="block text-gray-700 font-bold mb-2">Costo por unidad <span class="text-red-500">*</span></label>
-                        <input type="number" id="costo_unidad" name="costo_unidad" step="0.01" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ reactivo.costo_unidad if reactivo else '' }}" required>
-                    </div>
-                    <div>
-                        <label for="precio_unidad" class="block text-gray-700 font-bold mb-2">Precio por unidad <span class="text-red-500">*</span></label>
-                        <input type="number" id="precio_unidad" name="precio_unidad" step="0.01" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ reactivo.precio_unidad if reactivo else '' }}" required>
-                    </div>
-                    <div>
-                        <label for="fecha_entrada" class="block text-gray-700 font-bold mb-2">Fecha de entrada <span class="text-red-500">*</span></label>
-                        <input type="date" id="fecha_entrada" name="fecha_entrada" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ reactivo.fecha_entrada if reactivo else '' }}" required>
-                    </div>
-                    <div>
-                        <label for="cantidad_inicial" class="block text-gray-700 font-bold mb-2">Cantidad inicial <span class="text-red-500">*</span></label>
-                        <input type="number" id="cantidad_inicial" name="cantidad_inicial" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ reactivo.cantidad_inicial if reactivo else '' }}" required>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Información de Existencias y Anotaciones lado a lado -->
-            <div class="flex gap-6 max-w-8xl">
-                <div class="bg-white p-6 rounded-[1rem] md:w-[50%] w-full shadow-md">
-                    <h2 class="text-xl font-semibold mb-6">Información de Existencias</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label for="numero_lote" class="block text-gray-700 font-bold mb-2">Número de lote</label>
-                            <input type="text" id="numero_lote" name="numero_lote" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ reactivo.numero_lote if reactivo else '' }}">
-                        </div>
-                        <div>
-                            <label for="fecha_vencimiento" class="block text-gray-700 font-bold mb-2">Fecha de vencimiento</label>
-                            <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ reactivo.fecha_vencimiento if reactivo else '' }}">
-                        </div>
-                        <div>
-                            <label for="ubicacion_inventario" class="block text-gray-700 font-bold mb-2">Ubicación en inventario</label>
-                            <input type="text" id="ubicacion_inventario" name="ubicacion_inventario" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ reactivo.ubicacion_inventario if reactivo else '' }}">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-[1rem] md:w-[50%] w-full shadow-md">
-                    <h2 class="text-lg font-bold mb-4">Anotaciones extra</h2>
-                    <textarea id="anotaciones" name="anotaciones" rows="8" class="w-full px-4 py-2 border rounded-[1rem]">{{ reactivo.anotaciones if reactivo else '' }}</textarea>
-                </div>
-            </div>
-
-            <!-- Botones -->
-            <div class="max-w-8xl mx-auto flex justify-end mt-6 gap-4">
-                <button id="guardar-btn" type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">Guardar</button>
-                <button type="button" class="btn-cancelar px-6 py-2 rounded-[1rem]" onclick="window.history.back()">Cancelar</button>
-            </div>
+      <div class="admin-form-grid">
+        <div class="admin-field">
+          <label for="nombre">Nombre del reactivo <span>*</span></label>
+          <input type="text" id="nombre" name="nombre" value="{{ reactivo.nombre if reactivo else '' }}"
+                 placeholder="Ej. Reactivo de glucosa" required>
         </div>
-    </form>
+        <div class="admin-field">
+          <label for="tipo_reactivo">Tipo de reactivo <span>*</span></label>
+          <input type="text" id="tipo_reactivo" name="tipo_reactivo" value="{{ reactivo.tipo_reactivo if reactivo else '' }}"
+                 placeholder="Ej. Química seca" required>
+        </div>
+        <div class="admin-field">
+          <label for="proveedor">Proveedor <span>*</span></label>
+          <select id="proveedor" name="proveedor" required>
+            <option value="" disabled {% if not reactivo %}selected{% endif %}>Selecciona un proveedor</option>
+            {% for proveedor in proveedores %}
+              <option value="{{ proveedor.id }}" {% if reactivo and proveedor.id == reactivo.proveedor_id %}selected{% endif %}>{{ proveedor.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="admin-field">
+          <label for="costo_unidad">Costo por unidad <span>*</span></label>
+          <div class="admin-input-prefix"><span>$</span><input type="number" id="costo_unidad" name="costo_unidad" min="0" step="0.01" value="{{ reactivo.costo_unidad if reactivo else '' }}" required></div>
+        </div>
+        <div class="admin-field">
+          <label for="precio_unidad">Precio por unidad <span>*</span></label>
+          <div class="admin-input-prefix"><span>$</span><input type="number" id="precio_unidad" name="precio_unidad" min="0" step="0.01" value="{{ reactivo.precio_unidad if reactivo else '' }}" required></div>
+        </div>
+        <div class="admin-field">
+          <label for="fecha_entrada">{{ 'Fecha de registro' if is_edit else 'Fecha de primera entrada' }} <span>*</span></label>
+          <input type="date" id="fecha_entrada" name="fecha_entrada" value="{{ reactivo.fecha_entrada if reactivo else '' }}" required>
+        </div>
+        {% if not is_edit %}
+          <div class="admin-field">
+            <label for="cantidad_inicial">Cantidad inicial <span>*</span></label>
+            <input type="number" id="cantidad_inicial" name="cantidad_inicial" min="0" step="1" value="{{ reactivo.cantidad_inicial if reactivo else '' }}" placeholder="0" required>
+            <small>Las siguientes compras se registrarán desde “Registrar entrada”.</small>
+          </div>
+        {% else %}
+          <div class="admin-field">
+            <label for="existencia_actual">Existencia actual</label>
+            <input type="number" id="existencia_actual" value="{{ reactivo.existencia_actual if reactivo.existencia_actual is defined else reactivo.cantidad_inicial }}" readonly>
+            <small>Para aumentarla utiliza “Registrar entrada”.</small>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon is-cyan"><i class="fas fa-box-open"></i></span>
+        <div><h2>Almacenamiento</h2><p>Lote, vencimiento, ubicación y notas de control.</p></div>
+      </div>
+
+      <div class="admin-form-grid">
+        <div class="admin-field">
+          <label for="numero_lote">Número de lote</label>
+          <input type="text" id="numero_lote" name="numero_lote" value="{{ reactivo.numero_lote if reactivo else '' }}" placeholder="Ej. LT-2026-001">
+        </div>
+        <div class="admin-field">
+          <label for="fecha_vencimiento">Fecha de vencimiento</label>
+          <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" value="{{ reactivo.fecha_vencimiento if reactivo else '' }}">
+        </div>
+        <div class="admin-field">
+          <label for="ubicacion_inventario">Ubicación</label>
+          <input type="text" id="ubicacion_inventario" name="ubicacion_inventario" value="{{ reactivo.ubicacion_inventario if reactivo else '' }}" placeholder="Ej. Refrigerador 2, nivel B">
+        </div>
+        <div class="admin-field admin-field-full">
+          <label for="anotaciones">Anotaciones</label>
+          <textarea id="anotaciones" name="anotaciones" rows="4" placeholder="Indicaciones de almacenamiento u observaciones...">{{ reactivo.anotaciones if reactivo else '' }}</textarea>
+        </div>
+      </div>
+    </section>
+
+    <div class="admin-form-actions">
+      <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+      <button type="submit" class="btn-guardar"><i class="fas fa-save mr-2"></i>{{ 'Guardar cambios' if is_edit else 'Registrar reactivo' }}</button>
+    </div>
+  </form>
 </div>
-
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const nombreInput = document.querySelector('[name="nombre"]');
-    const telefonoInput = document.querySelector('[name="telefono"]');
-    const correoInput = document.querySelector('[name="correo"]');
-    const guardarBtn = document.getElementById("guardar-btn");
-
-    function checkDuplicado() {
-      const nombre = nombreInput.value.trim();
-      const telefono = telefonoInput.value.trim();
-      const correo = correoInput.value.trim();
-
-      if (!nombre && !telefono && !correo) return;
-
-      fetch("/api/check_proveedor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, telefono, correo })
-      })
-      .then(res => res.json())
-      .then(data => {
-        const alerta = document.getElementById("alerta-duplicado");
-        if (data.exists) {
-          alerta.classList.remove("hidden");
-          guardarBtn.disabled = true;
-        } else {
-          alerta.classList.add("hidden");
-          guardarBtn.disabled = false;
-        }
-      })
-      .catch(() => {
-        console.error("Error verificando proveedor duplicado");
-      });
-    }
-
-    nombreInput.addEventListener("input", checkDuplicado);
-    telefonoInput.addEventListener("input", checkDuplicado);
-    correoInput.addEventListener("input", checkDuplicado);
-  });
-</script>
-
 {% endblock %}

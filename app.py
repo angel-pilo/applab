@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, session, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
 
@@ -25,6 +26,15 @@ def create_app() -> Flask:
 
     # --- Configuración base ---
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    public_https = os.getenv("APP_PUBLIC_HTTPS", "").lower() in {"1", "true", "yes"}
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=public_https,
+    )
+    if public_https:
+        # El servidor solo escucha en localhost; Tailscale termina HTTPS.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.config["SUPABASE_URL"] = os.getenv("SUPABASE_URL", "")
     app.config["SUPABASE_KEY"] = os.getenv("SUPABASE_KEY", "")
     if supabase is not None:

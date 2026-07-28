@@ -1,12 +1,14 @@
 import os
 import bcrypt
 import re
+import uuid
+from urllib.parse import unquote, urlparse
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for, jsonify
 from functools import wraps
 from services import *
 from datetime import datetime
 import json
-from supabase_client import supabase
+from supabase_client import supabase, supabase_storage, SUPABASE_AVATAR_BUCKET
 
 
 
@@ -28,6 +30,118 @@ role_map = {
     3: "Enfermero",
     4: "Quimico"
 }
+
+AVATAR_UPLOAD_FOLDER = os.path.join(
+    os.path.dirname(__file__), "static", "uploads", "avatars"
+)
+AVATAR_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
+AVATAR_MAX_BYTES = 3 * 1024 * 1024
+
+
+def validate_employee_avatar(file):
+    """Valida extensión, tamaño y firma básica de una foto de perfil."""
+    if not file or not file.filename:
+        return None, None
+
+    extension = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if extension not in AVATAR_EXTENSIONS:
+        return None, "La foto debe ser JPG, PNG, GIF o WEBP."
+
+    content = file.read(AVATAR_MAX_BYTES + 1)
+    file.seek(0)
+    if len(content) > AVATAR_MAX_BYTES:
+        return None, "La foto no puede superar 3 MB."
+
+    signatures = {
+        "jpg": content.startswith(b"\xff\xd8\xff"),
+        "jpeg": content.startswith(b"\xff\xd8\xff"),
+        "png": content.startswith(b"\x89PNG\r\n\x1a\n"),
+        "gif": content.startswith((b"GIF87a", b"GIF89a")),
+        "webp": len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP",
+    }
+    if not signatures.get(extension):
+        return None, "El contenido del archivo no corresponde a una imagen válida."
+
+    return extension, None
+
+
+def save_employee_avatar(file, extension):
+    """Guarda una foto validada en Supabase Storage o usa respaldo local."""
+    filename = f"employee-{uuid.uuid4().hex}.{extension}"
+    if SUPABASE_AVATAR_BUCKET:
+        file.seek(0)
+        content = file.read()
+        supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).upload(
+            f"profiles/{filename}",
+            content,
+            {
+                "content-type": file.mimetype or f"image/{extension}",
+                "cache-control": "3600",
+            },
+        )
+        return supabase_storage.storage.from_(
+            SUPABASE_AVATAR_BUCKET
+        ).get_public_url(f"profiles/{filename}")
+
+    os.makedirs(AVATAR_UPLOAD_FOLDER, exist_ok=True)
+    file.seek(0)
+    file.save(os.path.join(AVATAR_UPLOAD_FOLDER, filename))
+    return url_for("static", filename=f"uploads/avatars/{filename}")
+
+
+def delete_local_employee_avatar(avatar_url):
+    """Elimina avatares administrados, tanto locales como de Supabase Storage."""
+    if (
+        avatar_url and SUPABASE_AVATAR_BUCKET
+        and "/storage/v1/object/public/" in avatar_url
+    ):
+        marker = f"/storage/v1/object/public/{SUPABASE_AVATAR_BUCKET}/"
+        parsed_path = unquote(urlparse(avatar_url).path)
+        if marker in parsed_path:
+            storage_path = parsed_path.split(marker, 1)[1]
+            if storage_path.startswith("profiles/"):
+                supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).remove(
+                    [storage_path]
+                )
+        return
+
+    prefix = "/static/uploads/avatars/"
+    if not avatar_url or not avatar_url.startswith(prefix):
+        return
+
+    filename = os.path.basename(avatar_url)
+    target = os.path.abspath(os.path.join(AVATAR_UPLOAD_FOLDER, filename))
+    folder = os.path.abspath(AVATAR_UPLOAD_FOLDER)
+    if os.path.commonpath((target, folder)) == folder and os.path.isfile(target):
+        os.remove(target)
+
+
+def normalize_avatar_choice(value):
+    """Acepta únicamente las opciones de avatar conocidas por la interfaz."""
+    choice = (value or "initials").strip()
+    if choice in {"initials", "upload", "current"}:
+        return choice
+    if choice.startswith("preset:"):
+        try:
+            preset_id = int(choice.split(":", 1)[1])
+        except (TypeError, ValueError):
+            return "initials"
+        if 1 <= preset_id <= 12:
+            return f"preset:{preset_id}"
+    return "initials"
+
+
+def attribute_audit_event(entity_type, entity_id, extra_changes=None):
+    """Añade al evento automático la identidad del usuario autenticado."""
+    return atribuir_ultimo_evento(
+        entidad_tipo=entity_type,
+        entidad_id=entity_id,
+        actor_usuario_id=session.get("user_id"),
+        actor_empleado_id=session.get("empleado_id"),
+        actor_username=session.get("usuario"),
+        actor_nombre=session.get("nombres"),
+        cambios_extra=extra_changes,
+    )
 
 # Decorador para restringir acceso según rol
 def require_role(roles):
@@ -276,48 +390,88 @@ import bcrypt
 @require_role("Admin")
 def add_employee():
     if request.method == "POST":
+        form_data = {
+            key: value.strip() if isinstance(value, str) else value
+            for key, value in request.form.to_dict().items()
+        }
+        form_data["rol_id"] = form_data.get("tipo_empleado", "")
 
-        # Obtener y validar datos del formulario
         required_fields = [
             "sexo", "fecha_nacimiento", "nombres", "apellidos", "telefono", "correo",
             "username", "password", "calle", "numero_ext", "codigo_postal", "municipio",
-            "estado", "curp_rfc", "turno", "condiciones_medicas", "contacto_emergencia", "tipo_empleado"
+            "estado", "curp_rfc", "turno", "contacto_emergencia", "tipo_empleado"
         ]
 
-        for field in required_fields:
-            if not request.form.get(field):
-                return f"El campo {field} es obligatorio", 400
+        if not all(form_data.get(field) for field in required_fields):
+            flash("Completa todos los campos obligatorios antes de guardar.", "error")
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=False,
+                role_map=role_map, estados=estados
+            )
 
         # Datos generales
-        sexo = request.form['sexo']
-        fecha_nacimiento = request.form['fecha_nacimiento']
-        nombres = request.form['nombres']
-        apellidos = request.form['apellidos']
-        telefono = request.form['telefono']
-        correo = request.form['correo']
-        username = request.form['username']
-        password = request.form['password']
-        calle = request.form['calle']
-        numero_ext = request.form['numero_ext']
-        numero_int = request.form.get('numero_int', None)  # Puede ser opcional
-        codigo_postal = request.form['codigo_postal']
-        municipio = request.form['municipio']
-        estado = request.form['estado']
-        curp_rfc = request.form['curp_rfc']
-        turno = request.form['turno']
-        condiciones_medicas = request.form['condiciones_medicas']
-        contacto_emergencia = request.form['contacto_emergencia']
-        rol_id = request.form.get('tipo_empleado')
-        foto_perfil = None  # O asigna un valor predeterminado si se requiere
-
-        if not rol_id.isdigit():
-            return "Tipo de empleado inválido", 400
+        sexo = form_data['sexo']
+        fecha_nacimiento = form_data['fecha_nacimiento']
+        nombres = form_data['nombres']
+        apellidos = form_data['apellidos']
+        telefono = form_data['telefono']
+        correo = form_data['correo']
+        username = form_data['username']
+        password = form_data['password']
+        calle = form_data['calle']
+        numero_ext = form_data['numero_ext']
+        numero_int = form_data.get('numero_int') or None
+        codigo_postal = form_data['codigo_postal']
+        municipio = form_data['municipio']
+        estado = form_data['estado']
+        curp_rfc = form_data['curp_rfc']
+        turno = form_data['turno']
+        condiciones_medicas = form_data.get('condiciones_medicas', '')
+        contacto_emergencia = form_data['contacto_emergencia']
+        rol_id = form_data.get('tipo_empleado')
+        if (
+            not rol_id.isdigit() or int(rol_id) not in role_map
+            or sexo not in {"M", "F", "O"}
+            or turno not in {"Matutino", "Vespertino", "Nocturno", "Mixto"}
+            or len(password) < 8
+        ):
+            flash("Revisa el rol, sexo, turno y la contraseña antes de guardar.", "error")
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=False,
+                role_map=role_map, estados=estados
+            )
         rol_id = int(rol_id)
 
         # Verificar si el usuario ya existe
         existing_user = supabase.table('usuarios').select('id').eq('username', username).execute()
         if existing_user.data:
-            return "El nombre de usuario ya está en uso. Por favor elige otro.", 400
+            flash("El nombre de usuario ya está en uso.", "error")
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=False,
+                role_map=role_map, estados=estados
+            )
+
+        avatar_file = request.files.get("foto_perfil")
+        avatar_choice = normalize_avatar_choice(form_data.get("avatar_choice"))
+        avatar_extension, avatar_error = validate_employee_avatar(avatar_file)
+        if avatar_error:
+            flash(avatar_error, "error")
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=False,
+                role_map=role_map, estados=estados
+            )
+        if avatar_choice == "upload" and not avatar_extension:
+            flash("Selecciona una fotografía antes de guardar.", "error")
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=False,
+                role_map=role_map, estados=estados
+            )
+        if avatar_choice.startswith("preset:"):
+            foto_perfil = avatar_choice
+        elif avatar_choice == "upload":
+            foto_perfil = save_employee_avatar(avatar_file, avatar_extension)
+        else:
+            foto_perfil = None
 
         # Encriptar la contraseña con bcrypt
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -386,62 +540,121 @@ def edit_employee(empleado_id):
         if rol.data:
             empleado['rol_id'] = rol.data[0]['rol_id']
 
-        # Obtener el usuario asociado al empleado (incluyendo la contraseña)
-        usuario = supabase.table('usuarios').select('username, password').eq('id', empleado['usuario_id']).execute()
+        # Obtener únicamente el nombre de usuario; la contraseña nunca se envía al formulario.
+        usuario = supabase.table('usuarios').select('username').eq('id', empleado['usuario_id']).execute()
         if usuario.data:
             empleado['username'] = usuario.data[0]['username']
-            empleado['password'] = usuario.data[0]['password']  # Recuperar la contraseña
 
         # Renderizar la plantilla con los datos del empleado y role_map
         return render_template('admin/edit_employee.html', empleado=empleado, is_edit=True, role_map=role_map, estados=estados)
 
     elif request.method == "POST":
-        # Obtener y validar datos del formulario
+        form_data = {
+            key: value.strip() if isinstance(value, str) else value
+            for key, value in request.form.to_dict().items()
+        }
+        form_data["rol_id"] = form_data.get("tipo_empleado", "")
+
         required_fields = [
             "sexo", "fecha_nacimiento", "nombres", "apellidos", "telefono", "correo",
             "username", "calle", "numero_ext", "codigo_postal", "municipio", "estado",
-            "curp_rfc", "turno", "condiciones_medicas", "contacto_emergencia", "tipo_empleado"
+            "curp_rfc", "turno", "contacto_emergencia", "tipo_empleado"
         ]
 
-        for field in required_fields:
-            if not request.form.get(field):
-                return f"El campo {field} es obligatorio", 400
+        if not all(form_data.get(field) for field in required_fields):
+            flash("Completa todos los campos obligatorios antes de guardar.", "error")
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=True,
+                role_map=role_map, estados=estados
+            )
 
         # Datos generales
-        sexo = request.form['sexo']
-        fecha_nacimiento = request.form['fecha_nacimiento']
-        nombres = request.form['nombres']
-        apellidos = request.form['apellidos']
-        telefono = request.form['telefono']
-        correo = request.form['correo']
-        username = request.form['username']
-        calle = request.form['calle']
-        numero_ext = request.form['numero_ext']
-        numero_int = request.form.get('numero_int', None)
-        codigo_postal = request.form['codigo_postal']
-        municipio = request.form['municipio']
-        estado = request.form['estado']
-        curp_rfc = request.form['curp_rfc']
-        turno = request.form['turno']
-        condiciones_medicas = request.form['condiciones_medicas']
-        contacto_emergencia = request.form['contacto_emergencia']
-        rol_id = request.form.get('tipo_empleado')
+        sexo = form_data['sexo']
+        fecha_nacimiento = form_data['fecha_nacimiento']
+        nombres = form_data['nombres']
+        apellidos = form_data['apellidos']
+        telefono = form_data['telefono']
+        correo = form_data['correo']
+        username = form_data['username']
+        calle = form_data['calle']
+        numero_ext = form_data['numero_ext']
+        numero_int = form_data.get('numero_int') or None
+        codigo_postal = form_data['codigo_postal']
+        municipio = form_data['municipio']
+        estado = form_data['estado']
+        curp_rfc = form_data['curp_rfc']
+        turno = form_data['turno']
+        condiciones_medicas = form_data.get('condiciones_medicas', '')
+        contacto_emergencia = form_data['contacto_emergencia']
+        rol_id = form_data.get('tipo_empleado')
 
-        if not rol_id.isdigit():
-            return "Tipo de empleado inválido", 400
+        nueva_password = form_data.get('password', '')
+        if (
+            not rol_id.isdigit() or int(rol_id) not in role_map
+            or sexo not in {"M", "F", "O"}
+            or turno not in {"Matutino", "Vespertino", "Nocturno", "Mixto"}
+            or (nueva_password and len(nueva_password) < 8)
+        ):
+            flash("Revisa el rol, sexo, turno y la contraseña antes de guardar.", "error")
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=True,
+                role_map=role_map, estados=estados
+            )
         rol_id = int(rol_id)
 
         # Obtener el empleado actual para recuperar el usuario_id
-        empleado_actual = supabase.table('empleados').select('usuario_id').eq('id', empleado_id).execute()
+        empleado_actual = (
+            supabase.table('empleados')
+            .select('usuario_id, foto_perfil')
+            .eq('id', empleado_id)
+            .execute()
+        )
         if not empleado_actual.data:
             flash("Empleado no encontrado", "error")
             return redirect(url_for("app_routes.manage_employees"))
 
         usuario_id = empleado_actual.data[0]['usuario_id']
+        foto_actual = empleado_actual.data[0].get('foto_perfil')
+        rol_actual_response = (
+            supabase.table("empleado_roles")
+            .select("rol_id")
+            .eq("empleado_id", empleado_id)
+            .limit(1)
+            .execute()
+        )
+        rol_actual = (
+            rol_actual_response.data[0].get("rol_id")
+            if rol_actual_response.data else None
+        )
+
+        avatar_file = request.files.get("foto_perfil")
+        avatar_choice = normalize_avatar_choice(form_data.get("avatar_choice"))
+        avatar_extension, avatar_error = validate_employee_avatar(avatar_file)
+        if avatar_error:
+            flash(avatar_error, "error")
+            form_data["foto_perfil"] = foto_actual
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=True,
+                role_map=role_map, estados=estados
+            )
+        if avatar_choice == "upload" and not avatar_extension:
+            flash("Selecciona una fotografía antes de guardar.", "error")
+            form_data["foto_perfil"] = foto_actual
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=True,
+                role_map=role_map, estados=estados
+            )
+        if avatar_choice.startswith("preset:"):
+            nueva_foto = avatar_choice
+        elif avatar_choice == "upload":
+            nueva_foto = save_employee_avatar(avatar_file, avatar_extension)
+        elif avatar_choice == "initials":
+            nueva_foto = None
+        else:
+            nueva_foto = foto_actual
 
         # Actualizar el usuario
         usuario_data = {"username": username}
-        nueva_password = request.form.get('password')
         if nueva_password:  # Si se proporciona una nueva contraseña
             hashed_password = bcrypt.hashpw(nueva_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             usuario_data['password'] = hashed_password
@@ -465,12 +678,32 @@ def edit_employee(empleado_id):
             "curp_rfc": curp_rfc,
             "turno": turno,
             "condiciones_medicas": condiciones_medicas,
-            "contacto_emergencia": contacto_emergencia
+            "contacto_emergencia": contacto_emergencia,
+            "foto_perfil": nueva_foto
         }
         supabase.table('empleados').update(empleado_data).eq('id', empleado_id).execute()
 
+        if nueva_foto != foto_actual and foto_actual:
+            delete_local_employee_avatar(foto_actual)
+        if session.get("empleado_id") == empleado_id:
+            session["foto_perfil"] = empleado_data["foto_perfil"]
+
         # Actualizar el rol del empleado
         supabase.table('empleado_roles').update({"rol_id": rol_id}).eq('empleado_id', empleado_id).execute()
+        cambios_extra = []
+        if nueva_password:
+            cambios_extra.append({
+                "campo": "password",
+                "anterior": "Protegida",
+                "nuevo": "Actualizada",
+            })
+        if rol_actual != rol_id:
+            cambios_extra.append({
+                "campo": "rol",
+                "anterior": role_map.get(rol_actual, "Sin rol"),
+                "nuevo": role_map.get(rol_id, "Sin rol"),
+            })
+        attribute_audit_event("empleados", empleado_id, cambios_extra)
 
         flash("Empleado actualizado correctamente", "success")
         return redirect(url_for("app_routes.manage_employees"))
@@ -689,12 +922,48 @@ def activate_hospital(hospital_id):
 def reportes():
     return render_template("admin/reportes.html")
 
-@app_routes.route("/configuracion")
+@app_routes.route("/configuracion", methods=["GET", "POST"])
 @require_role(role_map.values())
 def configuracion():
     # Solo usuarios logueados
     if "usuario" not in session:
         return redirect(url_for("app_routes.login"))
+
+    if request.method == "POST":
+        empleado_id = session.get("empleado_id")
+        if not empleado_id:
+            flash("No se encontró el perfil del empleado.", "error")
+            return redirect(url_for("app_routes.configuracion"))
+
+        avatar_file = request.files.get("foto_perfil")
+        avatar_choice = normalize_avatar_choice(request.form.get("avatar_choice"))
+        avatar_extension, avatar_error = validate_employee_avatar(avatar_file)
+        if avatar_error:
+            flash(avatar_error, "error")
+            return redirect(url_for("app_routes.configuracion"))
+
+        foto_actual = session.get("foto_perfil")
+        if avatar_choice == "upload" and not avatar_extension:
+            flash("Selecciona una fotografía antes de guardar.", "error")
+            return redirect(url_for("app_routes.configuracion"))
+        if avatar_choice.startswith("preset:"):
+            foto_perfil = avatar_choice
+        elif avatar_choice == "upload":
+            foto_perfil = save_employee_avatar(avatar_file, avatar_extension)
+        elif avatar_choice == "initials":
+            foto_perfil = None
+        else:
+            foto_perfil = foto_actual
+
+        supabase.table("empleados").update(
+            {"foto_perfil": foto_perfil}
+        ).eq("id", empleado_id).execute()
+
+        if foto_perfil != foto_actual and foto_actual:
+            delete_local_employee_avatar(foto_actual)
+        session["foto_perfil"] = foto_perfil
+        flash("Foto de perfil actualizada.", "success")
+        return redirect(url_for("app_routes.configuracion"))
 
     user = {
         "username": session.get("usuario"),
@@ -1019,6 +1288,7 @@ def edit_patient(patient_id):
         ok, result = actualizar_paciente_seguro(patient_id, data)
         if not ok:
             flash(result, "error")
+            data["id"] = patient_id
             return render_template('admin/add_patient.html', is_edit=True, estados=estados, hospitales=hospitales, patient=data)
 
         flash("Paciente actualizado correctamente.", "success")
@@ -1183,6 +1453,55 @@ def manage_inventory():
     reactivos = obtener_reactivos()  # Llamada a la función que obtiene los reactivos de la base de datos
     return render_template("admin/inventory.html", reactivos=reactivos)
 
+
+@app_routes.route("/admin/inventory/entry", methods=["GET", "POST"])
+@require_role("Admin")
+def registrar_entrada_inventario():
+    reactivos = [reactivo for reactivo in obtener_reactivos() if reactivo.get("activo")]
+
+    if request.method == "POST":
+        reactivo_id = request.form.get("reactivo_id", "").strip()
+        cantidad_raw = request.form.get("cantidad", "").strip()
+        costo_raw = request.form.get("costo_unitario", "").strip()
+
+        try:
+            cantidad = int(cantidad_raw)
+            costo = float(costo_raw) if costo_raw else None
+        except ValueError:
+            cantidad, costo = 0, None
+
+        if not reactivo_id or cantidad <= 0 or (costo is not None and costo < 0):
+            flash("Selecciona un reactivo e ingresa una cantidad válida.", "error")
+            return render_template(
+                "admin/inventory_entry.html",
+                reactivos=reactivos,
+                movimientos=obtener_movimientos_inventario(),
+            )
+
+        ok, result = registrar_entrada_reactivo(
+            reactivo_id=reactivo_id,
+            cantidad=cantidad,
+            costo_unitario=costo,
+            numero_lote=request.form.get("numero_lote"),
+            fecha_vencimiento=request.form.get("fecha_vencimiento"),
+            observaciones=request.form.get("observaciones"),
+            empleado_id=session.get("empleado_id"),
+        )
+        if ok:
+            nueva_existencia = result.get("existencia_nueva") if isinstance(result, dict) else None
+            suffix = f" Nueva existencia: {nueva_existencia}." if nueva_existencia is not None else ""
+            flash(f"Entrada registrada correctamente.{suffix}", "success")
+            return redirect(url_for("app_routes.manage_inventory"))
+
+        flash(result, "error")
+
+    return render_template(
+        "admin/inventory_entry.html",
+        reactivos=reactivos,
+        movimientos=obtener_movimientos_inventario(),
+    )
+
+
 # Ruta para agregar un nuevo reactivo
 @app_routes.route("/admin/add_reactivo", methods=["GET", "POST"])
 @require_role("Admin")
@@ -1194,20 +1513,44 @@ def add_reactivo():
         if 'proveedor' in data:
             data['proveedor_id'] = data.pop('proveedor')
 
-        if 'id' in data:
-            ok, result = actualizar_reactivo(data['id'], data)
-            if ok:
-                flash("Reactivo actualizado correctamente.", "success")
-            else:
-                flash(result, "error")
-                return render_template("admin/add_reactivo.html", reactivo=data, proveedores=obtener_proveedores())
+        for field in ("numero_lote", "fecha_vencimiento", "ubicacion_inventario", "anotaciones"):
+            if not (data.get(field) or "").strip():
+                data[field] = None
+
+        required = ("nombre", "tipo_reactivo", "proveedor_id", "costo_unidad",
+                    "precio_unidad", "fecha_entrada", "cantidad_inicial")
+        if any(not str(data.get(field) or "").strip() for field in required):
+            flash("Completa todos los campos obligatorios del reactivo.", "error")
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=data,
+                proveedores=obtener_proveedores(),
+                is_edit=False,
+            )
+
+        try:
+            if float(data["costo_unidad"]) < 0 or float(data["precio_unidad"]) < 0 or int(data["cantidad_inicial"]) < 0:
+                raise ValueError
+        except ValueError:
+            flash("Costo, precio y cantidad deben ser valores válidos y no negativos.", "error")
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=data,
+                proveedores=obtener_proveedores(),
+                is_edit=False,
+            )
+
+        ok, result = crear_reactivo(data)
+        if ok:
+            flash(result, "success")
         else:
-            ok, result = crear_reactivo(data)
-            if ok:
-                flash(result, "success")
-            else:
-                flash(result, "error")
-                return render_template("admin/add_reactivo.html", reactivo=None, proveedores=obtener_proveedores())
+            flash(result, "error")
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=data,
+                proveedores=obtener_proveedores(),
+                is_edit=False,
+            )
 
         return redirect(url_for('app_routes.manage_inventory'))
 
@@ -1233,7 +1576,7 @@ def edit_reactivo(reactivo_id):
     # Verifica si el reactivo fue encontrado
     if not reactivo:
         flash("Reactivo no encontrado", "error")
-        return redirect(url_for('app_routes.inventory_reactivos'))
+        return redirect(url_for('app_routes.manage_inventory'))
     
     # Si el método es POST, es cuando se va a editar el reactivo
     if request.method == 'POST':
@@ -1244,11 +1587,33 @@ def edit_reactivo(reactivo_id):
         precio_unidad = request.form.get('precio_unidad')
         proveedor_id = request.form.get('proveedor')  # El proveedor seleccionado
         fecha_entrada = request.form.get('fecha_entrada')
-        cantidad_inicial = request.form.get('cantidad_inicial')
         numero_lote = request.form.get('numero_lote')
         fecha_vencimiento = request.form.get('fecha_vencimiento')
         ubicacion_inventario = request.form.get('ubicacion_inventario')
         anotaciones = request.form.get('anotaciones')
+
+        if any(not str(value or "").strip() for value in (
+            nombre, tipo_reactivo, costo_unidad, precio_unidad, proveedor_id, fecha_entrada
+        )):
+            flash("Completa todos los campos obligatorios del reactivo.", "error")
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=reactivo,
+                proveedores=proveedores,
+                is_edit=True,
+            )
+
+        try:
+            if float(costo_unidad) < 0 or float(precio_unidad) < 0:
+                raise ValueError
+        except ValueError:
+            flash("Costo y precio deben ser valores válidos y no negativos.", "error")
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=reactivo,
+                proveedores=proveedores,
+                is_edit=True,
+            )
         
         # Actualiza el reactivo en la base de datos
         supabase.table('reactivos').update({
@@ -1258,11 +1623,10 @@ def edit_reactivo(reactivo_id):
             'precio_unidad': precio_unidad,
             'proveedor_id': proveedor_id,
             'fecha_entrada': fecha_entrada,
-            'cantidad_inicial': cantidad_inicial,
-            'numero_lote': numero_lote,
-            'fecha_vencimiento': fecha_vencimiento,
-            'ubicacion_inventario': ubicacion_inventario,
-            'anotaciones': anotaciones
+            'numero_lote': numero_lote.strip() or None,
+            'fecha_vencimiento': fecha_vencimiento or None,
+            'ubicacion_inventario': ubicacion_inventario.strip() or None,
+            'anotaciones': anotaciones.strip() or None
         }).eq('id', reactivo_id).execute()
         
         flash("Reactivo actualizado correctamente", "success")
@@ -1327,7 +1691,7 @@ def get_reactivo_details(reactivo_id):
             return jsonify({
                 "nombre": reactivo['nombre'],
                 "tipo_reactivo": reactivo['tipo_reactivo'],
-                "cantidad_inicial": reactivo['cantidad_inicial'],
+                "cantidad_inicial": reactivo.get('existencia_actual', reactivo['cantidad_inicial']),
                 "precio_unidad": reactivo['precio_unidad'],
                 "fecha_entrada": reactivo['fecha_entrada'],
                 "fecha_vencimiento": reactivo['fecha_vencimiento'],

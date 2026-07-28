@@ -12,7 +12,20 @@
   {% for empleado in empleados|sort(attribute='id') %}
   <tr class="cursor-pointer transition hover:bg-gray-50 {% if not empleado.estado %}bg-gray-50 text-gray-500{% endif %}" onclick="selectEmployee({{ empleado.id }}, '{{ empleado.nombres|e }}', '{{ empleado.apellidos|e }}', '{{ empleado.rol_nombre|e }}', '{{ empleado.contacto_emergencia|e }}', '{{ empleado.condiciones_medicas|e }}', '{{ empleado.fecha_nacimiento|e }}')">
     <td class="px-5 py-4 font-medium"><input type="radio" name="employee" value="{{ empleado.id }}" class="mr-2" id="employee-{{ empleado.id }}">#{{ empleado.id }}</td>
-    <td class="px-5 py-4 font-semibold text-gray-900">{{ empleado.nombres }} {{ empleado.apellidos }}</td><td class="px-5 py-4">{{ empleado.rol_nombre }}</td>
+    <td class="px-5 py-4 font-semibold text-gray-900">
+      <div class="employee-list-identity">
+        {% if empleado.foto_perfil and empleado.foto_perfil.startswith('preset:') %}
+          <span class="employee-list-avatar avatar-preset avatar-preset-{{ empleado.foto_perfil.split(':')[1] }}" aria-hidden="true"></span>
+        {% elif empleado.foto_perfil %}
+          <img src="{{ empleado.foto_perfil }}" alt="" class="employee-list-avatar">
+        {% else %}
+          <span class="employee-list-avatar employee-list-avatar-fallback" aria-hidden="true">
+            {{ empleado.nombres[0]|upper }}{{ empleado.apellidos[0]|upper }}
+          </span>
+        {% endif %}
+        <span>{{ empleado.nombres }} {{ empleado.apellidos }}</span>
+      </div>
+    </td><td class="px-5 py-4">{{ empleado.rol_nombre }}</td>
     <td class="px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ 'bg-emerald-50 text-emerald-700' if empleado.estado else 'bg-gray-200 text-gray-600' }}">{{ 'Activo' if empleado.estado else 'Inactivo' }}</span></td>
     <td class="px-5 py-4"><div class="admin-action-group">{% if empleado.estado %}<button class="btn-editar admin-action-button" onclick="event.stopPropagation(); window.location.href='{{ url_for('app_routes.edit_employee', empleado_id=empleado.id) }}'">Editar</button><button class="btn-eliminar admin-action-button" onclick="event.stopPropagation(); openAdminConfirmation({endpoint: '{{ url_for('app_routes.delete_employee', id=empleado.id) }}', entity: 'este empleado', action: 'eliminar'})">Eliminar</button>{% else %}<button class="btn-activar admin-action-button" onclick="event.stopPropagation(); openAdminConfirmation({endpoint: '{{ url_for('app_routes.activate_employee', user_id=empleado.usuario_id) }}', entity: 'este empleado', action: 'activar'})">Activar</button>{% endif %}</div></td>
   </tr>

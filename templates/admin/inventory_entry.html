@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar entrada de inventario{% endblock %}
+
+{% block content %}
+<div class="admin-form-shell py-6 sm:py-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <a href="{{ url_for('app_routes.manage_inventory') }}"
+       class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
+       aria-label="Volver al inventario"><i class="fas fa-arrow-left"></i></a>
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Registrar entrada</h1>
+      <p class="mt-2 text-sm text-gray-500">Suma existencias y conserva la trazabilidad de la compra o recepción.</p>
+    </div>
+  </header>
+
+  <form method="POST" action="{{ url_for('app_routes.registrar_entrada_inventario') }}" class="mt-6 space-y-5">
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-boxes"></i></span>
+        <div><h2>Datos de la entrada</h2><p>Selecciona el reactivo y registra la cantidad recibida.</p></div>
+      </div>
+      <div class="admin-form-grid">
+        <div class="admin-field admin-field-full">
+          <label for="reactivo_id">Reactivo <span>*</span></label>
+          <select id="reactivo_id" name="reactivo_id" required>
+            <option value="" disabled selected>Selecciona un reactivo activo</option>
+            {% for reactivo in reactivos %}
+              {% set existencia = reactivo.existencia_actual if reactivo.existencia_actual is defined and reactivo.existencia_actual is not none else reactivo.cantidad_inicial %}
+              <option value="{{ reactivo.id }}" data-stock="{{ existencia }}" data-cost="{{ reactivo.costo_unidad }}">
+                {{ reactivo.nombre }} — existencia {{ existencia }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="admin-field">
+          <label for="cantidad">Cantidad recibida <span>*</span></label>
+          <input type="number" id="cantidad" name="cantidad" min="1" step="1" placeholder="0" required>
+        </div>
+        <div class="admin-field">
+          <label for="costo_unitario">Costo unitario</label>
+          <div class="admin-input-prefix"><span>$</span><input type="number" id="costo_unitario" name="costo_unitario" min="0" step="0.01" placeholder="0.00"></div>
+        </div>
+        <div class="admin-field">
+          <label for="numero_lote">Número de lote</label>
+          <input type="text" id="numero_lote" name="numero_lote" placeholder="Ej. LT-2026-002">
+        </div>
+        <div class="admin-field">
+          <label for="fecha_vencimiento">Fecha de vencimiento</label>
+          <input type="date" id="fecha_vencimiento" name="fecha_vencimiento">
+        </div>
+        <div class="admin-field admin-field-full">
+          <label for="observaciones">Observaciones</label>
+          <textarea id="observaciones" name="observaciones" rows="4" placeholder="Proveedor, factura, condiciones de recepción..."></textarea>
+        </div>
+      </div>
+      <div id="inventory-entry-summary" class="inventory-entry-summary hidden" aria-live="polite">
+        <span><small>Existencia actual</small><strong id="entry-current-stock">0</strong></span>
+        <i class="fas fa-arrow-right"></i>
+        <span><small>Nueva existencia</small><strong id="entry-new-stock">0</strong></span>
+      </div>
+    </section>
+
+    <div class="admin-form-actions">
+      <a href="{{ url_for('app_routes.manage_inventory') }}" class="btn-cancelar">Cancelar</a>
+      <button type="submit" class="btn-guardar"><i class="fas fa-plus mr-2"></i>Registrar entrada</button>
+    </div>
+  </form>
+
+  {% if movimientos %}
+  <section class="admin-form-card mt-8">
+    <div class="admin-form-section-heading">
+      <span class="admin-form-section-icon is-cyan"><i class="fas fa-history"></i></span>
+      <div><h2>Entradas recientes</h2><p>Últimos movimientos registrados en inventario.</p></div>
+    </div>
+    <div class="overflow-auto">
+      <table class="inventory-history-table">
+        <thead><tr><th>Fecha</th><th>Reactivo</th><th>Lote</th><th>Cantidad</th><th>Nueva existencia</th></tr></thead>
+        <tbody>
+          {% for movimiento in movimientos %}
+          <tr>
+            <td>{{ movimiento.creado_en[:10] if movimiento.creado_en else '-' }}</td>
+            <td>{{ movimiento.reactivo_id.nombre if movimiento.reactivo_id else 'Reactivo' }}</td>
+            <td>{{ movimiento.numero_lote or '-' }}</td>
+            <td class="text-emerald-700">+{{ movimiento.cantidad }}</td>
+            <td>{{ movimiento.existencia_nueva }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const reactivo = document.getElementById("reactivo_id");
+  const cantidad = document.getElementById("cantidad");
+  const costo = document.getElementById("costo_unitario");
+  const summary = document.getElementById("inventory-entry-summary");
+  const current = document.getElementById("entry-current-stock");
+  const next = document.getElementById("entry-new-stock");
+
+  function updateSummary() {
+    const option = reactivo.options[reactivo.selectedIndex];
+    if (!option?.value) {
+      summary.classList.add("hidden");
+      return;
+    }
+    const stock = Number(option.dataset.stock || 0);
+    const incoming = Number(cantidad.value || 0);
+    current.textContent = stock;
+    next.textContent = stock + Math.max(incoming, 0);
+    summary.classList.remove("hidden");
+    if (!costo.value && option.dataset.cost) costo.value = option.dataset.cost;
+  }
+
+  reactivo.addEventListener("change", updateSummary);
+  cantidad.addEventListener("input", updateSummary);
+});
+</script>
+{% endblock %}

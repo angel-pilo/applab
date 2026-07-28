@@ -1,172 +1,246 @@
 {% extends "base.html" %}
 
-{% block title %}Configuración{% endblock %}
+{% block title %}Configuración | AppLab{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-  <!-- Encabezado -->
-  <div class="flex items-center mb-6">
-    <button class="text-2xl mr-3" onclick="window.history.back()">
-      <i class="fas fa-arrow-left"></i>
+{% set foto = user.foto_perfil if user.foto_perfil else None %}
+<div class="admin-form-shell settings-shell py-6 sm:py-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <button type="button" onclick="window.history.back()"
+            class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
+            aria-label="Volver">
+      <i class="fas fa-arrow-left" aria-hidden="true"></i>
     </button>
     <div>
-      <h1 class="text-3xl font-bold">Configuración de cuenta</h1>
-      <p class="text-sm text-gray-500">
-        Ajustes del perfil actual y preferencias de la aplicación.
-      </p>
+      <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Configuración</h1>
+      <p class="mt-2 text-sm text-gray-500">Administra tu identidad y consulta los datos asociados a tu cuenta.</p>
     </div>
-  </div>
+  </header>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Columna izquierda: perfil -->
-    <div class="lg:col-span-1">
-      <div class="bg-white rounded-2xl shadow p-6 flex flex-col items-center text-center">
-        <!-- Avatar -->
-        {% set foto = user.foto_perfil if user.foto_perfil else None %}
-        {% if foto %}
-          <img src="{{ foto }}"
-               alt="Foto de perfil"
-               class="w-24 h-24 rounded-full object-cover mb-4 ring-2 ring-emerald-500">
-        {% else %}
-          <div class="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center mb-4 ring-2 ring-emerald-500">
-            <i class="fas fa-user text-3xl text-emerald-600"></i>
-          </div>
-        {% endif %}
-
-        <h2 class="text-xl font-semibold">
-          {{ user.nombres or "Usuario sin nombre" }}
-        </h2>
-        <p class="text-sm text-gray-500">
-          {{ user.username }}
-        </p>
-
-        <span class="inline-flex items-center mt-3 px-3 py-1 rounded-full text-xs font-semibold
-                     bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
-          <i class="fas fa-id-badge mr-1"></i>
-          Rol: {{ user.rol or "Sin rol" }}
-        </span>
-
-        <div class="mt-6 w-full space-y-2 text-left text-sm text-gray-600">
-          <div class="flex items-center justify-between">
-            <span class="text-gray-500">Estado de cuenta</span>
-            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
-              Activa
-            </span>
-          </div>
-
-          <div class="flex items-center justify-between">
-            <span class="text-gray-500">ID de usuario</span>
-            <span class="font-mono text-xs text-gray-700">
-              {{ user.username }}
-            </span>
-          </div>
+  <div class="settings-layout mt-6">
+    <section class="admin-form-card settings-profile-card" aria-labelledby="profile-heading">
+      <div class="settings-profile-identity">
+        <div class="employee-avatar-preview settings-avatar" id="account-avatar-display">
+          {% if foto and foto.startswith('preset:') %}
+            <span class="avatar-preset avatar-preset-{{ foto.split(':')[1] }}" aria-hidden="true"></span>
+          {% elif foto %}
+            <img src="{{ foto }}" alt="Foto de perfil de {{ user.nombres or 'usuario' }}">
+          {% else %}
+            <span aria-hidden="true">{{ (user.nombres or 'U')[0]|upper }}</span>
+          {% endif %}
         </div>
-      </div>
-    </div>
-
-    <!-- Columna derecha: ajustes -->
-    <div class="lg:col-span-2 space-y-6">
-
-      <!-- Datos de cuenta -->
-      <div class="bg-white rounded-2xl shadow p-6">
-        <h3 class="text-lg font-semibold mb-2">Datos de la cuenta</h3>
-        <p class="text-sm text-gray-500 mb-4">
-          Información básica del usuario actualmente autenticado.
-        </p>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Nombre completo</label>
-            <input type="text"
-                   class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50"
-                   value="{{ user.nombres or '' }}"
-                   readonly>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Usuario</label>
-            <input type="text"
-                   class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50"
-                   value="{{ user.username or '' }}"
-                   readonly>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Rol</label>
-            <input type="text"
-                   class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50"
-                   value="{{ user.rol or '' }}"
-                   readonly>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-gray-500 mb-1">
-              Correo electrónico
-              <span class="text-[0.65rem] text-amber-600 font-normal">(Próximamente editable)</span>
-            </label>
-            <input type="email"
-                   class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50"
-                   placeholder="correo@laboratorio.com"
-                   readonly>
-          </div>
+        <div>
+          <p class="settings-profile-label">Perfil actual</p>
+          <h2 id="profile-heading">{{ user.nombres or "Usuario sin nombre" }}</h2>
+          <p class="settings-profile-user">@{{ user.username }}</p>
         </div>
       </div>
 
-      <!-- Preferencias (algunas como Próximamente) -->
-      <div class="bg-white rounded-2xl shadow p-6">
-        <h3 class="text-lg font-semibold mb-2">Preferencias</h3>
-        <p class="text-sm text-gray-500 mb-4">
-          Algunas opciones están planeadas para una versión futura.
-        </p>
-
-        <div class="space-y-4">
-          <!-- Notificaciones -->
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-800">Notificaciones por correo</p>
-              <p class="text-xs text-gray-500">Recibir avisos de muestras, resultados y control de calidad.</p>
-            </div>
-            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
-              Próximamente
-            </span>
-          </div>
-
-          <!-- Tema -->
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-800">Tema oscuro</p>
-              <p class="text-xs text-gray-500">Modo oscuro para trabajar en ambientes con poca luz.</p>
-            </div>
-            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
-              Próximamente
-            </span>
-          </div>
-
-          <!-- Seguridad -->
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-800">Cambiar contraseña</p>
-              <p class="text-xs text-gray-500">Actualiza tu contraseña periódicamente por seguridad.</p>
-            </div>
-            <button class="px-3 py-1 rounded-lg text-xs font-semibold border border-gray-300 text-gray-400 cursor-not-allowed">
-              Próximamente
-            </button>
-          </div>
+      <div class="settings-profile-meta">
+        <div>
+          <span>Rol de acceso</span>
+          <strong><i class="fas fa-id-badge" aria-hidden="true"></i>{{ user.rol or "Sin rol" }}</strong>
+        </div>
+        <div>
+          <span>Estado de cuenta</span>
+          <strong class="is-active"><i class="fas fa-check-circle" aria-hidden="true"></i>Activa</strong>
         </div>
       </div>
 
-      <!-- Bloque de información -->
-      <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-amber-800">
-        <p class="font-semibold mb-1">
-          🔧 Funcionalidad en construcción
-        </p>
-        <p>
-          Esta sección muestra tu información básica de sesión.
-          En futuras versiones podrás editar datos del perfil,
-          configurar notificaciones y preferencias avanzadas del laboratorio.
-        </p>
-      </div>
+      <button type="button" class="settings-change-photo" id="open-avatar-modal">
+        <i class="fas fa-camera" aria-hidden="true"></i>
+        Cambiar foto de perfil
+      </button>
+      <p class="settings-photo-help">Puedes conservar tu imagen, usar iniciales, elegir un avatar o subir una fotografía.</p>
+    </section>
+
+    <div class="settings-content">
+      <section class="admin-form-card" aria-labelledby="account-heading">
+        <div class="admin-form-section-heading">
+          <span class="admin-form-section-icon"><i class="fas fa-user-shield" aria-hidden="true"></i></span>
+          <div>
+            <h2 id="account-heading">Datos de la cuenta</h2>
+            <p>Información vinculada con tu sesión de AppLab.</p>
+          </div>
+        </div>
+
+        <dl class="settings-account-list">
+          <div>
+            <dt>Nombre</dt>
+            <dd>{{ user.nombres or "No registrado" }}</dd>
+          </div>
+          <div>
+            <dt>Usuario</dt>
+            <dd>{{ user.username or "No registrado" }}</dd>
+          </div>
+          <div>
+            <dt>Rol</dt>
+            <dd>{{ user.rol or "Sin rol" }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="settings-security-note" aria-labelledby="security-heading">
+        <span><i class="fas fa-lock" aria-hidden="true"></i></span>
+        <div>
+          <h2 id="security-heading">Cuenta protegida</h2>
+          <p>Tu imagen solo se utiliza dentro de AppLab. Si necesitas cambiar tus datos de acceso, solicítalo al administrador responsable.</p>
+        </div>
+      </section>
     </div>
   </div>
 </div>
+
+<div class="settings-avatar-modal" id="avatar-modal" hidden>
+  <button type="button" class="settings-modal-backdrop" data-close-avatar-modal
+          aria-label="Cerrar selector de foto"></button>
+  <section class="settings-modal-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="avatar-modal-title" aria-describedby="avatar-modal-description">
+    <header class="settings-modal-header">
+      <div>
+        <p>Perfil</p>
+        <h2 id="avatar-modal-title">Cambiar foto de perfil</h2>
+        <span id="avatar-modal-description">Selecciona cómo quieres aparecer en AppLab.</span>
+      </div>
+      <button type="button" class="settings-modal-close" data-close-avatar-modal aria-label="Cerrar">
+        <i class="fas fa-times" aria-hidden="true"></i>
+      </button>
+    </header>
+
+    <form method="POST" enctype="multipart/form-data" class="account-avatar-form">
+      <div class="settings-avatar-choice-summary">
+        <div class="employee-avatar-preview" id="account-avatar-preview">
+          {% if foto and foto.startswith('preset:') %}
+            <span class="avatar-preset avatar-preset-{{ foto.split(':')[1] }}" aria-hidden="true"></span>
+          {% elif foto %}
+            <img src="{{ foto }}" alt="Foto de perfil actual">
+          {% else %}
+            <span aria-hidden="true">{{ (user.nombres or 'U')[0]|upper }}</span>
+          {% endif %}
+        </div>
+        <div>
+          <strong>Vista previa</strong>
+          <p>La imagen se actualizará al guardar los cambios.</p>
+        </div>
+      </div>
+
+      <fieldset class="settings-avatar-modes">
+        <legend>Opciones de perfil</legend>
+        <div class="employee-avatar-mode-grid">
+          {% if foto %}
+            <label class="employee-avatar-mode">
+              <input type="radio" name="avatar_choice" value="current" checked>
+              <span><i class="fas fa-history" aria-hidden="true"></i>Conservar actual</span>
+            </label>
+          {% endif %}
+          <label class="employee-avatar-mode">
+            <input type="radio" name="avatar_choice" value="initials" {% if not foto %}checked{% endif %}>
+            <span><i class="fas fa-font" aria-hidden="true"></i>Usar iniciales</span>
+          </label>
+          <label class="employee-avatar-mode">
+            <input type="radio" name="avatar_choice" value="upload">
+            <span><i class="fas fa-camera" aria-hidden="true"></i>Foto personal</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="settings-avatar-bank">
+        <legend>Avatares ilustrados</legend>
+        <div class="employee-avatar-bank-grid">
+          {% for preset_id in range(1, 13) %}
+            <label class="employee-avatar-option" title="Avatar {{ preset_id }}">
+              <input type="radio" name="avatar_choice" value="preset:{{ preset_id }}"
+                     {% if foto == 'preset:' ~ preset_id %}checked{% endif %}>
+              <span class="avatar-preset avatar-preset-{{ preset_id }}" aria-hidden="true"></span>
+              <i class="fas fa-check" aria-hidden="true"></i>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <div class="settings-upload-field" id="account-upload-field" hidden>
+        <label for="account-photo">Seleccionar fotografía</label>
+        <input type="file" id="account-photo" name="foto_perfil" class="employee-avatar-file"
+               accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
+        <small>JPG, PNG, GIF o WEBP. Máximo 3 MB.</small>
+      </div>
+
+      <footer class="settings-modal-actions">
+        <button type="button" class="btn-cancelar" data-close-avatar-modal>Cancelar</button>
+        <button type="submit" class="btn-guardar">
+          <i class="fas fa-check" aria-hidden="true"></i>
+          Guardar foto
+        </button>
+      </footer>
+    </form>
+  </section>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("avatar-modal");
+  const openButton = document.getElementById("open-avatar-modal");
+  const form = modal?.querySelector(".account-avatar-form");
+  if (!modal || !openButton || !form) return;
+
+  const preview = document.getElementById("account-avatar-preview");
+  const fileInput = document.getElementById("account-photo");
+  const uploadField = document.getElementById("account-upload-field");
+  const initials = {{ (user.nombres or 'U')[0]|upper|tojson }};
+  let lastFocused = null;
+
+  const openModal = () => {
+    lastFocused = document.activeElement;
+    modal.hidden = false;
+    document.body.classList.add("settings-modal-open");
+    modal.querySelector(".settings-modal-close").focus();
+  };
+
+  const closeModal = () => {
+    modal.hidden = true;
+    document.body.classList.remove("settings-modal-open");
+    lastFocused?.focus();
+  };
+
+  openButton.addEventListener("click", openModal);
+  modal.querySelectorAll("[data-close-avatar-modal]").forEach(button => {
+    button.addEventListener("click", closeModal);
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !modal.hidden) closeModal();
+  });
+
+  form.querySelectorAll('[name="avatar_choice"]').forEach(choice => {
+    choice.addEventListener("change", () => {
+      if (!choice.checked) return;
+      uploadField.hidden = choice.value !== "upload";
+
+      if (choice.value === "initials") {
+        fileInput.value = "";
+        preview.innerHTML = `<span aria-hidden="true">${initials}</span>`;
+      } else if (choice.value.startsWith("preset:")) {
+        fileInput.value = "";
+        const id = choice.value.split(":")[1];
+        preview.innerHTML = `<span class="avatar-preset avatar-preset-${id}" aria-hidden="true"></span>`;
+      } else if (choice.value === "upload" && !fileInput.files.length) {
+        fileInput.click();
+      }
+    });
+  });
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    form.querySelector('[name="avatar_choice"][value="upload"]').checked = true;
+    uploadField.hidden = false;
+    const image = document.createElement("img");
+    image.src = URL.createObjectURL(file);
+    image.alt = "Vista previa de la fotografía";
+    image.onload = () => URL.revokeObjectURL(image.src);
+    preview.replaceChildren(image);
+  });
+});
+</script>
 {% endblock %}

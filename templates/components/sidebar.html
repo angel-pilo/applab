@@ -1,68 +1,53 @@
-{# Drawer móvil + colapsada desktop #}
+<div id="sidebar-backdrop" class="app-sidebar-backdrop" aria-hidden="true"></div>
 
-<!-- Backdrop para móvil -->
-<div id="sidebar-backdrop"
-     class="fixed inset-0 bg-black/30 z-40 hidden"
-     onclick="toggleSidebar(true)"></div>
-
-<aside id="sidebar"
-       class="fixed left-0 top-0 z-50 h-screen
-              w-64 md:w-16
-              bg-[#0E2238] text-white shadow-lg
-              flex flex-col items-stretch relative overflow-hidden
-              transform -translate-x-full md:translate-x-0
-              transition-transform duration-300 ease-in-out">
-
-  <!-- HEADER -->
-  <div class="h-14 flex items-center justify-center border-b border-white/10 shrink-0">
-    <i class="fas fa-flask text-xl"></i>
+<aside id="sidebar" class="app-sidebar" aria-label="Navegación principal" aria-hidden="true">
+  <div class="app-sidebar-brand">
+    <a href="{{ url_for(role_home[session.get('rol')]) if session.get('rol') in role_home else '#' }}"
+       class="app-sidebar-logo" aria-label="Ir al inicio de AppLab">
+      <span class="app-sidebar-logo-mark"><i class="fas fa-flask" aria-hidden="true"></i></span>
+      <span>
+        <strong>AppLab</strong>
+        <small>Laboratorio clínico</small>
+      </span>
+    </a>
+    <button id="sidebar-close" type="button" class="app-sidebar-close" aria-label="Cerrar menú">
+      <i class="fas fa-times" aria-hidden="true"></i>
+    </button>
   </div>
 
-  <!-- INICIO -->
-  <nav class="py-2 shrink-0">
+  <div class="app-sidebar-role">
+    <span>{{ session.get('rol', 'Personal') }}</span>
+    <small>Panel de trabajo</small>
+  </div>
+
+  <nav class="app-sidebar-nav">
     {% set _rol = session.get('rol', '') %}
-    {% set home_ep = (role_home[_rol] if role_home is defined and _rol in role_home else None) %}
+    {% set home_ep = role_home.get(_rol) if role_home is defined else None %}
     {% if home_ep %}
       <a href="{{ url_for(home_ep) }}"
-         class="group relative flex items-center justify-center mx-2 my-1 h-10 rounded-lg hover:bg-white/10 transition"
-         data-tooltip="Inicio">
-        <i class="fas fa-home text-lg shrink-0"></i>
-       <span class="sidebar-text-mobile ml-3 truncate">Inicio</span> 
+         class="app-sidebar-link {% if request.endpoint == home_ep %}is-active{% endif %}">
+        <i class="fas fa-home" aria-hidden="true"></i>
+        <span>Inicio</span>
       </a>
     {% endif %}
-  </nav>
 
-  <!-- NAV (solo este bloque scrollea) -->
-  <nav class="flex-1 overflow-y-auto py-1 pb-16">
-    {% set items = role_sidebar_items.get(session.get('rol'), []) %}
+    <p class="app-sidebar-label">Módulos</p>
+    {% set items = role_sidebar_items.get(_rol, []) %}
     {% for item in items %}
       {% set is_internal = item.url and item.url != "#" and item.url.startswith('app_routes.') %}
       {% set href = url_for(item.url) if is_internal else '#' %}
-      {% set active = (request.endpoint == item.url) if is_internal else false %}
-
       <a href="{{ href }}"
-         class="group relative flex items-center justify-center mx-2 my-1 h-10 rounded-lg
-                hover:bg-white/10 transition
-                {% if active %} bg-white/15 {% endif %}"
-         data-tooltip="{{ item.text }}">
-        <i class="fas {{ item.icon }} text-lg shrink-0"></i>
-         <span class="sidebar-text-mobile ml-3 truncate">{{ item.text }}</span> 
+         class="app-sidebar-link {% if is_internal and request.endpoint == item.url %}is-active{% endif %}">
+        <i class="fas {{ item.icon }}" aria-hidden="true"></i>
+        <span>{{ item.text }}</span>
       </a>
     {% endfor %}
   </nav>
 
-  <!-- Separador fino (opcional) -->
-  <div class="border-t border-white/10 absolute inset-x-0 bottom-12 pointer-events-none"></div>
-
-  <!-- LOGOUT fijo abajo -->
-  <div class="absolute inset-x-0 bottom-0 h-12 bg-[#0E2238] z-50">
-    <button
-      class="group relative flex items-center justify-center w-full h-full hover:bg-white/10 transition"
-      onclick="window.location.href='{{ url_for('app_routes.logout') }}'"
-      data-tooltip="Cerrar sesión"
-      aria-label="Cerrar sesión">
-      <i class="fas fa-sign-out-alt text-lg"></i>
-      <span class="sr-only">Cerrar sesión</span>
-    </button>
+  <div class="app-sidebar-footer">
+    <a href="{{ url_for('app_routes.logout') }}" class="app-sidebar-link app-sidebar-logout">
+      <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+      <span>Cerrar sesión</span>
+    </a>
   </div>
 </aside>

@@ -1,63 +1,107 @@
-<html lang="en">
+<!doctype html>
+<html lang="es">
 <head>
-    <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>AppLab Login</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha384-k6RqeWeci5ZR/Lv4MR0sA0FfDOMYgF0R9ZexU6Oq2z4oE0R7x0qZ0jZb5FT1S7q3" crossorigin="anonymous">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f4f8fb">
+    <title>Iniciar sesión | AppLab</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/login.js') }}" defer></script>
 </head>
+<body class="auth-page">
+    <main class="auth-shell">
+        <section class="auth-identity" aria-labelledby="brand-title">
+            <div class="auth-brand">
+                <span class="auth-brand-mark" aria-hidden="true">
+                    <span class="auth-flask-neck"></span>
+                    <span class="auth-flask-liquid"></span>
+                </span>
+                <span>AppLab</span>
+            </div>
 
-<body class="flex items-center justify-center min-h-screen" style="background-image: url('{{ url_for('static', filename='images/bg.png') }}'); background-size: cover; background-position: center;">
-    <div class="bg-gray-900 bg-opacity-90 p-8 rounded-lg shadow-lg w-full max-w-sm text-white login-container">
-        <h1 class="text-4xl font-bold text-center mb-6">AppLab</h1>
+            <div class="auth-introduction">
+                <p class="auth-eyebrow">Gestión de laboratorio clínico</p>
+                <h1 id="brand-title">Información precisa para un mejor cuidado.</h1>
+                <p>Accede de forma segura a pacientes, pruebas, inventario y resultados desde un solo lugar.</p>
+            </div>
 
-        <!-- Logo -->
-        <div class="flex justify-center mb-6">
-            <img src="{{ url_for('static', filename='images/Lfigma.png') }}" alt="Logo">
-        </div>
+            <div class="auth-lab-visual" aria-hidden="true">
+                <span class="auth-orbit auth-orbit-one"></span>
+                <span class="auth-orbit auth-orbit-two"></span>
+                <span class="auth-sample auth-sample-one"></span>
+                <span class="auth-sample auth-sample-two"></span>
+                <span class="auth-sample auth-sample-three"></span>
+            </div>
 
-        <h2 class="text-2xl font-semibold text-center mb-6">Iniciar Sesión</h2>
+            <p class="auth-security-note">
+                <span aria-hidden="true">✓</span>
+                Acceso protegido para personal autorizado
+            </p>
+        </section>
 
-        <!-- Flash messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div id="flash-message"class="
-                    {% if category == 'success' %}
-                        bg-green-600
-                    {% elif category == 'error' %}
-                        bg-[#cb2500]
+        <section class="auth-access" aria-labelledby="login-title">
+            <div class="auth-mobile-brand" aria-hidden="true">
+                <span class="auth-brand-mark">
+                    <span class="auth-flask-neck"></span>
+                    <span class="auth-flask-liquid"></span>
+                </span>
+                <span>AppLab</span>
+            </div>
+
+            <div class="auth-card">
+                <div class="auth-card-heading">
+                    <p class="auth-eyebrow">Bienvenido</p>
+                    <h2 id="login-title">Iniciar sesión</h2>
+                    <p>Ingresa tus credenciales para continuar.</p>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="auth-messages" aria-live="polite">
+                            {% for category, message in messages %}
+                                <div class="auth-alert auth-alert-{{ category }}" role="alert">
+                                    <span aria-hidden="true">{{ '✓' if category == 'success' else '!' }}</span>
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        </div>
                     {% endif %}
-                    text-white text-center p-3 rounded-lg shadow-md mb-4">
-                    {{ message }}
-                </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+                {% endwith %}
 
-        <!-- Login Form -->
-        <form method="POST" action="{{ url_for('app_routes.login') }}">
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-2" for="username">Usuario</label>
-                <input class="w-full px-3 py-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:border-blue-500" name="username" placeholder="Usuario" type="text" required />
+                <form method="POST" action="{{ url_for('app_routes.login') }}" class="auth-form">
+                    <div class="auth-field">
+                        <label for="username">Usuario</label>
+                        <div class="auth-input-wrap">
+                            <span class="auth-input-icon" aria-hidden="true">●</span>
+                            <input id="username" name="username" type="text"
+                                   placeholder="Ingresa tu usuario" autocomplete="username"
+                                   autocapitalize="none" spellcheck="false" required autofocus>
+                        </div>
+                    </div>
+
+                    <div class="auth-field">
+                        <label for="password">Contraseña</label>
+                        <div class="auth-input-wrap">
+                            <span class="auth-input-icon auth-lock-icon" aria-hidden="true"></span>
+                            <input id="password" name="password" type="password"
+                                   placeholder="Ingresa tu contraseña" autocomplete="current-password"
+                                   required>
+                            <button class="auth-password-toggle" type="button"
+                                    aria-label="Mostrar contraseña" aria-pressed="false">
+                                Mostrar
+                            </button>
+                        </div>
+                    </div>
+
+                    <button class="auth-submit" type="submit">
+                        Ingresar
+                        <span aria-hidden="true">→</span>
+                    </button>
+                </form>
+
+                <p class="auth-help">Si no puedes acceder, comunícate con el administrador.</p>
             </div>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-2" for="password">Contraseña</label>
-                <div class="relative">
-                    <input class="w-full px-3 py-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:border-blue-500" name="password" placeholder="Ingresa tu contraseña" type="password" required />
-                    <i class="fas fa-eye absolute right-3 top-3 text-gray-500 cursor-pointer"></i>
-                </div>
-            </div>
-
-            <button class="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-semibold" type="submit">Iniciar Sesión</button>
-        </form>
-
-        <p class="text-center text-sm text-gray-500 mt-6">By AppLab</p>
-    </div>
-
-    <p class="absolute bottom-4 right-4 text-white text">AppLab</p>
+        </section>
+    </main>
 </body>
 </html>

@@ -1,4 +1,5 @@
 import os
+from io import BytesIO
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,8 +17,38 @@ os.environ.setdefault(
 import routes
 import services
 from app import create_app
-from flask import render_template
+from flask import render_template, session
 from supabase_client import normalize_supabase_url
+from werkzeug.datastructures import FileStorage
+
+
+class EmployeeAvatarValidationTests(unittest.TestCase):
+    def test_valid_png_avatar_is_accepted(self):
+        avatar = FileStorage(
+            stream=BytesIO(b"\x89PNG\r\n\x1a\n" + b"image-data"),
+            filename="avatar.png",
+        )
+
+        extension, error = routes.validate_employee_avatar(avatar)
+
+        self.assertEqual(extension, "png")
+        self.assertIsNone(error)
+
+    def test_fake_image_is_rejected(self):
+        avatar = FileStorage(
+            stream=BytesIO(b"not-an-image"),
+            filename="avatar.png",
+        )
+
+        extension, error = routes.validate_employee_avatar(avatar)
+
+        self.assertIsNone(extension)
+        self.assertIn("imagen válida", error)
+
+    def test_only_known_preset_avatars_are_accepted(self):
+        self.assertEqual(routes.normalize_avatar_choice("preset:4"), "preset:4")
+        self.assertEqual(routes.normalize_avatar_choice("preset:99"), "initials")
+        self.assertEqual(routes.normalize_avatar_choice("unknown"), "initials")
 
 
 class OrderValidationTests(unittest.TestCase):
@@ -165,6 +196,41 @@ class ClinicalTestServiceTests(unittest.TestCase):
         self.assertTrue(services.reactivo_tiene_datos_completos(complete))
         self.assertFalse(services.reactivo_tiene_datos_completos({**complete, "proveedor_id": None}))
         self.assertFalse(services.reactivo_tiene_datos_completos({**complete, "activo": False}))
+
+
+class InventoryServiceTests(unittest.TestCase):
+    def test_inventory_entry_uses_atomic_supabase_function(self):
+        class FakeRpc:
+            def __init__(self):
+                self.name = None
+                self.params = None
+
+            def rpc(self, name, params):
+                self.name = name
+                self.params = params
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data={
+                    "movimiento_id": 3,
+                    "existencia_anterior": 10,
+                    "existencia_nueva": 15,
+                })
+
+        fake = FakeRpc()
+        with patch.object(services, "supabase", fake):
+            ok, result = services.registrar_entrada_reactivo(
+                reactivo_id=2,
+                cantidad=5,
+                costo_unitario=12.5,
+                numero_lote="L-01",
+                empleado_id=1,
+            )
+
+        self.assertTrue(ok)
+        self.assertEqual(fake.name, "registrar_entrada_inventario")
+        self.assertEqual(fake.params["p_cantidad"], 5)
+        self.assertEqual(result["existencia_nueva"], 15)
 
 
 class AuthorizationTests(unittest.TestCase):
@@ -355,7 +421,49 @@ class AdminTemplateTests(unittest.TestCase):
         self.assertIn("Registrar hospital", create_hospital)
         self.assertIn("Guardar cambios", edit_hospital)
         self.assertIn("Registrar empleado", create_employee)
+        self.assertIn("Perfil laboral", create_employee)
+        self.assertIn("Información de emergencia", create_employee)
+        self.assertIn('type="file"', create_employee)
+        self.assertIn("Imagen de perfil", create_employee)
+        self.assertIn("Avatares ilustrados", create_employee)
         self.assertIn("Guardar cambios", edit_employee)
+
+    def test_patient_form_renders_in_create_and_edit_modes(self):
+        patient = SimpleNamespace(
+            id=9,
+            nombres="María",
+            apellidos="López",
+            sexo="F",
+            fecha_nacimiento="1994-05-10",
+            telefono="3312345678",
+            correo="maria@example.com",
+            calle="Juárez",
+            numero_ext="10",
+            numero_int="",
+            codigo_postal="44100",
+            municipio="Guadalajara",
+            estado="Jalisco",
+            condiciones_medicas="",
+        )
+
+        with self.app.test_request_context("/admin/add_patient"):
+            session["rol"] = "Admin"
+            create_html = render_template(
+                "admin/add_patient.html",
+                patient={},
+                is_edit=False,
+                estados=["Jalisco"],
+            )
+            edit_html = render_template(
+                "admin/add_patient.html",
+                patient=patient,
+                is_edit=True,
+                estados=["Jalisco"],
+            )
+
+        self.assertIn("Registrar paciente", create_html)
+        self.assertIn("Información clínica", create_html)
+        self.assertIn("Guardar cambios", edit_html)
 
 
 if __name__ == "__main__":

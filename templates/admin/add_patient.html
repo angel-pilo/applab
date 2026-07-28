@@ -1,282 +1,229 @@
 {% extends "base.html" %}
 
-{% block title %}Registrar Paciente{% endblock %}
+{% block title %}{{ 'Editar paciente' if is_edit else 'Registrar paciente' }}{% endblock %}
 
 {% block content %}
-
-<div class="flex-1 p-8 transition-all duration-300">
-  <div class="flex items-center space-x-2 mb-6">
-    <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-    <h1 class="text-3xl font-bold">Registrar nuevo paciente</h1>
-  </div>
-
-  <!-- Alerta duplicado -->
-  <div id="alerta-duplicado" class="max-w-7xl mx-auto mb-4 hidden">
-    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-      Ya existe un paciente con estos datos. Por favor verifica nombre, apellidos, teléfono o correo.
+<div class="admin-form-shell py-6 sm:py-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <button type="button" onclick="window.history.back()"
+            class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
+            aria-label="Volver">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wider text-red-600">
+        {{ 'Administración' if session.get('rol') == 'Admin' else 'Mostrador' }}
+      </p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">
+        {{ 'Editar paciente' if is_edit else 'Registrar paciente' }}
+      </h1>
+      <p class="mt-2 text-sm text-gray-500">
+        {{ 'Actualiza los datos personales, de contacto y clínicos del paciente.' if is_edit else 'Captura la información necesaria para integrar un nuevo expediente.' }}
+      </p>
     </div>
-  </div>
+  </header>
 
-  <form method="POST" id="form-paciente">
-    <!-- Contenedor 1: Datos personales -->
-    <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <form method="POST"
+        action="{{ url_for('app_routes.edit_patient', patient_id=patient.id) if is_edit else url_for('app_routes.add_patient') }}"
+        id="form-paciente" class="mt-6 space-y-5" novalidate>
+
+    <div id="patient-form-alert" class="patient-form-alert hidden" role="alert" aria-live="polite">
+      <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+      <span>Revisa los campos marcados antes de guardar.</span>
+    </div>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-user"></i></span>
         <div>
-          <label class="block text-gray-700 font-bold mb-2">Sexo<span class="text-red-500">*</span></label>
-          <div class="flex items-center space-x-4">
-            <label class="inline-flex items-center cursor-pointer">
-              <input type="radio" name="sexo" value="M" {% if is_edit and patient.sexo == 'M' %}checked{% endif %}> <span class="ml-2">Hombre</span>
+          <h2>Datos personales</h2>
+          <p>Información de identificación del paciente.</p>
+        </div>
+      </div>
+
+      <div class="admin-form-grid">
+        <div class="admin-field">
+          <label for="nombres">Nombre(s) <span>*</span></label>
+          <input type="text" id="nombres" name="nombres"
+                 value="{{ patient.nombres|default('', true) }}"
+                 placeholder="Ej. María Fernanda" autocomplete="given-name"
+                 maxlength="100" required>
+        </div>
+        <div class="admin-field">
+          <label for="apellidos">Apellidos <span>*</span></label>
+          <input type="text" id="apellidos" name="apellidos"
+                 value="{{ patient.apellidos|default('', true) }}"
+                 placeholder="Ej. García López" autocomplete="family-name"
+                 maxlength="100" required>
+        </div>
+        <div class="admin-field">
+          <label for="fecha_nacimiento">Fecha de nacimiento <span>*</span></label>
+          <input type="date" id="fecha_nacimiento" name="fecha_nacimiento"
+                 value="{{ patient.fecha_nacimiento|default('', true) }}" required>
+        </div>
+        <fieldset class="admin-field">
+          <legend>Sexo <span>*</span></legend>
+          <div class="admin-choice-group">
+            <label class="admin-choice">
+              <input type="radio" name="sexo" value="M"
+                     {% if patient.sexo|default('') == 'M' %}checked{% endif %} required>
+              <span><i class="fas fa-mars"></i>Masculino</span>
             </label>
-            <label class="inline-flex items-center cursor-pointer">
-              <input type="radio" name="sexo" value="F" {% if is_edit and patient.sexo == 'F' %}checked{% endif %}> <span class="ml-2">Mujer</span>
+            <label class="admin-choice">
+              <input type="radio" name="sexo" value="F"
+                     {% if patient.sexo|default('') == 'F' %}checked{% endif %} required>
+              <span><i class="fas fa-venus"></i>Femenino</span>
             </label>
           </div>
-        </div>
+        </fieldset>
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon is-cyan"><i class="fas fa-address-book"></i></span>
         <div>
-          <label class="block text-gray-700 font-bold mb-2">Fecha de nacimiento<span class="text-red-500">*</span></label>
-          <input type="date" name="fecha_nacimiento" value="{{ patient.fecha_nacimiento if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+          <h2>Contacto</h2>
+          <p>Medios para comunicarse con el paciente.</p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <div>
-          <label class="block text-gray-700 font-bold mb-2">Nombre(s)<span class="text-red-500">*</span></label>
-          <input type="text" name="nombres" value="{{ patient.nombres if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+      <div class="admin-form-grid">
+        <div class="admin-field">
+          <label for="telefono">Teléfono <span>*</span></label>
+          <input type="tel" id="telefono" name="telefono"
+                 value="{{ patient.telefono|default('', true) }}"
+                 placeholder="10 dígitos" autocomplete="tel"
+                 inputmode="numeric" minlength="10" maxlength="15"
+                 pattern="[0-9]{10,15}" required>
+          <small>Ingresa únicamente números.</small>
         </div>
-        <div>
-          <label class="block text-gray-700 font-bold mb-2">Apellidos<span class="text-red-500">*</span></label>
-          <input type="text" name="apellidos" value="{{ patient.apellidos if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
-        </div>
-        <div>
-          <label class="block text-gray-700 font-bold mb-2">Teléfono<span class="text-red-500">*</span></label>
-          <input type="text" name="telefono" value="{{ patient.telefono if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
-        </div>
-        <div>
-          <label class="block text-gray-700 font-bold mb-2">Correo electrónico<span class="text-red-500">*</span></label>
-          <input type="email" name="correo" value="{{ patient.correo if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
+        <div class="admin-field">
+          <label for="correo">Correo electrónico <span>*</span></label>
+          <input type="email" id="correo" name="correo"
+                 value="{{ patient.correo|default('', true) }}"
+                 placeholder="paciente@correo.com" autocomplete="email"
+                 maxlength="150" required>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Contenedor 2 y 3: Dirección y Enfermedades -->
-    <div class="flex flex-wrap justify-between gap-4">
-      <!-- Dirección -->
-      <div class="w-full md:w-[60%] bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-lg font-bold mb-4">Dirección</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">Calle<span class="text-red-500">*</span></label>
-            <input type="text" name="calle" value="{{ patient.calle if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
-          </div>
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">No. Ext.<span class="text-red-500">*</span></label>
-            <input type="text" name="numero_ext" value="{{ patient.numero_ext if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
-          </div>
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">No. Int.</label>
-            <input type="text" name="numero_int" value="{{ patient.numero_int if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]">
-          </div>
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">Código Postal<span class="text-red-500">*</span></label>
-            <input type="text" name="codigo_postal" value="{{ patient.codigo_postal if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
-          </div>
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">Municipio<span class="text-red-500">*</span></label>
-            <input type="text" name="municipio" value="{{ patient.municipio if is_edit else '' }}" class="w-full px-4 py-2 border rounded-[1rem]" required>
-          </div>
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">Estado<span class="text-red-500">*</span></label>
-            <select name="estado" class="w-full px-4 py-2 border rounded-[1rem]" required>
-              <option value="">Seleccione un estado</option>
-              {% for estado in estados %}
-              <option value="{{ estado }}" {% if is_edit and patient.estado == estado %}selected{% endif %}>{{ estado }}</option>
-              {% endfor %}
-            </select>
-          </div>
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-map-marker-alt"></i></span>
+        <div>
+          <h2>Domicilio</h2>
+          <p>Dirección actual para integrar el expediente.</p>
         </div>
       </div>
 
-      <!-- Enfermedades crónicas -->
-      <div class="w-full md:w-[37.5%] bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-lg font-bold mb-4">Enfermedades crónicas</h2>
-        <textarea name="condiciones_medicas" rows="8" class="w-full px-4 py-2 border rounded-[1rem]">{{ patient.condiciones_medicas if is_edit else '' }}</textarea>
+      <div class="admin-form-grid admin-form-grid-three">
+        <div class="admin-field admin-field-span-two">
+          <label for="calle">Calle <span>*</span></label>
+          <input type="text" id="calle" name="calle"
+                 value="{{ patient.calle|default('', true) }}"
+                 placeholder="Nombre de la calle" autocomplete="address-line1"
+                 maxlength="120" required>
+        </div>
+        <div class="admin-field">
+          <label for="numero_ext">Número exterior <span>*</span></label>
+          <input type="text" id="numero_ext" name="numero_ext"
+                 value="{{ patient.numero_ext|default('', true) }}"
+                 placeholder="Ej. 125" maxlength="20" required>
+        </div>
+        <div class="admin-field">
+          <label for="numero_int">Número interior</label>
+          <input type="text" id="numero_int" name="numero_int"
+                 value="{{ patient.numero_int|default('', true) }}"
+                 placeholder="Opcional" autocomplete="address-line2" maxlength="20">
+        </div>
+        <div class="admin-field">
+          <label for="codigo_postal">Código postal <span>*</span></label>
+          <input type="text" id="codigo_postal" name="codigo_postal"
+                 value="{{ patient.codigo_postal|default('', true) }}"
+                 placeholder="5 dígitos" autocomplete="postal-code"
+                 inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required>
+        </div>
+        <div class="admin-field">
+          <label for="municipio">Municipio <span>*</span></label>
+          <input type="text" id="municipio" name="municipio"
+                 value="{{ patient.municipio|default('', true) }}"
+                 placeholder="Municipio o alcaldía" autocomplete="address-level2"
+                 maxlength="100" required>
+        </div>
+        <div class="admin-field">
+          <label for="estado">Estado <span>*</span></label>
+          <select id="estado" name="estado" autocomplete="address-level1" required>
+            <option value="">Selecciona un estado</option>
+            {% for estado in estados %}
+              <option value="{{ estado }}" {% if patient.estado|default('') == estado %}selected{% endif %}>{{ estado }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Botones -->
-    <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
-      <button id="guardar-btn" type="submit" class="btn-guardar">Guardar</button>
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon is-cyan"><i class="fas fa-notes-medical"></i></span>
+        <div>
+          <h2>Información clínica</h2>
+          <p>Antecedentes relevantes para la atención y toma de muestras.</p>
+        </div>
+      </div>
+
+      <div class="admin-field">
+        <label for="condiciones_medicas">Condiciones médicas o enfermedades crónicas</label>
+        <textarea id="condiciones_medicas" name="condiciones_medicas" rows="4"
+                  maxlength="1000"
+                  placeholder="Ej. Diabetes, hipertensión, alergias conocidas...">{{ patient.condiciones_medicas|default('', true) }}</textarea>
+        <small>Este campo es opcional. Evita incluir información que no sea clínicamente necesaria.</small>
+      </div>
+    </section>
+
+    <div class="admin-form-actions">
       <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+      <button id="guardar-btn" type="submit" class="btn-guardar">
+        <i class="fas fa-save mr-2"></i>{{ 'Guardar cambios' if is_edit else 'Registrar paciente' }}
+      </button>
     </div>
   </form>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const guardarBtn = document.getElementById("guardar-btn");
-    
-        const inputs = {
-            nombres: document.querySelector('[name="nombres"]'),
-            apellidos: document.querySelector('[name="apellidos"]'),
-            telefono: document.querySelector('[name="telefono"]'),
-            correo: document.querySelector('[name="correo"]'),
-        };
-    
-        const errores = {
-            nombres: true,
-            apellidos: true,
-            telefono: true,
-            correo: false,
-            duplicado: false,
-            direccion: true
-        };
-        
-    
-        const camposDireccion = ["calle", "numero_ext", "codigo_postal", "municipio", "estado"];
-        const direccionInputs = camposDireccion.map(c => document.querySelector(`[name="${c}"]`));
-    
-        // Validaciones en tiempo real
-        inputs.nombres.addEventListener("input", () => validarTexto(inputs.nombres, "nombres"));
-        inputs.apellidos.addEventListener("input", () => validarTexto(inputs.apellidos, "apellidos"));
-        inputs.telefono.addEventListener("input", () => validarNumero(inputs.telefono, "telefono"));
-        inputs.correo.addEventListener("input", () => {
-            validarCorreo(inputs.correo, "correo");
-            checkDuplicado();
-        });
-    
-        direccionInputs.forEach(input => input.addEventListener("input", validarFormulario));
-    
-        Object.entries(inputs).forEach(([campo, input]) => {
-            input.addEventListener("input", validarFormulario);
-            input.addEventListener("blur", () => {
-                if (campo === "nombres" || campo === "apellidos") validarTexto(input, campo);
-                if (campo === "telefono") validarNumero(input, campo);
-                if (campo === "correo") validarCorreo(input, campo);
-            });
-        });
-    
-        function validarTexto(input, campo) {
-            const valor = input.value.trim();
-            const soloLetras = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
-    
-            let mensaje = "";
-            let error = false;
-    
-            if (valor === "") {
-                mensaje = "Este campo es obligatorio";
-                error = true;
-            } else if (!soloLetras.test(valor)) {
-                mensaje = "Solo se permiten letras";
-                error = true;
-            }
-    
-            mostrarMensaje(campo, mensaje, error);
-            errores[campo] = error;
-            validarFormulario();
-        }
-    
-        function validarNumero(input, campo) {
-            const valor = input.value.trim();
-            const soloNumeros = /^[0-9]+$/;
-    
-            let mensaje = "";
-            let error = false;
-    
-            if (valor === "") {
-                mensaje = "Este campo es obligatorio";
-                error = true;
-            } else if (!soloNumeros.test(valor)) {
-                mensaje = "Solo se permiten números";
-                error = true;
-            }
-    
-            mostrarMensaje(campo, mensaje, error);
-            errores[campo] = error;
-            validarFormulario();
-        }
-    
-        function validarCorreo(input, campo) {
-            const valor = input.value.trim();
-            const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        
-            let error = false;
-            let mensaje = "";
-        
-            if (valor !== "" && !regexCorreo.test(valor)) {
-                mensaje = "Correo electrónico inválido";
-                error = true;
-            }
-        
-            mostrarMensaje(campo, mensaje, error);
-            errores[campo] = error;
-            validarFormulario();
-        }        
-    
-        function mostrarMensaje(campo, mensaje, mostrar) {
-            const contenedor = document.querySelector(`[name="${campo}"]`).parentElement;
-            let msg = contenedor.querySelector(".error-msg");
-            if (!msg && mostrar) {
-                msg = document.createElement("p");
-                msg.className = "text-red-600 text-sm mt-1 error-msg";
-                contenedor.appendChild(msg);
-            }
-            if (msg) {
-                msg.textContent = mensaje;
-                msg.style.display = mostrar ? "block" : "none";
-            }
-        }
-    
-        function validarFormulario() {
-            // Verificar que todos los campos de dirección estén llenos
-            errores.direccion = camposDireccion.some(campo => {
-                const input = document.querySelector(`[name="${campo}"]`);
-                const vacio = input.value.trim() === "";
-                mostrarMensaje(campo, "Este campo es obligatorio", vacio);
-                return vacio;
-            });
-    
-            const hayErrores = Object.values(errores).some(v => v);
-            guardarBtn.disabled = hayErrores;
-            guardarBtn.classList.toggle("opacity-50", hayErrores);
-            guardarBtn.classList.toggle("cursor-not-allowed", hayErrores);
-        }
-    
-        async function checkDuplicado() {
-            const datos = {
-                nombres: inputs.nombres.value,
-                apellidos: inputs.apellidos.value,
-                telefono: inputs.telefono.value,
-                correo: inputs.correo.value
-            };
-    
-            if (!datos.nombres.trim() || !datos.apellidos.trim() || !datos.telefono.trim()) return;
-    
-            const res = await fetch("/api/check_patient", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(datos)
-            });
-    
-            const result = await res.json();
-            errores.duplicado = result.exists;
-    
-            const contenedor = inputs.correo.parentElement;
-            let msg = contenedor.querySelector(".duplicado-msg");
-    
-            if (result.exists) {
-                if (!msg) {
-                    msg = document.createElement("p");
-                    msg.className = "text-red-600 text-sm mt-1 duplicado-msg";
-                    msg.textContent = "Ya existe un paciente con estos datos.";
-                    contenedor.appendChild(msg);
-                }
-            } else if (msg) {
-                msg.remove();
-            }
-    
-            validarFormulario();
-        }
-    });
-    </script>
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("form-paciente");
+  const alert = document.getElementById("patient-form-alert");
+  const birthDate = document.getElementById("fecha_nacimiento");
+  const today = new Date();
+  today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+  birthDate.max = today.toISOString().split("T")[0];
 
+  form.addEventListener("submit", event => {
+    form.querySelectorAll(".is-invalid").forEach(field => field.classList.remove("is-invalid"));
+
+    if (!form.checkValidity()) {
+      event.preventDefault();
+      alert.classList.remove("hidden");
+      const firstInvalid = form.querySelector(":invalid");
+      if (firstInvalid?.type === "radio") {
+        firstInvalid.closest("fieldset")?.classList.add("is-invalid");
+      } else {
+        firstInvalid?.classList.add("is-invalid");
+      }
+      firstInvalid?.focus();
+      return;
+    }
+
+    alert.classList.add("hidden");
+  });
+
+  form.querySelectorAll("input, select, textarea").forEach(field => {
+    field.addEventListener("input", () => {
+      if (field.checkValidity()) field.classList.remove("is-invalid");
+      if (field.type === "radio") field.closest("fieldset")?.classList.remove("is-invalid");
+    });
+  });
+});
+</script>
 {% endblock %}
