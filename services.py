@@ -73,6 +73,7 @@ def obtener_empleados():
             contacto_emergencia,
             condiciones_medicas,
             fecha_nacimiento,
+            foto_perfil,
             empleado_roles(rol_id(id, nombre)) 
             '''
         ).execute()
@@ -110,6 +111,7 @@ def obtener_empleados():
                 "contacto_emergencia": emp.get("contacto_emergencia") or "",
                 "condiciones_medicas": emp.get("condiciones_medicas") or "",
                 "fecha_nacimiento": emp.get("fecha_nacimiento") or "",
+                "foto_perfil": emp.get("foto_perfil"),
                 "estado": estados_por_usuario.get(usuario_id, False),
                 "rol_id": rol_data.get("id"),
                 "rol_nombre": rol_data.get("nombre", "Sin rol")

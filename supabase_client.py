@@ -17,8 +17,13 @@ def normalize_supabase_url(value: str | None) -> str:
 
 SUPABASE_URL = normalize_supabase_url(os.getenv("SUPABASE_URL"))
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_SERVICE_ROLE_KEY = (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or "").strip()
+SUPABASE_AVATAR_BUCKET = (os.getenv("SUPABASE_AVATAR_BUCKET") or "").strip()
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("Faltan SUPABASE_URL y/o SUPABASE_KEY en el archivo .env")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase_storage: Client = create_client(
+    SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY
+)

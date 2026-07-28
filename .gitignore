@@ -171,3 +171,8 @@ cython_debug/
 .pypirc
 # Archivos de ejecución local (PID y logs)
 .runtime/
+ENLACE-PUBLICO-ACTUAL.url
+
+# Fotos de perfil subidas en tiempo de ejecución
+static/uploads/avatars/*
+!static/uploads/avatars/.gitkeep

@@ -35,7 +35,9 @@
       <div class="app-dropdown">
         <button id="navProfileBtn" type="button" class="app-profile-button"
                 aria-haspopup="true" aria-expanded="false" aria-controls="navProfilePanel">
-          {% if session.get('foto_perfil') %}
+          {% if (session.get('foto_perfil') or '').startswith('preset:') %}
+            <span class="app-avatar avatar-preset avatar-preset-{{ session.get('foto_perfil').split(':')[1] }}" aria-hidden="true"></span>
+          {% elif session.get('foto_perfil') %}
             <img src="{{ session.get('foto_perfil') }}" alt="" class="app-avatar">
           {% else %}
             <span class="app-avatar app-avatar-fallback" aria-hidden="true">{{ (session.get('nombres') or 'U')[0]|upper }}</span>
@@ -48,7 +50,9 @@
         </button>
         <div id="navProfilePanel" class="app-dropdown-panel app-profile-panel" hidden>
           <div class="app-profile-summary">
-            {% if session.get('foto_perfil') %}
+            {% if (session.get('foto_perfil') or '').startswith('preset:') %}
+              <span class="app-avatar app-avatar-large avatar-preset avatar-preset-{{ session.get('foto_perfil').split(':')[1] }}" aria-hidden="true"></span>
+            {% elif session.get('foto_perfil') %}
               <img src="{{ session.get('foto_perfil') }}" alt="" class="app-avatar app-avatar-large">
             {% else %}
               <span class="app-avatar app-avatar-large app-avatar-fallback" aria-hidden="true">{{ (session.get('nombres') or 'U')[0]|upper }}</span>

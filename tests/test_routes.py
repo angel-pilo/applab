@@ -1,4 +1,5 @@
 import os
+from io import BytesIO
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,6 +19,36 @@ import services
 from app import create_app
 from flask import render_template, session
 from supabase_client import normalize_supabase_url
+from werkzeug.datastructures import FileStorage
+
+
+class EmployeeAvatarValidationTests(unittest.TestCase):
+    def test_valid_png_avatar_is_accepted(self):
+        avatar = FileStorage(
+            stream=BytesIO(b"\x89PNG\r\n\x1a\n" + b"image-data"),
+            filename="avatar.png",
+        )
+
+        extension, error = routes.validate_employee_avatar(avatar)
+
+        self.assertEqual(extension, "png")
+        self.assertIsNone(error)
+
+    def test_fake_image_is_rejected(self):
+        avatar = FileStorage(
+            stream=BytesIO(b"not-an-image"),
+            filename="avatar.png",
+        )
+
+        extension, error = routes.validate_employee_avatar(avatar)
+
+        self.assertIsNone(extension)
+        self.assertIn("imagen válida", error)
+
+    def test_only_known_preset_avatars_are_accepted(self):
+        self.assertEqual(routes.normalize_avatar_choice("preset:4"), "preset:4")
+        self.assertEqual(routes.normalize_avatar_choice("preset:99"), "initials")
+        self.assertEqual(routes.normalize_avatar_choice("unknown"), "initials")
 
 
 class OrderValidationTests(unittest.TestCase):
@@ -390,6 +421,11 @@ class AdminTemplateTests(unittest.TestCase):
         self.assertIn("Registrar hospital", create_hospital)
         self.assertIn("Guardar cambios", edit_hospital)
         self.assertIn("Registrar empleado", create_employee)
+        self.assertIn("Perfil laboral", create_employee)
+        self.assertIn("Información de emergencia", create_employee)
+        self.assertIn('type="file"', create_employee)
+        self.assertIn("Imagen de perfil", create_employee)
+        self.assertIn("Avatares ilustrados", create_employee)
         self.assertIn("Guardar cambios", edit_employee)
 
     def test_patient_form_renders_in_create_and_edit_modes(self):

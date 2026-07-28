@@ -3,155 +3,441 @@
 {% block title %}{{ 'Editar empleado' if is_edit else 'Registrar empleado' }}{% endblock %}
 
 {% block content %}
-
-<div class="flex-1 p-8 transition-all duration-300">
-    <div class="flex items-center space-x-2 mb-6">
-        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-        <h1 class="text-3xl font-bold">{{ 'Editar empleado' if is_edit else 'Registrar empleado' }}</h1>
+<div class="admin-form-shell py-6 sm:py-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <button type="button" onclick="window.history.back()"
+            class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
+            aria-label="Volver">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">
+        {{ 'Editar empleado' if is_edit else 'Registrar empleado' }}
+      </h1>
+      <p class="mt-2 text-sm text-gray-500">
+        {{ 'Actualiza sus datos personales, laborales y de acceso.' if is_edit else 'Agrega un integrante del laboratorio y asigna su nivel de acceso.' }}
+      </p>
     </div>
-    <form onsubmit="return validateForm()" method="POST" enctype="multipart/form-data">
-        <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md">
-            <div class="flex flex-wrap justify-between items-center mb-6">
-                <div class="w-full md:w-auto mb-4 md:mb-0">
-                    <label class="block text-gray-700 font-bold mb-2">Empleado<span class="text-red-500">*</span></label>
-                    <div class="flex items-center space-x-4">
-                        {% for role_id, role_name in role_map.items() %}
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="radio" class="form-radio" name="tipo_empleado" value="{{ role_id }}" 
-                                    {% if is_edit and empleado.rol_id == role_id %}checked{% endif %} required>
-                                <span class="ml-2">{{ role_name }}</span>
-                            </label>
-                        {% endfor %}
-                    </div>
-                </div>
-                
-                <!-- Campo oculto para enviar el role_id -->
-                <input type="hidden" name="role_id" id="role_id">
-                
-                <div class="w-full md:w-auto mb-4 md:mb-0">
-                    <label class="block text-gray-700 font-bold mb-2">Sexo<span class="text-red-500">*</span></label>
-                    <div class="flex items-center space-x-4">
-                        <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="sexo" value="M" 
-                                {% if empleado.sexo == "M" %}checked{% endif %} required>
-                            <span class="ml-2">Hombre</span>
-                        </label>
-                        <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" class="form-radio" name="sexo" value="F" 
-                                {% if empleado.sexo == "F" %}checked{% endif %}>
-                            <span class="ml-2">Mujer</span>
-                        </label>
-                    </div>
-                </div>                              
-                
-                <div class="w-full md:w-auto">
-                    <label class="block text-gray-700 font-bold mb-2" for="fecha_nacimiento">Fecha de nacimiento<span class="text-red-500">*</span></label>
-                    <div class="relative" onclick="openDatePicker()">
-                        <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ empleado.fecha_nacimiento }}" required oninput="updateUsername()">
-                    </div>
-                </div>                
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="nombres">Nombre(s)<span class="text-red-500">*</span></label>    
-                        <input type="text" id="nombres" name="nombres" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa los nombres del empleado" value="{{ empleado.nombres }}" required oninput="updateUsername()">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="apellidos">Apellidos<span class="text-red-500">*</span></label>
-                        <input type="text" id="apellidos" name="apellidos" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa los apellidos del empleado" value="{{ empleado.apellidos }}" required oninput="updateUsername()">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="telefono">Teléfono<span class="text-red-500">*</span></label>
-                        <input type="text" id="telefono" name="telefono" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el teléfono del empleado" value="{{ empleado.telefono }}" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="correo">Correo electrónico<span class="text-red-500">*</span></label>
-                        <input type="email" id="correo" name="correo" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el correo del empleado"value="{{ empleado.correo }}" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="username">Usuario<span class="text-red-500">*</span></label>
-                        <input type="text" id="username" name="username" class="w-full px-4 py-2 border rounded-[1rem]" value="{{ empleado.username }}" readonly required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="password">Contraseña<span class="text-red-500">*</span></label>
-                        <input type="password" id="password" name="password" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="{{ 'Deja en blanco para mantener la contraseña actual' if is_edit else 'Ingresa una contraseña segura' }}" {% if not is_edit %}required{% endif %}>
-                    </div>
-                </div>
-                <div id="drop-zone" class="md:col-span-1">
-                    <label class="block text-gray-700 font-bold mb-2">Foto de Perfil</label>
-                    <div id="file-drop-zone" class="border-dashed border-2 border-gray-300 rounded-lg p-4 text-center">
-                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
-                        <p class="mt-2 text-gray-600">Arrastra y suelta archivos o <a href="#" class="text-blue-500" id="browse-link" onclick="triggerFileInput(event)">Explorar</a></p>
-                        <p class="text-gray-400">Formatos admitidos: JPEG, PNG, GIF, WEBP</p>
-                        <!-- Input file hidden to trigger on click -->
-                        <input type="file" id="file-input" class="hidden" accept="image/jpeg, image/png, image/gif, image/webp" onchange="handleFileSelect(event)">
-                    </div>
-                </div>
-            </div>
+  </header>
+
+  <form method="POST" action="{{ request.path }}" id="form-empleado"
+        enctype="multipart/form-data"
+        class="mt-6 space-y-5" novalidate>
+    <div id="employee-form-alert" class="admin-form-alert hidden" role="alert" aria-live="polite">
+      <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+      <span>Revisa los campos marcados antes de guardar.</span>
+    </div>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-id-badge"></i></span>
+        <div>
+          <h2>Perfil laboral</h2>
+          <p>Rol operativo, turno e identificación del empleado.</p>
         </div>
-        <div class="flex flex-wrap justify-evenly mt-6">
-            <div class="w-full md:w-[43.5%] bg-white p-6 rounded-lg shadow-md mb-6 md:mb-0">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="street">Calle<span class="text-red-500">*</span></label>
-                        <input type="text" id="calle" name="calle" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Calle" value="{{ empleado.calle }}" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="ext_number">No. Ext.<span class="text-red-500">*</span></label>
-                        <input type="text" id="numero_ext" name="numero_ext" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="No. ext." value="{{ empleado.numero_ext }}" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="int_number">No. Int.</label>
-                        <input type="text" id="numero_int" name="numero_int" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="No. int." value="{{ empleado.numero_int }}">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="postal_code">Código postal<span class="text-red-500">*</span></label>
-                        <input type="text" id="codigo_postal" name="codigo_postal" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Código postal" value="{{ empleado.codigo_postal }}" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="municipality">Municipio<span class="text-red-500">*</span></label>
-                        <input type="text" id="municipio" name="municipio" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Municipio" value="{{ empleado.municipio }}" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="state">Estado<span class="text-red-500">*</span></label>
-                        <select id="estado" name="estado" class="w-full px-4 py-2 border rounded-[1rem]" required>
-                            {% for estado in estados %}
-                                <option value="{{ estado }}" {% if empleado.estado == estado %}selected{% endif %}>{{ estado }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="curp_rfc">CURP o RFC<span class="text-red-500">*</span></label>
-                        <input type="text" id="curp_rfc" name="curp_rfc" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa CURP o RFC" value="{{ empleado.curp_rfc }}" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="shift">Turno<span class="text-red-500">*</span></label>
-                        <select id="turno" name="turno" class="w-full px-4 py-2 border rounded-[1rem]" required>
-                            <option value="">Seleccione un turno</option>
-                            <option value="Matutino" {% if empleado.turno == "Matutino" %}selected{% endif %}>Matutino</option>
-                            <option value="Vespertino" {% if empleado.turno == "Vespertino" %}selected{% endif %}>Vespertino</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2 text-sm" for="medical_conditions">Alergias o condiciones médicas</label>
-                        <input type="text" id="condiciones_medicas" name="condiciones_medicas" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Para prevenir emergencias" value="{{ empleado.condiciones_medicas }}">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2" for="emergency_contact">Contacto de emergencia<span class="text-red-500">*</span></label>
-                        <input type="text" id="contacto_emergencia" name="contacto_emergencia" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Nombre, teléfono y relación" value="{{ empleado.contacto_emergencia }}" required>
-                    </div>
-                </div>
-            </div>
+      </div>
+
+      {% set current_avatar = empleado.foto_perfil|default('', true) %}
+      {% set avatar_is_preset = current_avatar.startswith('preset:') if current_avatar else false %}
+      <div class="employee-avatar-editor">
+        <div class="employee-avatar-preview" id="employee-avatar-preview">
+          {% if avatar_is_preset %}
+            <span class="avatar-preset avatar-preset-{{ current_avatar.split(':')[1] }}" aria-label="Avatar ilustrado seleccionado"></span>
+          {% elif current_avatar %}
+            <img src="{{ current_avatar }}" alt="Foto actual de {{ empleado.nombres|default('empleado', true) }}">
+          {% else %}
+            <span id="employee-avatar-initials" aria-hidden="true">
+              {{ (empleado.nombres|default('E', true))[0]|upper }}{{ (empleado.apellidos|default('', true))[0]|upper }}
+            </span>
+          {% endif %}
         </div>
-        <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
-            <button type="submit" class="btn-guardar">{{ 'Guardar cambios' if is_edit else 'Registrar empleado' }}</button>
-            <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+        <div class="employee-avatar-copy">
+          <strong>Imagen de perfil</strong>
+          <p>La fotografía personal es recomendada; también puedes elegir una ilustración o usar sus iniciales.</p>
+          <div class="employee-avatar-mode-grid">
+            {% if current_avatar and not avatar_is_preset %}
+              <label class="employee-avatar-mode">
+                <input type="radio" name="avatar_choice" value="current" checked>
+                <span><i class="fas fa-check-circle"></i>Conservar actual</span>
+              </label>
+            {% endif %}
+            <label class="employee-avatar-mode">
+              <input type="radio" name="avatar_choice" value="initials" {% if not current_avatar %}checked{% endif %}>
+              <span><i class="fas fa-font"></i>Usar iniciales</span>
+            </label>
+            <label class="employee-avatar-mode">
+              <input type="radio" name="avatar_choice" value="upload">
+              <span><i class="fas fa-camera"></i>Foto personal</span>
+            </label>
+          </div>
+          <input type="file" id="foto_perfil" name="foto_perfil" class="employee-avatar-file"
+                 accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
+          <small>JPG, PNG, GIF o WEBP. Máximo 3 MB. La fotografía solo se usa dentro de AppLab.</small>
         </div>
-    </form>
+      </div>
+
+      <fieldset class="admin-field employee-avatar-bank">
+        <legend>Avatares ilustrados</legend>
+        <div class="employee-avatar-bank-grid">
+          {% for preset_id in range(1, 13) %}
+            <label class="employee-avatar-option" title="Avatar ilustrado {{ preset_id }}">
+              <input type="radio" name="avatar_choice" value="preset:{{ preset_id }}"
+                     {% if current_avatar == 'preset:' ~ preset_id %}checked{% endif %}>
+              <span class="avatar-preset avatar-preset-{{ preset_id }}"></span>
+              <i class="fas fa-check" aria-hidden="true"></i>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <div class="admin-form-grid">
+        <fieldset class="admin-field admin-field-full" id="employee-role-fieldset">
+          <legend>Rol del empleado <span>*</span></legend>
+          <div class="admin-choice-group employee-role-choices">
+            {% for role_id, role_name in role_map.items() %}
+              <label class="admin-choice">
+                <input type="radio" name="tipo_empleado" value="{{ role_id }}"
+                       {% if empleado.rol_id|default('')|string == role_id|string %}checked{% endif %} required>
+                <span><i class="fas fa-user-shield"></i>{{ role_name }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        <div class="admin-field">
+          <label for="turno">Turno <span>*</span></label>
+          <select id="turno" name="turno" required>
+            <option value="">Selecciona un turno</option>
+            {% for turno in ['Matutino', 'Vespertino', 'Nocturno', 'Mixto'] %}
+              <option value="{{ turno }}" {% if empleado.turno|default('') == turno %}selected{% endif %}>
+                {{ turno }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="admin-field">
+          <label for="curp_rfc">CURP o RFC <span>*</span></label>
+          <input type="text" id="curp_rfc" name="curp_rfc"
+                 value="{{ empleado.curp_rfc|default('', true) }}"
+                 placeholder="Identificador fiscal o personal"
+                 autocomplete="off" maxlength="18" required>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon is-cyan"><i class="fas fa-user"></i></span>
+        <div>
+          <h2>Información personal</h2>
+          <p>Datos de identificación y contacto.</p>
+        </div>
+      </div>
+
+      <div class="admin-form-grid">
+        <div class="admin-field">
+          <label for="nombres">Nombre(s) <span>*</span></label>
+          <input type="text" id="nombres" name="nombres"
+                 value="{{ empleado.nombres|default('', true) }}"
+                 placeholder="Ej. Andrea Fernanda" autocomplete="given-name"
+                 maxlength="100" required>
+        </div>
+        <div class="admin-field">
+          <label for="apellidos">Apellidos <span>*</span></label>
+          <input type="text" id="apellidos" name="apellidos"
+                 value="{{ empleado.apellidos|default('', true) }}"
+                 placeholder="Ej. Martínez López" autocomplete="family-name"
+                 maxlength="100" required>
+        </div>
+        <fieldset class="admin-field" id="employee-sex-fieldset">
+          <legend>Sexo <span>*</span></legend>
+          <div class="admin-choice-group employee-sex-choices">
+            <label class="admin-choice">
+              <input type="radio" name="sexo" value="M"
+                     {% if empleado.sexo|default('') == 'M' %}checked{% endif %} required>
+              <span>Hombre</span>
+            </label>
+            <label class="admin-choice">
+              <input type="radio" name="sexo" value="F"
+                     {% if empleado.sexo|default('') == 'F' %}checked{% endif %} required>
+              <span>Mujer</span>
+            </label>
+            <label class="admin-choice">
+              <input type="radio" name="sexo" value="O"
+                     {% if empleado.sexo|default('') == 'O' %}checked{% endif %} required>
+              <span>Otro</span>
+            </label>
+          </div>
+        </fieldset>
+        <div class="admin-field">
+          <label for="fecha_nacimiento">Fecha de nacimiento <span>*</span></label>
+          <input type="date" id="fecha_nacimiento" name="fecha_nacimiento"
+                 value="{{ empleado.fecha_nacimiento|default('', true) }}"
+                 autocomplete="bday" required>
+        </div>
+        <div class="admin-field">
+          <label for="telefono">Teléfono <span>*</span></label>
+          <input type="tel" id="telefono" name="telefono"
+                 value="{{ empleado.telefono|default('', true) }}"
+                 placeholder="10 a 15 dígitos" autocomplete="tel"
+                 inputmode="numeric" pattern="[0-9]{10,15}" maxlength="15" required>
+          <small>Ingresa únicamente números.</small>
+        </div>
+        <div class="admin-field">
+          <label for="correo">Correo electrónico <span>*</span></label>
+          <input type="email" id="correo" name="correo"
+                 value="{{ empleado.correo|default('', true) }}"
+                 placeholder="empleado@correo.com" autocomplete="email"
+                 maxlength="150" required>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-key"></i></span>
+        <div>
+          <h2>Acceso al sistema</h2>
+          <p>Credenciales utilizadas para iniciar sesión en AppLab.</p>
+        </div>
+      </div>
+
+      <div class="admin-form-grid">
+        <div class="admin-field">
+          <label for="username">Nombre de usuario <span>*</span></label>
+          <input type="text" id="username" name="username"
+                 value="{{ empleado.username|default('', true) }}"
+                 placeholder="Se genera automáticamente"
+                 autocomplete="username" readonly required>
+          <small>Se forma con el nombre, apellido y año de nacimiento.</small>
+        </div>
+        <div class="admin-field">
+          <label for="password">
+            Contraseña {% if not is_edit %}<span>*</span>{% endif %}
+          </label>
+          <input type="password" id="password" name="password"
+                 placeholder="{{ 'Déjala vacía para conservar la contraseña actual' if is_edit else 'Mínimo 8 caracteres' }}"
+                 autocomplete="new-password" minlength="8"
+                 {% if not is_edit %}required{% endif %}>
+          <small>{{ 'Solo se reemplazará si escribes una nueva.' if is_edit else 'Utiliza al menos 8 caracteres.' }}</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon is-cyan"><i class="fas fa-map-marker-alt"></i></span>
+        <div>
+          <h2>Domicilio</h2>
+          <p>Dirección actual del empleado.</p>
+        </div>
+      </div>
+
+      <div class="admin-form-grid admin-form-grid-three">
+        <div class="admin-field admin-field-span-two">
+          <label for="calle">Calle <span>*</span></label>
+          <input type="text" id="calle" name="calle"
+                 value="{{ empleado.calle|default('', true) }}"
+                 placeholder="Nombre de la calle" autocomplete="address-line1"
+                 maxlength="120" required>
+        </div>
+        <div class="admin-field">
+          <label for="numero_ext">Número exterior <span>*</span></label>
+          <input type="text" id="numero_ext" name="numero_ext"
+                 value="{{ empleado.numero_ext|default('', true) }}"
+                 placeholder="Ej. 125" maxlength="20" required>
+        </div>
+        <div class="admin-field">
+          <label for="numero_int">Número interior</label>
+          <input type="text" id="numero_int" name="numero_int"
+                 value="{{ empleado.numero_int|default('', true) }}"
+                 placeholder="Opcional" autocomplete="address-line2" maxlength="20">
+        </div>
+        <div class="admin-field">
+          <label for="codigo_postal">Código postal <span>*</span></label>
+          <input type="text" id="codigo_postal" name="codigo_postal"
+                 value="{{ empleado.codigo_postal|default('', true) }}"
+                 placeholder="5 dígitos" autocomplete="postal-code"
+                 inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required>
+        </div>
+        <div class="admin-field">
+          <label for="municipio">Municipio <span>*</span></label>
+          <input type="text" id="municipio" name="municipio"
+                 value="{{ empleado.municipio|default('', true) }}"
+                 placeholder="Municipio o alcaldía" autocomplete="address-level2"
+                 maxlength="100" required>
+        </div>
+        <div class="admin-field">
+          <label for="estado">Estado <span>*</span></label>
+          <select id="estado" name="estado" autocomplete="address-level1" required>
+            <option value="">Selecciona un estado</option>
+            {% for estado in estados %}
+              <option value="{{ estado }}" {% if empleado.estado|default('') == estado %}selected{% endif %}>
+                {{ estado }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-notes-medical"></i></span>
+        <div>
+          <h2>Información de emergencia</h2>
+          <p>Datos de apoyo para responder ante una eventualidad.</p>
+        </div>
+      </div>
+
+      <div class="admin-form-grid">
+        <div class="admin-field">
+          <label for="contacto_emergencia">Contacto de emergencia <span>*</span></label>
+          <input type="text" id="contacto_emergencia" name="contacto_emergencia"
+                 value="{{ empleado.contacto_emergencia|default('', true) }}"
+                 placeholder="Nombre, teléfono y relación"
+                 maxlength="180" required>
+        </div>
+        <div class="admin-field">
+          <label for="condiciones_medicas">Alergias o condiciones médicas</label>
+          <textarea id="condiciones_medicas" name="condiciones_medicas" rows="3"
+                    maxlength="500"
+                    placeholder="Opcional; registra únicamente información relevante">{{ empleado.condiciones_medicas|default('', true) }}</textarea>
+        </div>
+      </div>
+    </section>
+
+    <div class="admin-form-actions">
+      <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+      <button type="submit" class="btn-guardar">
+        <i class="fas fa-save mr-2"></i>{{ 'Guardar cambios' if is_edit else 'Registrar empleado' }}
+      </button>
+    </div>
+  </form>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("form-empleado");
+  const alert = document.getElementById("employee-form-alert");
+  const username = document.getElementById("username");
+  const photoInput = document.getElementById("foto_perfil");
+  const photoPreview = document.getElementById("employee-avatar-preview");
+  const initialAvatarMarkup = photoPreview.innerHTML;
+  const avatarChoices = form.querySelectorAll('[name="avatar_choice"]');
+  const usernameSources = ["nombres", "apellidos", "fecha_nacimiento"]
+    .map(id => document.getElementById(id));
+
+  const updateUsername = () => {
+    const firstName = usernameSources[0].value.trim();
+    const lastName = usernameSources[1].value.trim();
+    const birthYear = usernameSources[2].value.slice(2, 4);
+    const normalizedLastName = lastName
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+    const initial = firstName
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .charAt(0).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    if (initial && normalizedLastName && birthYear) {
+      username.value = `${initial}${normalizedLastName}${birthYear}`;
+    } else if (!{{ 'true' if is_edit else 'false' }}) {
+      username.value = "";
+    }
+  };
+
+  usernameSources.forEach(field => field.addEventListener("input", updateUsername));
+  updateUsername();
+
+  const renderInitials = () => {
+    const first = usernameSources[0].value.trim().charAt(0) || "E";
+    const last = usernameSources[1].value.trim().charAt(0) || "";
+    photoPreview.innerHTML = `<span id="employee-avatar-initials" aria-hidden="true">${(first + last).toUpperCase()}</span>`;
+  };
+
+  usernameSources.slice(0, 2).forEach(field => {
+    field.addEventListener("input", () => {
+      const selected = form.querySelector('[name="avatar_choice"]:checked')?.value;
+      if (selected === "initials") renderInitials();
+    });
+  });
+
+  photoInput.addEventListener("change", () => {
+    const file = photoInput.files[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      photoInput.value = "";
+      photoInput.classList.add("is-invalid");
+      alert.querySelector("span").textContent = "La foto no puede superar 3 MB.";
+      alert.classList.remove("hidden");
+      return;
+    }
+
+    const image = document.createElement("img");
+    image.src = URL.createObjectURL(file);
+    image.alt = "Vista previa de la foto seleccionada";
+    image.onload = () => URL.revokeObjectURL(image.src);
+    photoPreview.replaceChildren(image);
+    form.querySelector('[name="avatar_choice"][value="upload"]').checked = true;
+    photoInput.classList.remove("is-invalid");
+    alert.classList.add("hidden");
+  });
+
+  avatarChoices.forEach(choice => {
+    choice.addEventListener("change", () => {
+      if (!choice.checked) return;
+      if (choice.value === "initials") {
+        photoInput.value = "";
+        renderInitials();
+      } else if (choice.value.startsWith("preset:")) {
+        photoInput.value = "";
+        const id = choice.value.split(":")[1];
+        photoPreview.innerHTML = `<span class="avatar-preset avatar-preset-${id}" aria-label="Avatar ilustrado seleccionado"></span>`;
+      } else if (choice.value === "upload" && !photoInput.files.length) {
+        photoInput.click();
+      } else if (choice.value === "current") {
+        photoInput.value = "";
+        photoPreview.innerHTML = initialAvatarMarkup;
+      }
+    });
+  });
+
+  form.addEventListener("submit", event => {
+    const selectedAvatar = form.querySelector('[name="avatar_choice"]:checked')?.value;
+    if (selectedAvatar === "upload" && !photoInput.files.length) {
+      event.preventDefault();
+      alert.querySelector("span").textContent = "Selecciona una fotografía personal antes de guardar.";
+      alert.classList.remove("hidden");
+      photoInput.click();
+      return;
+    }
+  });
+
+  form.addEventListener("submit", event => {
+    form.querySelectorAll(".is-invalid").forEach(field => field.classList.remove("is-invalid"));
+
+    if (!form.checkValidity()) {
+      event.preventDefault();
+      alert.classList.remove("hidden");
+      const firstInvalid = form.querySelector(":invalid");
+      if (firstInvalid?.type === "radio") {
+        firstInvalid.closest("fieldset")?.classList.add("is-invalid");
+      } else {
+        firstInvalid?.classList.add("is-invalid");
+      }
+      firstInvalid?.focus();
+      return;
+    }
+
+    alert.classList.add("hidden");
+  });
+
+  form.querySelectorAll("input, select, textarea").forEach(field => {
+    field.addEventListener("input", () => {
+      if (field.checkValidity()) field.classList.remove("is-invalid");
+      if (field.type === "radio") field.closest("fieldset")?.classList.remove("is-invalid");
+    });
+  });
+});
+</script>
 {% endblock %}
