@@ -1,146 +1,215 @@
 {% extends "base.html" %}
 
-{% block title %}Registrar Proveedor{% endblock %}
+{% block title %}{{ 'Editar proveedor' if is_edit else 'Registrar proveedor' }}{% endblock %}
 
 {% block content %}
-
-<div class="flex-1 p-8 transition-all duration-300">
-  <div class="flex items-center space-x-2 mb-6">
-    <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-    <h1 class="text-3xl font-bold">Registrar nuevo proveedor</h1>
-  </div>
-
-  <!-- Alerta duplicado -->
-  <div id="alerta-duplicado" class="max-w-7xl mx-auto mb-4 hidden">
-    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-      Ya existe un proveedor con estos datos. Por favor verifica nombre, teléfono o correo.
+<div class="admin-form-shell py-6 sm:py-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <button type="button" onclick="window.history.back()"
+            class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
+            aria-label="Volver">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">
+        {{ 'Editar proveedor' if is_edit else 'Registrar proveedor' }}
+      </h1>
+      <p class="mt-2 text-sm text-gray-500">
+        {{ 'Actualiza sus datos comerciales, de contacto y ubicación.' if is_edit else 'Agrega un proveedor de productos o servicios para el laboratorio.' }}
+      </p>
     </div>
-  </div>
+  </header>
 
-  <form method="POST" id="form-proveedor">
-    <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <form method="POST"
+        action="{{ url_for('app_routes.edit_proveedor', proveedor_id=proveedor.id) if is_edit else url_for('app_routes.add_proveedor') }}"
+        id="form-proveedor" class="mt-6 space-y-5" novalidate>
+
+    <div id="provider-form-alert" class="admin-form-alert hidden" role="alert" aria-live="polite">
+      <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+      <span>Revisa los campos marcados antes de guardar.</span>
+    </div>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-building"></i></span>
         <div>
-          <label class="block text-gray-700 font-bold mb-2">Tipo de proveedor<span class="text-red-500">*</span></label>
-          <div class="flex gap-6">
-            <label class="inline-flex items-center">
-              <input type="radio" name="tipo" value="servicio" {% if proveedor.tipo == 'servicio' %}checked{% endif %}>
-              <span class="ml-2">Servicio</span>
+          <h2>Información del proveedor</h2>
+          <p>Clasificación y nombre comercial.</p>
+        </div>
+      </div>
+
+      <div class="admin-form-grid">
+        <fieldset class="admin-field">
+          <legend>Tipo de proveedor <span>*</span></legend>
+          <div class="admin-choice-group">
+            <label class="admin-choice">
+              <input type="radio" name="tipo" value="producto"
+                     {% if proveedor.tipo|default('') == 'producto' %}checked{% endif %} required>
+              <span><i class="fas fa-box"></i>Producto</span>
             </label>
-            <label class="inline-flex items-center">
-              <input type="radio" name="tipo" value="producto" {% if proveedor.tipo == 'producto' %}checked{% endif %}>
-              <span class="ml-2">Producto</span>
+            <label class="admin-choice">
+              <input type="radio" name="tipo" value="servicio"
+                     {% if proveedor.tipo|default('') == 'servicio' %}checked{% endif %} required>
+              <span><i class="fas fa-tools"></i>Servicio</span>
             </label>
           </div>
-        </div>
-        <div>
-          <label class="block text-gray-700 font-bold mb-2">Nombre del proveedor<span class="text-red-500">*</span></label>
-          <input type="text" name="nombre" value="{{ proveedor.nombre }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el nombre del proveedor" required>
-        </div>
-        <div>
-          <label class="block text-gray-700 font-bold mb-2">Teléfono</label>
-          <input type="text" name="telefono" value="{{ proveedor.telefono }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número de teléfono">
-        </div>
-        <div>
-          <label class="block text-gray-700 font-bold mb-2">Correo electrónico</label>
-          <input type="email" name="correo" value="{{ proveedor.correo }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Correo del proveedor">
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-gray-700 font-bold mb-2">Persona de contacto</label>
-          <input type="text" name="contacto" value="{{ proveedor.contacto }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Persona de contacto">
+        </fieldset>
+        <div class="admin-field">
+          <label for="nombre">Nombre del proveedor <span>*</span></label>
+          <input type="text" id="nombre" name="nombre"
+                 value="{{ proveedor.nombre|default('', true) }}"
+                 placeholder="Ej. Insumos Clínicos del Centro"
+                 autocomplete="organization" maxlength="150" required>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Dirección y Anotaciones -->
-    <div class="max-w-7xl mx-auto flex flex-wrap justify-between gap-4 mt-6">
-      <div class="w-full md:w-[43.5%] bg-white p-6 rounded-[1rem] shadow-md mb-6 md:mb-0">
-        <h2 class="text-lg font-bold mb-4">Dirección</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">Calle</label>
-            <input type="text" name="calle" value="{{ proveedor.calle }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Calle">
-          </div>
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">No. Ext.</label>
-            <input type="text" name="numero_ext" value="{{ proveedor.numero_ext }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número exterior">
-          </div>
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">No. Int.</label>
-            <input type="text" name="numero_int" value="{{ proveedor.numero_int }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número interior">
-          </div>
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">Código Postal</label>
-            <input type="text" name="codigo_postal" value="{{ proveedor.codigo_postal }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Código Postal">
-          </div>
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">Municipio</label>
-            <input type="text" name="municipio" value="{{ proveedor.municipio }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Municipio">
-          </div>
-          <div>
-            <label class="block text-gray-700 font-bold mb-2">Estado</label>
-            <select name="estado" class="w-full px-4 py-2 border rounded-[1rem]">
-              <option value="">Seleccione un estado</option>
-              {% for estado in estados %}
-                <option value="{{ estado }}" {% if proveedor.estado == estado %}selected{% endif %}>{{ estado }}</option>
-              {% endfor %}
-            </select>
-          </div>
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon is-cyan"><i class="fas fa-address-book"></i></span>
+        <div>
+          <h2>Contacto</h2>
+          <p>Datos para pedidos, cotizaciones y seguimiento.</p>
         </div>
       </div>
 
-      <div class="w-full md:w-[52%] bg-white p-6 rounded-[1rem] shadow-md">
-        <h2 class="text-lg font-bold mb-4">Anotaciones extra</h2>
-        <textarea name="anotaciones" rows="8" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Agrega notas adicionales si es necesario">{{ proveedor.anotaciones }}</textarea>
+      <div class="admin-form-grid">
+        <div class="admin-field">
+          <label for="contacto">Persona de contacto</label>
+          <input type="text" id="contacto" name="contacto"
+                 value="{{ proveedor.contacto|default('', true) }}"
+                 placeholder="Nombre de la persona responsable"
+                 autocomplete="name" maxlength="120">
+        </div>
+        <div class="admin-field">
+          <label for="telefono">Teléfono</label>
+          <input type="tel" id="telefono" name="telefono"
+                 value="{{ proveedor.telefono|default('', true) }}"
+                 placeholder="10 a 15 dígitos" autocomplete="tel"
+                 inputmode="numeric" pattern="[0-9]{10,15}" maxlength="15">
+          <small>Ingresa únicamente números.</small>
+        </div>
+        <div class="admin-field admin-field-full">
+          <label for="correo">Correo electrónico</label>
+          <input type="email" id="correo" name="correo"
+                 value="{{ proveedor.correo|default('', true) }}"
+                 placeholder="ventas@proveedor.com"
+                 autocomplete="email" maxlength="150">
+        </div>
       </div>
-    </div>
+    </section>
 
-    <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
-      <button id="guardar-btn" type="submit" class="btn-guardar">Guardar</button>
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-map-marker-alt"></i></span>
+        <div>
+          <h2>Domicilio</h2>
+          <p>Ubicación comercial o fiscal del proveedor.</p>
+        </div>
+      </div>
+
+      <div class="admin-form-grid admin-form-grid-three">
+        <div class="admin-field admin-field-span-two">
+          <label for="calle">Calle</label>
+          <input type="text" id="calle" name="calle"
+                 value="{{ proveedor.calle|default('', true) }}"
+                 placeholder="Nombre de la calle"
+                 autocomplete="address-line1" maxlength="120">
+        </div>
+        <div class="admin-field">
+          <label for="numero_ext">Número exterior</label>
+          <input type="text" id="numero_ext" name="numero_ext"
+                 value="{{ proveedor.numero_ext|default('', true) }}"
+                 placeholder="Ej. 125" maxlength="20">
+        </div>
+        <div class="admin-field">
+          <label for="numero_int">Número interior</label>
+          <input type="text" id="numero_int" name="numero_int"
+                 value="{{ proveedor.numero_int|default('', true) }}"
+                 placeholder="Opcional" autocomplete="address-line2" maxlength="20">
+        </div>
+        <div class="admin-field">
+          <label for="codigo_postal">Código postal</label>
+          <input type="text" id="codigo_postal" name="codigo_postal"
+                 value="{{ proveedor.codigo_postal|default('', true) }}"
+                 placeholder="5 dígitos" autocomplete="postal-code"
+                 inputmode="numeric" pattern="[0-9]{5}" maxlength="5">
+        </div>
+        <div class="admin-field">
+          <label for="municipio">Municipio</label>
+          <input type="text" id="municipio" name="municipio"
+                 value="{{ proveedor.municipio|default('', true) }}"
+                 placeholder="Municipio o alcaldía"
+                 autocomplete="address-level2" maxlength="100">
+        </div>
+        <div class="admin-field">
+          <label for="estado">Estado</label>
+          <select id="estado" name="estado" autocomplete="address-level1">
+            <option value="">Selecciona un estado</option>
+            {% for estado in estados %}
+              <option value="{{ estado }}" {% if proveedor.estado|default('') == estado %}selected{% endif %}>{{ estado }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon is-cyan"><i class="fas fa-sticky-note"></i></span>
+        <div>
+          <h2>Anotaciones</h2>
+          <p>Condiciones comerciales o indicaciones relevantes.</p>
+        </div>
+      </div>
+      <div class="admin-field">
+        <label for="anotaciones">Notas adicionales</label>
+        <textarea id="anotaciones" name="anotaciones" rows="4"
+                  maxlength="1000"
+                  placeholder="Horarios de entrega, condiciones de pago, observaciones...">{{ proveedor.anotaciones|default('', true) }}</textarea>
+      </div>
+    </section>
+
+    <div class="admin-form-actions">
       <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+      <button id="guardar-btn" type="submit" class="btn-guardar">
+        <i class="fas fa-save mr-2"></i>{{ 'Guardar cambios' if is_edit else 'Registrar proveedor' }}
+      </button>
     </div>
   </form>
 </div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const nombreInput = document.querySelector('[name="nombre"]');
-    const telefonoInput = document.querySelector('[name="telefono"]');
-    const correoInput = document.querySelector('[name="correo"]');
-    const guardarBtn = document.getElementById("guardar-btn");
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("form-proveedor");
+  const alert = document.getElementById("provider-form-alert");
 
-    function checkDuplicado() {
-      const nombre = nombreInput.value.trim();
-      const telefono = telefonoInput.value.trim();
-      const correo = correoInput.value.trim();
+  form.addEventListener("submit", event => {
+    form.querySelectorAll(".is-invalid").forEach(field => field.classList.remove("is-invalid"));
 
-      if (!nombre && !telefono && !correo) return;
-
-      fetch("/api/check_proveedor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, telefono, correo })
-      })
-      .then(res => res.json())
-      .then(data => {
-        const alerta = document.getElementById("alerta-duplicado");
-        if (data.exists) {
-          alerta.classList.remove("hidden");
-          guardarBtn.disabled = true;
-        } else {
-          alerta.classList.add("hidden");
-          guardarBtn.disabled = false;
-        }
-      })
-      .catch(() => {
-        console.error("Error verificando proveedor duplicado");
-      });
+    if (!form.checkValidity()) {
+      event.preventDefault();
+      alert.classList.remove("hidden");
+      const firstInvalid = form.querySelector(":invalid");
+      if (firstInvalid?.type === "radio") {
+        firstInvalid.closest("fieldset")?.classList.add("is-invalid");
+      } else {
+        firstInvalid?.classList.add("is-invalid");
+      }
+      firstInvalid?.focus();
+      return;
     }
 
-    nombreInput.addEventListener("input", checkDuplicado);
-    telefonoInput.addEventListener("input", checkDuplicado);
-    correoInput.addEventListener("input", checkDuplicado);
+    alert.classList.add("hidden");
   });
-</script>
 
+  form.querySelectorAll("input, select, textarea").forEach(field => {
+    field.addEventListener("input", () => {
+      if (field.checkValidity()) field.classList.remove("is-invalid");
+      if (field.type === "radio") field.closest("fieldset")?.classList.remove("is-invalid");
+    });
+  });
+});
+</script>
 {% endblock %}

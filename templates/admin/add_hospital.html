@@ -3,78 +3,173 @@
 {% block title %}{{ 'Editar hospital' if is_edit else 'Registrar hospital' }}{% endblock %}
 
 {% block content %}
+<div class="admin-form-shell py-6 sm:py-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <button type="button" onclick="window.history.back()"
+            class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
+            aria-label="Volver">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">
+        {{ 'Editar hospital' if is_edit else 'Registrar hospital' }}
+      </h1>
+      <p class="mt-2 text-sm text-gray-500">
+        {{ 'Actualiza sus datos de contacto y ubicación.' if is_edit else 'Agrega una institución médica vinculada con el laboratorio.' }}
+      </p>
+    </div>
+  </header>
 
-<div class="flex-1 p-8 transition-all duration-300">
-    <div class="flex items-center space-x-2 mb-6">
-        <button class="text-2xl" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-        <h1 class="text-3xl font-bold">{{ 'Editar hospital' if is_edit else 'Registrar hospital' }}</h1>
+  <form method="POST" action="{{ request.path }}" id="form-hospital"
+        class="mt-6 space-y-5" novalidate>
+    {% if embedded_form %}<input type="hidden" name="embed" value="1">{% endif %}
+    <div id="hospital-form-alert" class="admin-form-alert hidden" role="alert" aria-live="polite">
+      <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+      <span>Revisa los campos marcados antes de guardar.</span>
     </div>
 
-    <form method="POST">
-        <div class="max-w-7xl mx-auto bg-white p-6 rounded-[1rem] shadow-md">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-gray-700 font-bold mb-2">Nombre del hospital<span class="text-red-500">*</span></label>
-                    <input type="text" name="nombre" value="{{ hospital.nombre or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el nombre del hospital" required>
-                </div>
-                <div>
-                    <label class="block text-gray-700 font-bold mb-2">Número de teléfono<span class="text-red-500">*</span></label>
-                    <input type="text" name="telefono" value="{{ hospital.telefono or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el teléfono del hospital" required>
-                </div>
-                <div class="col-span-1 md:col-span-2">
-                    <label class="block text-gray-700 font-bold mb-2">Correo electrónico<span class="text-red-500">*</span></label>
-                    <input type="email" name="correo" value="{{ hospital.correo or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el correo del hospital" required>
-                </div>
-            </div>
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-hospital"></i></span>
+        <div>
+          <h2>Información del hospital</h2>
+          <p>Datos principales para identificar y contactar a la institución.</p>
         </div>
+      </div>
 
-        <div class="flex flex-wrap justify-evenly mt-6">
-            <div class="w-full md:w-[43.5%] bg-white p-6 rounded-[1rem] shadow-md mb-6 md:mb-0">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2">Calle<span class="text-red-500">*</span></label>
-                        <input type="text" name="calle" value="{{ hospital.calle or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa la calle" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2">No. Ext.<span class="text-red-500">*</span></label>
-                        <input type="text" name="numero_ext" value="{{ hospital.numero_ext or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número exterior" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2">No. Int.</label>
-                        <input type="text" name="numero_int" value="{{ hospital.numero_int or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Número interior (opcional)">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2">Código postal<span class="text-red-500">*</span></label>
-                        <input type="text" name="codigo_postal" value="{{ hospital.codigo_postal or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el código postal" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2">Municipio<span class="text-red-500">*</span></label>
-                        <input type="text" name="municipio" value="{{ hospital.municipio or '' }}" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Ingresa el municipio" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-bold mb-2">Estado<span class="text-red-500">*</span></label>
-                        <select name="estado" class="w-full px-4 py-2 border rounded-[1rem]" required>
-                            <option>Seleccione un estado</option>
-                            {% for estado in estados %}
-                                <option value="{{ estado }}" {% if hospital.estado == estado %}selected{% endif %}>{{ estado }}</option>
-                            {% endfor %}
-                        </select>                   
-                    </div>
-                </div>
-            </div>
-
-            <div class="w-full md:w-1/2 bg-white p-6 rounded-[1rem] shadow-md">
-                <label class="block text-gray-700 font-bold mb-2">Anotaciones Extra</label>
-                <textarea name="anotaciones" rows="4" class="w-full px-4 py-2 border rounded-[1rem]" placeholder="Añade información adicional si es necesario">{{ hospital.anotaciones or '' }}</textarea>
-            </div>
+      <div class="admin-form-grid">
+        <div class="admin-field admin-field-full">
+          <label for="nombre">Nombre del hospital <span>*</span></label>
+          <input type="text" id="nombre" name="nombre"
+                 value="{{ hospital.nombre|default('', true) }}"
+                 placeholder="Ej. Hospital Clínico del Centro"
+                 autocomplete="organization" maxlength="150" required>
         </div>
-
-        <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
-            <button type="submit" class="btn-guardar">{{ 'Guardar cambios' if is_edit else 'Registrar hospital' }}</button>
-            <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+        <div class="admin-field">
+          <label for="telefono">Teléfono <span>*</span></label>
+          <input type="tel" id="telefono" name="telefono"
+                 value="{{ hospital.telefono|default('', true) }}"
+                 placeholder="10 a 15 dígitos" autocomplete="tel"
+                 inputmode="numeric" pattern="[0-9]{10,15}" maxlength="15" required>
+          <small>Ingresa únicamente números.</small>
         </div>
-    </form>
+        <div class="admin-field">
+          <label for="correo">Correo electrónico <small class="font-normal text-gray-400">(opcional)</small></label>
+          <input type="email" id="correo" name="correo"
+                 value="{{ hospital.correo|default('', true) }}"
+                 placeholder="contacto@hospital.com"
+                 autocomplete="email" maxlength="150">
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon is-cyan"><i class="fas fa-map-marker-alt"></i></span>
+        <div>
+          <h2>Ubicación</h2>
+          <p>Domicilio de la sede asociada al laboratorio.</p>
+        </div>
+      </div>
+
+      <div class="admin-form-grid admin-form-grid-three">
+        <div class="admin-field admin-field-span-two">
+          <label for="calle">Calle <small class="font-normal text-gray-400">(opcional)</small></label>
+          <input type="text" id="calle" name="calle"
+                 value="{{ hospital.calle|default('', true) }}"
+                 placeholder="Nombre de la calle"
+                 autocomplete="address-line1" maxlength="120">
+        </div>
+        <div class="admin-field">
+          <label for="numero_ext">Número exterior</label>
+          <input type="text" id="numero_ext" name="numero_ext"
+                 value="{{ hospital.numero_ext|default('', true) }}"
+                 placeholder="Ej. 125" maxlength="20">
+        </div>
+        <div class="admin-field">
+          <label for="numero_int">Número interior</label>
+          <input type="text" id="numero_int" name="numero_int"
+                 value="{{ hospital.numero_int|default('', true) }}"
+                 placeholder="Opcional" autocomplete="address-line2" maxlength="20">
+        </div>
+        <div class="admin-field">
+          <label for="codigo_postal">Código postal</label>
+          <input type="text" id="codigo_postal" name="codigo_postal"
+                 value="{{ hospital.codigo_postal|default('', true) }}"
+                 placeholder="5 dígitos" autocomplete="postal-code"
+                 inputmode="numeric" pattern="[0-9]{5}" maxlength="5">
+        </div>
+        <div class="admin-field">
+          <label for="municipio">Municipio</label>
+          <input type="text" id="municipio" name="municipio"
+                 value="{{ hospital.municipio|default('', true) }}"
+                 placeholder="Municipio o alcaldía"
+                 autocomplete="address-level2" maxlength="100">
+        </div>
+        <div class="admin-field">
+          <label for="estado">Estado</label>
+          <select id="estado" name="estado" autocomplete="address-level1">
+            <option value="">Selecciona un estado</option>
+            {% for estado in estados %}
+              <option value="{{ estado }}" {% if hospital.estado|default('') == estado %}selected{% endif %}>
+                {{ estado }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon"><i class="fas fa-notes-medical"></i></span>
+        <div>
+          <h2>Anotaciones</h2>
+          <p>Indicaciones administrativas o información relevante.</p>
+        </div>
+      </div>
+      <div class="admin-field">
+        <label for="anotaciones">Notas adicionales</label>
+        <textarea id="anotaciones" name="anotaciones" rows="4" maxlength="1000"
+                  placeholder="Horarios, áreas de contacto, indicaciones u observaciones...">{{ hospital.anotaciones|default('', true) }}</textarea>
+      </div>
+    </section>
+
+    <div class="admin-form-actions">
+      <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+      <button type="submit" class="btn-guardar">
+        <i class="fas fa-save mr-2"></i>{{ 'Guardar cambios' if is_edit else 'Registrar hospital' }}
+      </button>
+    </div>
+  </form>
 </div>
 
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("form-hospital");
+  const alert = document.getElementById("hospital-form-alert");
+
+  form.addEventListener("submit", event => {
+    form.querySelectorAll(".is-invalid").forEach(field => field.classList.remove("is-invalid"));
+
+    if (!form.checkValidity()) {
+      event.preventDefault();
+      alert.classList.remove("hidden");
+      const firstInvalid = form.querySelector(":invalid");
+      firstInvalid?.classList.add("is-invalid");
+      firstInvalid?.focus();
+      return;
+    }
+
+    alert.classList.add("hidden");
+  });
+
+  form.querySelectorAll("input, select, textarea").forEach(field => {
+    field.addEventListener("input", () => {
+      if (field.checkValidity()) field.classList.remove("is-invalid");
+    });
+  });
+});
+</script>
 {% endblock %}
-    

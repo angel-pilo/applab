@@ -1902,6 +1902,347 @@ body.settings-modal-open {
     }
 }
 
+/* Confirmaciones administrativas compartidas. */
+body.admin-confirm-open {
+    overflow: hidden;
+}
+
+.admin-confirm-modal.hidden {
+    display: none;
+}
+
+.admin-confirm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    display: grid;
+    padding: 1rem;
+    place-items: center;
+}
+
+.admin-confirm-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(11, 31, 51, 0.56);
+    backdrop-filter: blur(3px);
+}
+
+.admin-confirm-dialog {
+    position: relative;
+    width: min(28rem, 100%);
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 24px 60px rgba(11, 31, 51, 0.24);
+}
+
+.admin-confirm-header {
+    display: grid;
+    padding: 1.25rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.8rem;
+    border-bottom: 1px solid #edf1f5;
+}
+
+.admin-confirm-icon {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    border-radius: 0.75rem;
+    color: #b91c1c;
+    background: #fef2f2;
+}
+
+.admin-confirm-icon.is-activate {
+    color: #047857;
+    background: #ecfdf5;
+}
+
+.admin-confirm-header p {
+    margin: 0 0 0.2rem;
+    color: #dc2626;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.admin-confirm-header h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 750;
+}
+
+.admin-confirm-header div > span {
+    display: block;
+    margin-top: 0.25rem;
+    color: #64748b;
+    font-size: 0.74rem;
+}
+
+.admin-confirm-close {
+    display: grid;
+    width: 2.1rem;
+    height: 2.1rem;
+    place-items: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.65rem;
+    color: #64748b;
+    background: #fff;
+    cursor: pointer;
+}
+
+.admin-confirm-body {
+    padding: 1.2rem 1.25rem;
+}
+
+.admin-confirm-notice {
+    display: flex;
+    margin-bottom: 1rem;
+    padding: 0.75rem 0.85rem;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid #dbeafe;
+    border-radius: 0.75rem;
+    color: #475569;
+    background: #f8fbff;
+    font-size: 0.7rem;
+    line-height: 1.45;
+}
+
+.admin-confirm-notice i {
+    color: #2563eb;
+}
+
+.admin-confirm-body > label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: #334155;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.admin-confirm-input {
+    position: relative;
+}
+
+.admin-confirm-input > i {
+    position: absolute;
+    top: 50%;
+    left: 0.9rem;
+    color: #94a3b8;
+    transform: translateY(-50%);
+}
+
+.admin-confirm-input input {
+    width: 100%;
+    min-height: 2.85rem;
+    padding: 0.65rem 0.85rem 0.65rem 2.55rem;
+    border: 1px solid #dbe3ec;
+    border-radius: 0.75rem;
+    outline: none;
+    color: #172033;
+    background: #fff;
+    font-size: 0.82rem;
+}
+
+.admin-confirm-input input:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.11);
+}
+
+.admin-confirm-message {
+    min-height: 1.1rem;
+    margin-top: 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 650;
+}
+
+.admin-confirm-message.is-error {
+    color: #b91c1c;
+}
+
+.admin-confirm-message.is-success {
+    color: #047857;
+}
+
+.admin-confirm-actions {
+    display: flex;
+    padding: 0.95rem 1.25rem;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    border-top: 1px solid #edf1f5;
+    background: #fbfcfd;
+}
+
+.admin-confirm-submit {
+    min-height: 2.6rem;
+    padding: 0.6rem 1rem;
+    border: 0;
+    border-radius: 0.72rem;
+    color: #fff;
+    background: #b91c1c;
+    cursor: pointer;
+    font-size: 0.76rem;
+    font-weight: 750;
+}
+
+.admin-confirm-submit.is-activate {
+    background: #047857;
+}
+
+.admin-confirm-submit:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.inventory-alert-options {
+    padding: 0;
+    border: 0;
+}
+
+.inventory-alert-choice-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.inventory-alert-choice-grid label {
+    position: relative;
+    margin: 0;
+    cursor: pointer;
+}
+
+.inventory-alert-choice-grid input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.inventory-alert-choice-grid span {
+    display: inline-flex;
+    min-height: 2.4rem;
+    padding: 0.5rem 0.7rem;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid #dbe3ec;
+    border-radius: 0.7rem;
+    color: #526273;
+    background: #fff;
+    font-size: 0.72rem;
+    font-weight: 650;
+}
+
+.inventory-alert-choice-grid input:checked + span {
+    border-color: #60a5fa;
+    color: #1d4ed8;
+    background: #eff6ff;
+}
+
+/* Dashboard administrativo responsive. */
+.admin-dashboard-header {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.admin-dashboard-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.admin-dashboard-action {
+    justify-content: center;
+    white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+    .admin-dashboard {
+        padding-top: 1.5rem;
+        padding-inline: 0.75rem;
+    }
+
+    .admin-dashboard-header {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .admin-dashboard-header h1 {
+        font-size: 1.55rem;
+        line-height: 1.2;
+    }
+
+    .admin-dashboard-header > div:first-child p {
+        margin-top: 0.3rem;
+        line-height: 1.45;
+    }
+
+    .admin-dashboard-actions {
+        display: grid;
+        width: 100%;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-dashboard-action {
+        width: 100%;
+        min-width: 0;
+        padding: 0.65rem 0.55rem;
+        overflow: hidden;
+        font-size: 0.76rem;
+        text-overflow: ellipsis;
+    }
+
+    .admin-dashboard > section.grid {
+        gap: 0.85rem;
+    }
+
+    .admin-dashboard > section.grid > div {
+        padding: 1rem;
+    }
+
+    .admin-dashboard-fab {
+        display: none !important;
+    }
+}
+
+@media (max-width: 350px) {
+    .admin-dashboard-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-confirm-header {
+        padding: 1rem;
+    }
+
+    .admin-confirm-body {
+        padding: 1rem;
+    }
+
+    .admin-confirm-actions {
+        padding: 0.85rem 1rem;
+    }
+
+    .admin-confirm-actions > * {
+        flex: 1;
+    }
+}
+
 @media (min-width: 1024px) {
     .inventory-catalog {
         padding-top: 1rem;
