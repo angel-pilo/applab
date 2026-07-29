@@ -1,14 +1,40 @@
-<div id="admin-confirm-modal" class="fixed inset-0 z-[1000] flex hidden items-center justify-center bg-gray-900/50 p-4" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title">
-  <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-    <h2 id="admin-confirm-title" class="text-xl font-bold text-gray-900">Confirmar acción</h2>
-    <p id="admin-confirm-text" class="mt-2 text-sm text-gray-600"></p>
-    <div id="admin-confirm-message" class="mt-3 text-center text-sm"></div>
-    <label for="admin-confirm-password" class="mt-4 block text-sm font-semibold text-gray-700">Contraseña</label>
-    <input type="password" id="admin-confirm-password" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" autocomplete="current-password">
-    <div class="mt-6 flex justify-end gap-2">
-      <button type="button" class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50" onclick="closeAdminConfirmation()">Cancelar</button>
-      <button type="button" id="admin-confirm-submit" class="rounded-xl px-4 py-2 text-sm font-semibold text-white">Continuar</button>
+<div id="admin-confirm-modal" class="admin-confirm-modal hidden" role="dialog" aria-modal="true"
+     aria-labelledby="admin-confirm-title" aria-describedby="admin-confirm-text">
+  <button type="button" class="admin-confirm-backdrop" data-admin-confirm-close
+          aria-label="Cerrar confirmación"></button>
+  <div class="admin-confirm-dialog">
+    <header class="admin-confirm-header">
+      <span class="admin-confirm-icon" id="admin-confirm-icon" aria-hidden="true">
+        <i class="fas fa-exclamation-triangle"></i>
+      </span>
+      <div>
+        <p>Acción administrativa</p>
+        <h2 id="admin-confirm-title">Confirmar acción</h2>
+        <span id="admin-confirm-text"></span>
+      </div>
+      <button type="button" class="admin-confirm-close" data-admin-confirm-close aria-label="Cerrar">
+        <i class="fas fa-times" aria-hidden="true"></i>
+      </button>
+    </header>
+
+    <div class="admin-confirm-body">
+      <div class="admin-confirm-notice">
+        <i class="fas fa-shield-alt" aria-hidden="true"></i>
+        <span>Por seguridad, confirma la acción con tu contraseña.</span>
+      </div>
+      <label for="admin-confirm-password">Contraseña del administrador</label>
+      <div class="admin-confirm-input">
+        <i class="fas fa-lock" aria-hidden="true"></i>
+        <input type="password" id="admin-confirm-password" autocomplete="current-password"
+               placeholder="Ingresa tu contraseña">
+      </div>
+      <div id="admin-confirm-message" class="admin-confirm-message" role="status" aria-live="polite"></div>
     </div>
+
+    <footer class="admin-confirm-actions">
+      <button type="button" class="btn-cancelar" data-admin-confirm-close>Cancelar</button>
+      <button type="button" id="admin-confirm-submit" class="admin-confirm-submit">Continuar</button>
+    </footer>
   </div>
 </div>
 <script src="{{ url_for('static', filename='js/admin_confirmation.js') }}"></script>
