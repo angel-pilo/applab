@@ -1,6 +1,21 @@
 document.addEventListener("DOMContentLoaded", function () {
     const passwordInput = document.getElementById("password");
     const passwordToggle = document.querySelector(".auth-password-toggle");
+    const loginForm = document.querySelector(".auth-form");
+    const loading = document.getElementById("auth-loading");
+
+    loginForm?.addEventListener("submit", function (event) {
+        setTimeout(function () {
+            if (event.defaultPrevented) return;
+            loading?.classList.add("is-visible");
+            loading?.setAttribute("aria-hidden", "false");
+        }, 0);
+    });
+
+    window.addEventListener("pageshow", function () {
+        loading?.classList.remove("is-visible");
+        loading?.setAttribute("aria-hidden", "true");
+    });
 
     if (passwordInput && passwordToggle) {
         passwordToggle.addEventListener("click", function () {

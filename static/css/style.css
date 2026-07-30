@@ -498,3 +498,104 @@ input {
         transition-duration: 0.01ms !important;
     }
 }
+/* Indicador compacto para una autenticación que tarda más de lo normal. */
+.auth-loading {
+    position: fixed;
+    z-index: 1000;
+    top: 1rem;
+    right: 1rem;
+    display: grid;
+    width: min(23rem, calc(100% - 2rem));
+    grid-template-columns: auto 1fr;
+    gap: 0.75rem;
+    padding: 0.85rem 0.9rem 1rem;
+    align-items: center;
+    overflow: hidden;
+    border: 1px solid rgba(164, 205, 214, 0.65);
+    border-radius: 0.9rem;
+    opacity: 0;
+    visibility: hidden;
+    color: #0b1f33;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 18px 45px -24px rgba(11, 31, 51, 0.58);
+    transform: translateY(-0.65rem);
+    transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    pointer-events: none;
+}
+
+.auth-loading.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.auth-loading strong,
+.auth-loading small {
+    display: block;
+}
+
+.auth-loading strong {
+    font-size: 0.82rem;
+}
+
+.auth-loading small {
+    margin-top: 0.16rem;
+    color: #607386;
+    font-size: 0.68rem;
+    line-height: 1.4;
+}
+
+.auth-loading-icon {
+    position: relative;
+    display: grid;
+    width: 2.35rem;
+    height: 2.35rem;
+    place-items: center;
+    border-radius: 0.7rem;
+    background: #e8f8fa;
+}
+
+.auth-loading-icon::before {
+    content: "";
+    width: 0.75rem;
+    height: 1rem;
+    border: 2px solid #087f8c;
+    border-top-width: 0;
+    border-radius: 0 0 0.45rem 0.45rem;
+}
+
+.auth-loading-icon span {
+    position: absolute;
+    inset: 0;
+    border: 2px solid rgba(8, 127, 140, 0.35);
+    border-radius: inherit;
+    animation: auth-loading-pulse 1.25s ease-out infinite;
+}
+
+.auth-loading > i {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #0891a2, transparent);
+    animation: auth-loading-line 1.1s ease-in-out infinite;
+}
+
+@keyframes auth-loading-pulse {
+    from { opacity: 0.7; transform: scale(0.82); }
+    to { opacity: 0; transform: scale(1.28); }
+}
+
+@keyframes auth-loading-line {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+}
+
+@media (max-width: 520px) {
+    .auth-loading {
+        top: 0.65rem;
+        right: 0.65rem;
+        width: calc(100% - 1.3rem);
+    }
+}

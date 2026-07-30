@@ -11,6 +11,11 @@
     <script src="{{ url_for('static', filename='js/form_validation.js') }}" defer></script>
 </head>
 <body class="auth-page">
+    <div id="auth-loading" class="auth-loading" role="status" aria-live="polite" aria-hidden="true">
+        <span class="auth-loading-icon" aria-hidden="true"><span></span></span>
+        <span><strong>Iniciando sesión</strong><small>Validando tus credenciales y preparando tu panel.</small></span>
+        <i aria-hidden="true"></i>
+    </div>
     <main class="auth-shell">
         <section class="auth-identity" aria-labelledby="brand-title">
             <div class="auth-brand">
