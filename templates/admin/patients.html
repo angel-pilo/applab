@@ -20,11 +20,12 @@
     <td class="px-5 py-4">{{ patient.telefono or '—' }}</td><td class="px-5 py-4">{{ patient.correo or '—' }}</td>
     <td class="estado px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ 'bg-emerald-50 text-emerald-700' if patient.activo else 'bg-gray-200 text-gray-600' }}">{{ 'Activo' if patient.activo else 'Inactivo' }}</span></td>
     <td class="px-5 py-4"><div class="admin-action-group">
-      {% if patient.activo %}<button class="btn-editar admin-action-button" onclick="window.location.href='{{ url_for('app_routes.edit_patient', patient_id=patient.id) }}'">Editar</button>{% if rol == 'Admin' %}<button class="btn-eliminar admin-action-button" onclick="confirmDeletePatient('{{ patient.id }}')">Eliminar</button>{% endif %}
-      {% elif rol == 'Admin' %}<button class="btn-activar admin-action-button" onclick="confirmActivatePatient('{{ patient.id }}')">Activar</button>{% endif %}
+      <button class="btn-editar admin-action-button" onclick="window.location.href='{{ url_for('app_routes.historial_paciente', patient_id=patient.id) }}'">Historial</button>
+      {% if patient.activo %}<button class="btn-editar admin-action-button" onclick="window.location.href='{{ url_for('app_routes.edit_patient', patient_id=patient.id) }}'">Editar</button>{% if rol == 'Admin' %}<button class="btn-eliminar admin-action-button" onclick="openAdminConfirmation({endpoint: '{{ url_for('app_routes.delete_patient', patient_id=patient.id) }}', entity: 'este paciente', action: 'eliminar'})">Eliminar</button>{% endif %}
+      {% elif rol == 'Admin' %}<button class="btn-activar admin-action-button" onclick="openAdminConfirmation({endpoint: '{{ url_for('app_routes.activate_patient', patient_id=patient.id) }}', entity: 'este paciente', action: 'activar'})">Activar</button>{% endif %}
     </div></td>
   </tr>
   {% else %}<tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No hay pacientes registrados.</td></tr>{% endfor %}
 {% endblock %}
 
-{% block catalog_extras %}{% include 'admin/modales_pacientes.html' %}<script src="{{ url_for('static', filename='js/pacientes.js') }}"></script>{% endblock %}
+{% block catalog_extras %}{% include 'admin/components/confirmation_modal.html' %}<script src="{{ url_for('static', filename='js/pacientes.js') }}"></script>{% endblock %}
