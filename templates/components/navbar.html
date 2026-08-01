@@ -17,17 +17,29 @@
                 aria-label="Notificaciones" aria-haspopup="true"
                 aria-expanded="false" aria-controls="navNotifPanel">
           <i class="fas fa-bell" aria-hidden="true"></i>
-          <span class="app-notification-dot">3</span>
+          <span class="app-notification-dot" id="navNotifDot" hidden>0</span>
         </button>
         <div id="navNotifPanel" class="app-dropdown-panel app-notifications" hidden>
           <div class="app-dropdown-heading">
-            <div><strong>Notificaciones</strong><span>Actividad reciente</span></div>
-            <span class="app-dropdown-count">3</span>
+            <div>
+              <strong>Notificaciones de hoy</strong>
+              <span id="navNotifSubtitle">
+                {% if session.get('rol') in ['Admin', 'Quimico'] %}
+                  Alertas diarias de inventario
+                {% elif session.get('rol') == 'Mostrador' %}
+                  Resultados listos para entregar
+                {% else %}
+                  Avisos relacionados con tus funciones
+                {% endif %}
+              </span>
+            </div>
+            <span class="app-dropdown-count" id="navNotifCount">0</span>
           </div>
-          <div class="app-notification-list">
-            <a href="#"><span class="app-notification-icon is-blue"><i class="fas fa-file-medical"></i></span><span><strong>Resultado disponible</strong><small>Paciente #A123 · Hace 5 min</small></span></a>
-            <a href="#"><span class="app-notification-icon is-amber"><i class="fas fa-vial"></i></span><span><strong>Reactivo con stock bajo</strong><small>Revisa el inventario · Hace 1 h</small></span></a>
-            <a href="#"><span class="app-notification-icon is-cyan"><i class="fas fa-clipboard-list"></i></span><span><strong>Nueva orden registrada</strong><small>Mostrador · Ayer</small></span></a>
+          <div class="app-notification-list" id="navNotifList">
+            <div class="app-notification-empty"><i class="fas fa-spinner fa-spin"></i><span>Cargando alertas...</span></div>
+          </div>
+          <div class="app-notification-footer" id="navNotifFooter" hidden>
+            <button type="button" id="navNotifReadAll"><i class="fas fa-check-double"></i>Marcar todo como leído</button>
           </div>
         </div>
       </div>
@@ -59,7 +71,7 @@
             {% endif %}
             <span><strong>{{ session.get('nombres', 'Usuario') }}</strong><small>{{ session.get('rol', '') }}</small></span>
           </div>
-          {% if session.get('rol') == 'Admin' and 'app_routes.configuracion' in available_endpoints %}
+          {% if session.get('rol') in ['Admin', 'Mostrador', 'Quimico', 'Enfermero', 'Personalizado'] and 'app_routes.configuracion' in available_endpoints %}
             <a href="{{ url_for('app_routes.configuracion') }}"><i class="fas fa-cog"></i><span>Configuración</span></a>
           {% endif %}
           <a href="{{ url_for('app_routes.logout') }}" class="is-danger"><i class="fas fa-sign-out-alt"></i><span>Cerrar sesión</span></a>

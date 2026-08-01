@@ -1,141 +1,337 @@
 {% extends "base.html" %}
-{% block title %}Backlog{% endblock %}
+{% block title %}Bitácora administrativa{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-
-  <!-- Header -->
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-gray-900">Backlog</h1>
-      <p class="text-sm text-gray-500">Historial de movimientos del sistema</p>
-    </div>
-    <div class="flex gap-2">
-      <a href="{{ url_for('app_routes.admin_dashboard') if 'app_routes.admin_dashboard' else '#' }}"
-         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 transition">
-        <i class="fas fa-arrow-left"></i> Volver
+<div class="admin-form-shell backlog-shell py-6 sm:py-8">
+  <header class="backlog-header">
+    <div class="flex items-start gap-4">
+      <a href="{{ url_for('app_routes.admin_dashboard') }}"
+         class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
+         aria-label="Volver al panel administrativo">
+        <i class="fas fa-arrow-left"></i>
       </a>
-      <button type="button"
-              class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-gray-900 text-white hover:opacity-90 transition"
-              onclick="clearBacklogFilters()">
-        <i class="fas fa-broom"></i> Limpiar filtros
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p>
+        <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Bitácora de actividad</h1>
+        <p class="mt-2 text-sm text-gray-500">Seguimiento clínico y administrativo de los movimientos registrados en Supabase.</p>
+      </div>
+    </div>
+    <div class="backlog-live-state" id="backlog-live-state">
+      <span class="backlog-live-dot"></span>
+      <span>Conectando…</span>
+    </div>
+  </header>
+
+  <section class="backlog-stats" aria-label="Resumen de actividad">
+    <article class="backlog-stat-card">
+      <span class="backlog-stat-icon is-blue"><i class="fas fa-stream"></i></span>
+      <div><small>Eventos recientes</small><strong id="stat-total">—</strong></div>
+    </article>
+    <article class="backlog-stat-card">
+      <span class="backlog-stat-icon is-cyan"><i class="fas fa-calendar-day"></i></span>
+      <div><small>Registrados hoy</small><strong id="stat-today">—</strong></div>
+    </article>
+    <article class="backlog-stat-card">
+      <span class="backlog-stat-icon is-amber"><i class="fas fa-exclamation-triangle"></i></span>
+      <div><small>Alertas</small><strong id="stat-warnings">—</strong></div>
+    </article>
+    <article class="backlog-stat-card">
+      <span class="backlog-stat-icon is-slate"><i class="fas fa-layer-group"></i></span>
+      <div><small>Módulos activos</small><strong id="stat-modules">—</strong></div>
+    </article>
+  </section>
+
+  <section class="admin-form-card backlog-filter-card">
+    <div class="backlog-filter-heading">
+      <div>
+        <h2>Consultar movimientos</h2>
+        <p>Los resultados se actualizan automáticamente cada 5 segundos.</p>
+      </div>
+      <button type="button" id="backlog-refresh" class="admin-secondary-action">
+        <i class="fas fa-sync-alt"></i><span>Actualizar</span>
       </button>
     </div>
-  </div>
-
-  <!-- Filtros (frontend-only) -->
-  <form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" onsubmit="event.preventDefault(); applyBacklogFilters();">
-    <div class="flex flex-col">
-      <label class="text-xs font-medium text-gray-600 mb-1">Buscar</label>
-      <input id="f-q" type="text" class="rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500"
-             placeholder="Paciente, doctor, OC, ID de prueba..." />
-    </div>
-    <div class="flex flex-col">
-      <label class="text-xs font-medium text-gray-600 mb-1">Módulo</label>
-      <select id="f-module" class="rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500">
-        <option value="">Todos</option>
-        <option>Pruebas</option>
-        <option>Inventario</option>
-        <option>Pacientes</option>
-        <option>Proveedores</option>
-        <option>Doctores</option>
-        <option>Hospitales</option>
-        <option>Empleados</option>
-      </select>
-    </div>
-    <div class="flex flex-col">
-      <label class="text-xs font-medium text-gray-600 mb-1">Severidad</label>
-      <select id="f-sev" class="rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500">
-        <option value="">Todas</option>
-        <option value="success">Éxito</option>
-        <option value="info">Info</option>
-        <option value="warning">Alerta</option>
-        <option value="danger">Crítico</option>
-      </select>
-    </div>
-    <div class="flex gap-2 items-end">
-      <button type="submit"
-              class="inline-flex items-center justify-center w-full rounded-xl px-3 py-2 text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition">
-        <i class="fas fa-sliders-h mr-2"></i> Aplicar
+    <form id="backlog-filters" class="backlog-filter-grid">
+      <div class="admin-field backlog-search-field">
+        <label for="backlog-search">Buscar</label>
+        <div class="backlog-search-input">
+          <i class="fas fa-search"></i>
+          <input id="backlog-search" type="search" placeholder="Nombre, módulo, folio o acción…">
+        </div>
+      </div>
+      <div class="admin-field">
+        <label for="backlog-module">Módulo</label>
+        <select id="backlog-module">
+          <option value="">Todos los módulos</option>
+        </select>
+      </div>
+      <div class="admin-field">
+        <label for="backlog-severity">Nivel</label>
+        <select id="backlog-severity">
+          <option value="">Todos los niveles</option>
+          <option value="success">Registro</option>
+          <option value="info">Actualización</option>
+          <option value="warning">Alerta</option>
+          <option value="danger">Crítico</option>
+        </select>
+      </div>
+      <button type="button" id="backlog-clear" class="backlog-clear-button">
+        <i class="fas fa-eraser"></i><span>Limpiar</span>
       </button>
-    </div>
-  </form>
+    </form>
+  </section>
 
-  <!-- Lista / Timeline -->
-  <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y">
-    {% for e in events %}
-    {# Mapear color/severidad #}
-    {% set sev_color = {
-      "success": "bg-emerald-50 ring-emerald-200 text-emerald-700",
-      "info":    "bg-indigo-50  ring-indigo-200  text-indigo-700",
-      "warning": "bg-amber-50   ring-amber-200   text-amber-700",
-      "danger":  "bg-rose-50    ring-rose-200    text-rose-700"
-    }[e.severity] if e.severity in ['success','info','warning','danger'] else 'bg-gray-50 ring-gray-200 text-gray-700' %}
-
-    <div class="p-4 flex items-start gap-4 backlog-item"
-         data-module="{{ e.module }}"
-         data-sev="{{ e.severity }}"
-         data-text="{{ (e.title ~ ' ' ~ e.detail ~ ' ' ~ e.when ~ ' ' ~ e.module)|lower }}">
-      <div class="w-10 h-10 grid place-items-center rounded-full ring-1 {{ sev_color }}">
-        <i class="{{ e.icon }}"></i>
+  <section class="admin-form-card backlog-activity-card" aria-live="polite">
+    <div class="backlog-activity-heading">
+      <div>
+        <h2>Actividad reciente</h2>
+        <p id="backlog-count">Preparando la bitácora…</p>
       </div>
-      <div class="flex-1 min-w-0">
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-sm font-semibold text-gray-900">{{ e.title }}</span>
-          <span class="text-[11px] uppercase tracking-wide rounded-full px-2 py-0.5 ring-1 {{ sev_color }}">{{ e.severity }}</span>
-        </div>
-        <p class="text-sm text-gray-600 mt-0.5">{{ e.detail }}</p>
-        <div class="mt-1 flex items-center gap-3 text-xs text-gray-500">
-          <span><i class="far fa-clock mr-1"></i>{{ e.when }}</span>
-          <span><i class="far fa-folder-open mr-1"></i>{{ e.module }}</span>
-        </div>
-      </div>
-      <div class="opacity-60 hover:opacity-100 transition">
-        <button class="px-2 py-1 text-xs rounded-lg bg-gray-100 hover:bg-gray-200"
-                title="Ver detalle (placeholder)">Detalle</button>
-      </div>
+      <time id="backlog-updated"></time>
     </div>
-    {% endfor %}
-  </div>
 
-  <!-- Paginación (placeholder) -->
-  <div class="flex items-center justify-between">
-    <span class="text-sm text-gray-500">Mostrando {{ events|length }} movimientos</span>
-    <div class="inline-flex rounded-lg overflow-hidden ring-1 ring-gray-200">
-      <button class="px-3 py-1.5 text-sm hover:bg-gray-100"><i class="fas fa-angle-left"></i></button>
-      <button class="px-3 py-1.5 text-sm bg-gray-100">1</button>
-      <button class="px-3 py-1.5 text-sm hover:bg-gray-100">2</button>
-      <button class="px-3 py-1.5 text-sm hover:bg-gray-100"><i class="fas fa-angle-right"></i></button>
+    <div id="backlog-error" class="backlog-status-message is-error hidden">
+      <i class="fas fa-database"></i>
+      <div><strong>No se pudo cargar la bitácora</strong><p></p></div>
     </div>
-  </div>
-
+    <div id="backlog-loading" class="backlog-status-message">
+      <i class="fas fa-circle-notch fa-spin"></i>
+      <div><strong>Consultando Supabase</strong><p>Esto tomará solo un momento.</p></div>
+    </div>
+    <div id="backlog-empty" class="backlog-status-message hidden">
+      <i class="fas fa-clipboard-check"></i>
+      <div><strong>Sin movimientos para mostrar</strong><p>Prueba cambiando los filtros o registra una nueva acción.</p></div>
+    </div>
+    <div id="backlog-timeline" class="backlog-timeline hidden"></div>
+  </section>
 </div>
 
-{# JS mínimo para filtros del lado del cliente #}
 <script>
-function applyBacklogFilters() {
-  const q = (document.getElementById('f-q').value || '').trim().toLowerCase();
-  const mod = document.getElementById('f-module').value;
-  const sev = document.getElementById('f-sev').value;
+document.addEventListener("DOMContentLoaded", () => {
+  const endpoint = {{ url_for('app_routes.backlog_events')|tojson }};
+  const timeline = document.getElementById("backlog-timeline");
+  const loading = document.getElementById("backlog-loading");
+  const empty = document.getElementById("backlog-empty");
+  const errorBox = document.getElementById("backlog-error");
+  const liveState = document.getElementById("backlog-live-state");
+  const search = document.getElementById("backlog-search");
+  const module = document.getElementById("backlog-module");
+  const severity = document.getElementById("backlog-severity");
+  const refreshButton = document.getElementById("backlog-refresh");
+  let searchTimer;
 
-  document.querySelectorAll('.backlog-item').forEach(row => {
-    const t = row.dataset.text || '';
-    const m = row.dataset.module || '';
-    const s = row.dataset.sev || '';
+  const moduleIcons = {
+    Pacientes: "fa-user-injured", Doctores: "fa-user-md",
+    Empleados: "fa-id-badge", Hospitales: "fa-hospital",
+    Proveedores: "fa-truck", Pruebas: "fa-clipboard-list",
+    Inventario: "fa-vials", Órdenes: "fa-file-medical",
+    Sistema: "fa-cog"
+  };
+  const severityLabels = {
+    success: "Registro", info: "Actualización",
+    warning: "Alerta", danger: "Crítico"
+  };
+  const fieldLabels = {
+    activo: "Estado", nombres: "Nombre(s)", apellidos: "Apellidos",
+    nombre: "Nombre", telefono: "Teléfono", correo: "Correo electrónico",
+    sexo: "Sexo", fecha_nacimiento: "Fecha de nacimiento",
+    calle: "Calle", numero_ext: "Número exterior",
+    numero_int: "Número interior", codigo_postal: "Código postal",
+    municipio: "Municipio", estado: "Estado", turno: "Turno",
+    curp_rfc: "CURP o RFC", contacto_emergencia: "Contacto de emergencia",
+    condiciones_medicas: "Condiciones médicas", foto_perfil: "Imagen de perfil",
+    password: "Contraseña", rol: "Rol", tipo: "Tipo",
+    tipo_consultorio: "Tipo de consultorio", hospital_id: "Hospital",
+    proveedor_id: "Proveedor", tipo_reactivo: "Tipo de reactivo",
+    costo_unidad: "Costo por unidad", precio_unidad: "Precio por unidad",
+    cantidad_inicial: "Cantidad", numero_lote: "Número de lote",
+    fecha_vencimiento: "Fecha de vencimiento",
+    ubicacion_inventario: "Ubicación", anotaciones: "Anotaciones"
+  };
 
-    const okQ = !q || t.includes(q);
-    const okM = !mod || m === mod;
-    const okS = !sev || s === sev;
+  function formatDate(value) {
+    if (!value) return "Fecha no disponible";
+    const date = new Date(value);
+    return new Intl.DateTimeFormat("es-MX", {
+      dateStyle: "medium", timeStyle: "short"
+    }).format(date);
+  }
 
-    row.style.display = (okQ && okM && okS) ? '' : 'none';
+  function appendText(parent, tag, className, text) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    element.textContent = text || "";
+    parent.appendChild(element);
+    return element;
+  }
+
+  function formatValue(value) {
+    if (value === null || value === undefined || value === "") return "Sin información";
+    if (value === true) return "Sí";
+    if (value === false) return "No";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  }
+
+  function createEvent(event) {
+    const item = document.createElement("article");
+    item.className = `backlog-event is-${event.severidad || "info"}`;
+
+    const icon = document.createElement("span");
+    icon.className = "backlog-event-icon";
+    const iconGlyph = document.createElement("i");
+    iconGlyph.className = `fas ${moduleIcons[event.modulo] || "fa-history"}`;
+    icon.appendChild(iconGlyph);
+    item.appendChild(icon);
+
+    const body = document.createElement("div");
+    body.className = "backlog-event-body";
+    const top = document.createElement("div");
+    top.className = "backlog-event-top";
+    appendText(top, "strong", "", event.titulo || "Movimiento registrado");
+    appendText(
+      top, "span", "backlog-severity-badge",
+      severityLabels[event.severidad] || "Actividad"
+    );
+    body.appendChild(top);
+    appendText(body, "p", "backlog-event-detail", event.detalle || "Sin detalles adicionales.");
+
+    const meta = document.createElement("div");
+    meta.className = "backlog-event-meta";
+    appendText(meta, "span", "", formatDate(event.creado_en));
+    appendText(meta, "span", "", event.modulo || "Sistema");
+    if (event.entidad_id) appendText(meta, "span", "", `ID #${event.entidad_id}`);
+    const actor = event.actor_nombre || event.actor_username;
+    if (actor) {
+      const actorLabel = event.actor_username && event.actor_nombre
+        ? `${event.actor_nombre} (@${event.actor_username})`
+        : actor;
+      appendText(meta, "span", "backlog-event-actor", `Realizado por ${actorLabel}`);
+    } else {
+      appendText(meta, "span", "backlog-event-actor", "Origen: Supabase / sistema");
+    }
+    body.appendChild(meta);
+
+    const changes = event.metadata?.cambios || [];
+    const detailPanel = document.createElement("div");
+    detailPanel.className = "backlog-event-changes";
+    detailPanel.hidden = true;
+    if (changes.length) {
+      appendText(detailPanel, "strong", "backlog-changes-title", "Cambios realizados");
+      const list = document.createElement("div");
+      list.className = "backlog-change-list";
+      changes.forEach(change => {
+        const row = document.createElement("div");
+        row.className = "backlog-change-row";
+        appendText(row, "span", "backlog-change-field", fieldLabels[change.campo] || change.campo);
+        appendText(row, "span", "backlog-change-old", formatValue(change.anterior));
+        const arrow = document.createElement("i");
+        arrow.className = "fas fa-arrow-right";
+        row.appendChild(arrow);
+        appendText(row, "span", "backlog-change-new", formatValue(change.nuevo));
+        list.appendChild(row);
+      });
+      detailPanel.appendChild(list);
+    } else {
+      appendText(
+        detailPanel, "p", "backlog-no-changes",
+        event.accion === "actualizar"
+          ? "Este evento anterior no contiene el detalle de campos modificados."
+          : "Este movimiento no requiere una comparación de valores."
+      );
+    }
+    body.appendChild(detailPanel);
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "backlog-detail-toggle";
+    toggle.innerHTML = '<span>Ver detalle</span><i class="fas fa-chevron-down" aria-hidden="true"></i>';
+    toggle.addEventListener("click", () => {
+      detailPanel.hidden = !detailPanel.hidden;
+      toggle.classList.toggle("is-open", !detailPanel.hidden);
+      toggle.querySelector("span").textContent = detailPanel.hidden ? "Ver detalle" : "Ocultar detalle";
+    });
+    body.appendChild(toggle);
+    item.appendChild(body);
+    return item;
+  }
+
+  function updateModules(modules) {
+    const selected = module.value;
+    const known = new Set(Array.from(module.options).slice(1).map(option => option.value));
+    (modules || []).forEach(name => {
+      if (known.has(name)) return;
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      module.appendChild(option);
+    });
+    module.value = selected;
+  }
+
+  async function loadEvents({silent = false} = {}) {
+    if (!silent) loading.classList.remove("hidden");
+    refreshButton.classList.add("is-loading");
+
+    const params = new URLSearchParams({
+      q: search.value.trim(),
+      module: module.value,
+      severity: severity.value
+    });
+
+    try {
+      const response = await fetch(`${endpoint}?${params}`, {
+        headers: {"Accept": "application/json"}
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.message || "No fue posible consultar Supabase.");
+
+      errorBox.classList.add("hidden");
+      timeline.replaceChildren(...data.events.map(createEvent));
+      timeline.classList.toggle("hidden", data.events.length === 0);
+      empty.classList.toggle("hidden", data.events.length !== 0);
+      updateModules(data.modules);
+
+      document.getElementById("stat-total").textContent = data.stats.total;
+      document.getElementById("stat-today").textContent = data.stats.today;
+      document.getElementById("stat-warnings").textContent = data.stats.warnings;
+      document.getElementById("stat-modules").textContent = data.stats.modules;
+      document.getElementById("backlog-count").textContent =
+        `${data.events.length} movimiento${data.events.length === 1 ? "" : "s"} visible${data.events.length === 1 ? "" : "s"}`;
+      document.getElementById("backlog-updated").textContent =
+        `Actualizado ${new Date().toLocaleTimeString("es-MX", {hour: "2-digit", minute: "2-digit"})}`;
+      liveState.className = "backlog-live-state is-online";
+      liveState.querySelector("span:last-child").textContent = "Actualización en vivo";
+    } catch (error) {
+      errorBox.querySelector("p").textContent = error.message;
+      errorBox.classList.remove("hidden");
+      liveState.className = "backlog-live-state is-offline";
+      liveState.querySelector("span:last-child").textContent = "Sin conexión";
+    } finally {
+      loading.classList.add("hidden");
+      refreshButton.classList.remove("is-loading");
+    }
+  }
+
+  document.getElementById("backlog-filters").addEventListener("submit", event => event.preventDefault());
+  search.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadEvents(), 350);
   });
-}
+  module.addEventListener("change", () => loadEvents());
+  severity.addEventListener("change", () => loadEvents());
+  refreshButton.addEventListener("click", () => loadEvents());
+  document.getElementById("backlog-clear").addEventListener("click", () => {
+    search.value = "";
+    module.value = "";
+    severity.value = "";
+    loadEvents();
+  });
 
-function clearBacklogFilters() {
-  document.getElementById('f-q').value = '';
-  document.getElementById('f-module').value = '';
-  document.getElementById('f-sev').value = '';
-  applyBacklogFilters();
-}
+  loadEvents();
+  window.setInterval(() => {
+    if (!document.hidden) loadEvents({silent: true});
+  }, 5000);
+});
 </script>
 {% endblock %}

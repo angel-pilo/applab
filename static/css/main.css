@@ -407,6 +407,24 @@ body.app-body {
   transition: margin-left 220ms ease;
 }
 
+.embed-mode .app-workspace {
+  margin-left: 0;
+  width: 100%;
+}
+
+.embed-mode #main-content.app-main {
+  min-height: 100vh;
+}
+
+#entity-form-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  z-index: 9999 !important;
+}
+
 #main-content.app-main {
   width: 100%;
   min-width: 0;
@@ -793,6 +811,86 @@ body.app-menu-open {
 .app-notification-icon.is-amber { color: #b56900; background: #fff5d9; }
 .app-notification-icon.is-cyan { color: #087f8c; background: #e3f8fa; }
 
+.app-notification-list {
+  max-height: min(22rem, 55vh);
+  overflow-y: auto;
+}
+
+.app-notification-item {
+  display: flex;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  align-items: center;
+  gap: 0.75rem;
+  border: 0;
+  border-bottom: 1px solid #f0f3f6;
+  color: #334e68;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-notification-item:hover {
+  background: #f8fafc;
+}
+
+.app-notification-item.is-read {
+  opacity: 0.58;
+}
+
+.app-notification-item > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.app-notification-item strong {
+  font-size: 0.78rem;
+}
+
+.app-notification-item small {
+  margin-top: 0.2rem;
+  color: #829ab1;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.app-notification-read-state {
+  color: #1769d2;
+  font-size: 0.62rem;
+}
+
+.app-notification-empty {
+  display: flex;
+  min-height: 8rem;
+  padding: 1rem;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.55rem;
+  color: #829ab1;
+  font-size: 0.72rem;
+}
+
+.app-notification-footer {
+  padding: 0.7rem 1rem;
+  border-top: 1px solid #edf1f5;
+  background: #fbfcfd;
+}
+
+.app-notification-footer button {
+  width: 100%;
+  padding: 0.55rem;
+  border: 0;
+  border-radius: 0.65rem;
+  color: #1769d2;
+  background: #eaf3ff;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
 .app-profile-button {
   display: flex;
   min-width: 0;
@@ -909,6 +1007,308 @@ body.app-menu-open {
   color: #c53030;
 }
 
+/* Mensajes globales: altas, ediciones y cambios de estado. */
+body.app-flash-open {
+  overflow: hidden;
+}
+
+.app-flash-modal.hidden {
+  display: none;
+}
+
+.app-flash-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  padding: 1rem;
+  place-items: center;
+}
+
+.app-flash-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: rgba(11, 31, 51, 0.56);
+  backdrop-filter: blur(3px);
+}
+
+.app-flash-dialog {
+  position: relative;
+  width: min(27rem, 100%);
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(11, 31, 51, 0.24);
+}
+
+.app-flash-header {
+  display: grid;
+  padding: 1.2rem 1.25rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.app-flash-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 0.75rem;
+}
+
+.app-flash-icon.is-success {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.app-flash-icon.is-error {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.app-flash-icon.is-info {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.app-flash-header p {
+  margin: 0 0 0.18rem;
+  color: #dc2626;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.app-flash-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 750;
+}
+
+.app-flash-close {
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  place-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.65rem;
+  color: #64748b;
+  background: #fff;
+  cursor: pointer;
+}
+
+.app-flash-body {
+  padding: 1.2rem 1.25rem;
+}
+
+.app-flash-body p {
+  margin: 0;
+  color: #526273;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.app-flash-actions {
+  display: flex;
+  padding: 0.9rem 1.25rem;
+  justify-content: flex-end;
+  border-top: 1px solid #edf1f5;
+  background: #fbfcfd;
+}
+
+.app-flash-primary {
+  min-height: 2.55rem;
+  padding: 0.6rem 1rem;
+  border: 0;
+  border-radius: 0.72rem;
+  color: #fff;
+  background: #102a43;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.app-flash-primary:hover {
+  background: #0b1f33;
+}
+
+.app-confirm-actions {
+  gap: 0.65rem;
+}
+
+.app-confirm-secondary {
+  min-height: 2.55rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid #d8e0e8;
+  border-radius: 0.72rem;
+  color: #526273;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.app-confirm-secondary:hover {
+  border-color: #b9c6d3;
+  color: #0b1f33;
+  background: #f8fafc;
+}
+
+/* Validación accesible compartida por todos los formularios. */
+.app-field-invalid,
+.app-field-has-error input,
+.app-field-has-error select,
+.app-field-has-error textarea {
+  border-color: #dc2626 !important;
+  background-color: #fffafa !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.app-field-has-error label,
+.app-field-has-error legend {
+  color: #b91c1c !important;
+}
+
+.app-field-feedback {
+  display: flex;
+  margin: 0.42rem 0 0;
+  align-items: flex-start;
+  gap: 0.35rem;
+  color: #b91c1c;
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.app-field-feedback::before {
+  content: "!";
+  display: grid;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #dc2626;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+/* Cargador global clínico: navegación, formularios y solicitudes lentas. */
+.app-loading-overlay {
+  position: fixed;
+  z-index: 20000;
+  inset: 0;
+  display: flex;
+  padding: 1rem;
+  align-items: flex-start;
+  justify-content: flex-end;
+  visibility: hidden;
+  opacity: 0;
+  background: transparent;
+  transition: opacity 160ms ease, visibility 160ms ease;
+  pointer-events: none;
+}
+
+.app-loading-overlay.is-visible {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.app-loading-card {
+  position: relative;
+  display: grid;
+  width: min(25rem, 100%);
+  grid-template-columns: auto 1fr;
+  gap: 0.9rem;
+  padding: 1.05rem 1.1rem 1.2rem;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #dbe5ec;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 22px 55px -28px rgba(11, 31, 51, 0.45);
+}
+
+.app-loading-mark {
+  position: relative;
+  display: grid;
+  width: 2.8rem;
+  height: 2.8rem;
+  place-items: center;
+  border-radius: 0.8rem;
+  color: #087f8c;
+  background: #e7f9fb;
+}
+
+.app-loading-mark > i {
+  position: relative;
+  z-index: 1;
+}
+
+.app-loading-pulse {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(8, 127, 140, 0.35);
+  border-radius: inherit;
+  animation: app-loading-pulse 1.35s ease-out infinite;
+}
+
+.app-loading-card strong,
+.app-loading-card small {
+  display: block;
+}
+
+.app-loading-card strong {
+  color: #0b1f33;
+  font-size: 0.84rem;
+}
+
+.app-loading-card small {
+  margin-top: 0.2rem;
+  color: #64748b;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.app-loading-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  overflow: hidden;
+  background: #e8eef2;
+}
+
+.app-loading-progress i {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0b1f33, #0891a2, #38bdf8);
+  animation: app-loading-slide 1.15s ease-in-out infinite;
+}
+
+@keyframes app-loading-pulse {
+  0% { opacity: 0.65; transform: scale(0.82); }
+  75%, 100% { opacity: 0; transform: scale(1.32); }
+}
+
+@keyframes app-loading-slide {
+  from { transform: translateX(-115%); }
+  to { transform: translateX(345%); }
+}
+
 .app-navbar button:focus-visible,
 .app-sidebar a:focus-visible,
 .app-sidebar button:focus-visible {
@@ -972,6 +1372,14 @@ body.app-menu-open {
   #main-content.app-main {
     padding: 0.65rem;
   }
+
+  .app-loading-overlay {
+    padding: 0.65rem;
+  }
+
+  .app-loading-card {
+    width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -979,5 +1387,10 @@ body.app-menu-open {
   .app-sidebar-backdrop,
   .app-workspace {
     transition-duration: 0.01ms;
+  }
+
+  .app-loading-pulse,
+  .app-loading-progress i {
+    animation-duration: 2.5s;
   }
 }

@@ -35,11 +35,14 @@
     {% set items = role_sidebar_items.get(_rol, []) %}
     {% for item in items %}
       {% set is_internal = item.url and item.url != "#" and item.url.startswith('app_routes.') %}
-      {% set href = url_for(item.url) if is_internal else '#' %}
+      {% set href = url_for(item.url, **item.get('params', {})) if is_internal else '#' %}
       <a href="{{ href }}"
          class="app-sidebar-link {% if is_internal and request.endpoint == item.url %}is-active{% endif %}">
         <i class="fas {{ item.icon }}" aria-hidden="true"></i>
         <span>{{ item.text }}</span>
+        {% if item.get('badge') %}
+          <small class="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-cyan-100">{{ item.badge }}</small>
+        {% endif %}
       </a>
     {% endfor %}
   </nav>

@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b1f33" />
 
   <title>{% block title %}Dashboard{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/applab-favicon.svg') }}" />
 
   <!-- Config Tailwind CDN (breakpoints personalizados y sin dark mode) -->
   <script>
@@ -30,23 +32,32 @@
     const modal = document.getElementById("flash-modal");
     const title = document.getElementById("flash-modal-title");
     const text  = document.getElementById("flash-modal-text");
+    const icon = document.getElementById("flash-modal-icon");
+    const eyebrow = document.getElementById("flash-modal-eyebrow");
 
-    if (!modal || !title || !text) return;
+    if (!modal || !title || !text || !icon || !eyebrow) return;
 
-    // Título según categoría
     if (category === "success") {
-      title.textContent = "Éxito";
+      title.textContent = "Cambios guardados";
+      eyebrow.textContent = "Operación completada";
+      icon.className = "app-flash-icon is-success";
+      icon.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
     } else if (category === "error") {
-      title.textContent = "Error";
+      title.textContent = "No se pudo completar";
+      eyebrow.textContent = "Revisa la información";
+      icon.className = "app-flash-icon is-error";
+      icon.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i>';
     } else {
-      title.textContent = "Mensaje";
+      title.textContent = "Aviso";
+      eyebrow.textContent = "Información del sistema";
+      icon.className = "app-flash-icon is-info";
+      icon.innerHTML = '<i class="fas fa-info" aria-hidden="true"></i>';
     }
 
     text.textContent = message;
-
-    // Mostrar modal (aquí usas tus clases propias)
     modal.classList.remove("hidden");
-    modal.classList.add("flex");
+    document.body.classList.add("app-flash-open");
+    document.getElementById("flash-modal-close")?.focus();
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -58,13 +69,20 @@
     }
 
     const modal = document.getElementById("flash-modal");
-    const btnClose = document.getElementById("flash-modal-close");
-    if (btnClose && modal) {
-      btnClose.addEventListener("click", () => {
+    const closeFlashModal = () => {
+      if (modal) {
         modal.classList.add("hidden");
-        modal.classList.remove("flex");
-      });
-    }
+        document.body.classList.remove("app-flash-open");
+      }
+    };
+    document.querySelectorAll("[data-flash-close]").forEach(button => {
+      button.addEventListener("click", closeFlashModal);
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && modal && !modal.classList.contains("hidden")) {
+        closeFlashModal();
+      }
+    });
   });
 </script>
 
@@ -80,16 +98,30 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
-<body class="font-sans overflow-x-hidden app-body {% if request.path.startswith('/admin/') %}admin-surface{% endif %}">
+{% set embedded_form = request.args.get('embed') == '1' or request.form.get('embed') == '1' %}
+<body class="font-sans overflow-x-hidden app-body {% if request.path.startswith('/admin/') %}admin-surface{% endif %} {% if embedded_form %}embed-mode{% endif %}">
+  <div id="app-loading-overlay" class="app-loading-overlay is-visible" role="status" aria-live="polite" aria-label="Cargando contenido">
+    <div class="app-loading-card">
+      <span class="app-loading-mark" aria-hidden="true">
+        <i class="fas fa-flask"></i>
+        <span class="app-loading-pulse"></span>
+      </span>
+      <div>
+        <strong id="app-loading-title">Preparando información</strong>
+        <small id="app-loading-message">Un momento, estamos cargando los datos clínicos.</small>
+      </div>
+      <span class="app-loading-progress" aria-hidden="true"><i></i></span>
+    </div>
+  </div>
   <!-- Layout principal: sidebar + columna derecha -->
   <div class="app-layout">
     <!-- Sidebar fija a la izquierda -->
-    {% include 'components/sidebar.html' %}
+    {% if not embedded_form %}{% include 'components/sidebar.html' %}{% endif %}
 
     <!-- Columna derecha: navbar + contenido + footer (sin flex-col) -->
     <div class="app-workspace">
       <!-- Navbar arriba -->
-      {% include 'components/navbar.html' %}
+      {% if not embedded_form %}{% include 'components/navbar.html' %}{% endif %}
 
       <!-- Contenido: altura natural, sin flex-1 -->
       <main id="main-content" class="app-main">
@@ -97,11 +129,24 @@
       </main>
 
       <!-- Footer inmediatamente después del contenido -->
-      {% include 'components/footer.html' %}
+      {% if not embedded_form %}{% include 'components/footer.html' %}{% endif %}
     </div>
   </div>
 
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/form_validation.js') }}"></script>
+  {% if embedded_form %}
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[onclick*='history.back']").forEach(button => {
+      button.removeAttribute("onclick");
+      button.addEventListener("click", () => {
+        window.parent.postMessage({ type: "applab:close-entity-modal" }, window.location.origin);
+      });
+    });
+  });
+  </script>
+  {% endif %}
 
   {% with messages = get_flashed_messages(with_categories=True) %}
   {% if messages %}
@@ -113,20 +158,29 @@
   {% endif %}
 {% endwith %}
 
-<!-- Modal genérico para mensajes -->
-<div id="flash-modal" class="hidden fixed inset-0 z-50 items-center justify-center">
-  <div class="fixed inset-0 bg-black/40"></div>
-
-  <div class="relative bg-white rounded-2xl shadow-lg max-w-md w-full mx-4 p-6">
-    <h2 id="flash-modal-title" class="text-xl font-semibold mb-2">Mensaje</h2>
-    <p id="flash-modal-text" class="text-gray-700 mb-4"></p>
-
-    <div class="flex justify-end gap-2">
-      <button id="flash-modal-close"
-              class="px-4 py-2 rounded-xl border">
-        Cerrar
+<!-- Mensaje global compartido para altas, ediciones y cambios de estado -->
+<div id="flash-modal" class="app-flash-modal hidden" role="dialog" aria-modal="true"
+     aria-labelledby="flash-modal-title" aria-describedby="flash-modal-text">
+  <button type="button" class="app-flash-backdrop" data-flash-close aria-label="Cerrar mensaje"></button>
+  <div class="app-flash-dialog">
+    <header class="app-flash-header">
+      <span id="flash-modal-icon" class="app-flash-icon is-info" aria-hidden="true">
+        <i class="fas fa-info"></i>
+      </span>
+      <div>
+        <p id="flash-modal-eyebrow">Información del sistema</p>
+        <h2 id="flash-modal-title">Aviso</h2>
+      </div>
+      <button type="button" class="app-flash-close" data-flash-close aria-label="Cerrar">
+        <i class="fas fa-times" aria-hidden="true"></i>
       </button>
+    </header>
+    <div class="app-flash-body">
+      <p id="flash-modal-text"></p>
     </div>
+    <footer class="app-flash-actions">
+      <button id="flash-modal-close" type="button" class="app-flash-primary" data-flash-close>Entendido</button>
+    </footer>
   </div>
 </div>
 

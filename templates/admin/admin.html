@@ -2,27 +2,29 @@
 {% block title %}Dashboard Admin{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+<div class="admin-dashboard max-w-7xl mx-auto w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
   <!-- HEADER: título + botones -->
-  <div class="mb-2 flex items-center justify-between gap-4">
-    <div>
+  <div class="admin-dashboard-header mb-2">
+    <div class="min-w-0">
       <h1 class="text-2xl font-bold tracking-tight text-gray-900">Panel de Administración</h1>
       <p class="text-sm text-gray-500">Accesos rápidos a los módulos principales</p>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="admin-dashboard-actions">
       <!-- Botón Backlog (log de movimientos) -->
+      {% if has_permission('admin.backlog') %}
       <a href="{{ url_for('app_routes.backlog') if 'app_routes.backlog' else '#' }}"
-         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium
+         class="admin-dashboard-action inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium
                 bg-gray-100 text-gray-800 hover:bg-gray-200 transition">
         <i class="fas fa-history"></i>
         Backlog
       </a>
+      {% endif %}
 
       <!-- Botón Configuración (sin badge) -->
-      <a href="#"
-         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium
+      <a href="{{ url_for('app_routes.configuracion') }}"
+         class="admin-dashboard-action inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium
                 bg-gray-900 text-white hover:opacity-90 transition">
         <i class="fas fa-cog text-base"></i>
         Configuración
@@ -30,7 +32,7 @@
     </div>
   </div>
 
-  <!-- KPIs superiores (dummy, estático) -->
+  <!-- Indicadores conectados con Supabase -->
   <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
     <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
       <div class="flex items-center gap-4">
@@ -39,10 +41,10 @@
         </div>
         <div>
           <p class="text-sm text-gray-500">Pacientes</p>
-          <p class="text-2xl font-bold text-gray-900">320</p>
+          <p class="text-2xl font-bold text-gray-900">{{ dashboard_counts.pacientes }}</p>
         </div>
       </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-sky-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">+8</span>
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-sky-600 text-white text-[0.65rem] font-semibold h-6 px-2">Total</span>
     </div>
 
     <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
@@ -51,11 +53,11 @@
           <i class="fas fa-clipboard-list text-indigo-600 text-xl"></i>
         </div>
         <div>
-          <p class="text-sm text-gray-500">Pruebas (hoy)</p>
-          <p class="text-2xl font-bold text-gray-900">42</p>
+          <p class="text-sm text-gray-500">Pruebas clínicas</p>
+          <p class="text-2xl font-bold text-gray-900">{{ dashboard_counts.pruebas }}</p>
         </div>
       </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">+4</span>
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-[0.65rem] font-semibold h-6 px-2">Total</span>
     </div>
 
     <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
@@ -65,10 +67,10 @@
         </div>
         <div>
           <p class="text-sm text-gray-500">Doctores</p>
-          <p class="text-2xl font-bold text-gray-900">22</p>
+          <p class="text-2xl font-bold text-gray-900">{{ dashboard_counts.doctores }}</p>
         </div>
       </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-violet-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">=</span>
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-violet-600 text-white text-[0.65rem] font-semibold h-6 px-2">Total</span>
     </div>
 
     <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
@@ -77,11 +79,11 @@
           <i class="fas fa-vials text-amber-600 text-xl"></i>
         </div>
         <div>
-          <p class="text-sm text-gray-500">Reactivos bajos</p>
-          <p class="text-2xl font-bold text-gray-900">7</p>
+          <p class="text-sm text-gray-500">Reactivos</p>
+          <p class="text-2xl font-bold text-gray-900">{{ dashboard_counts.reactivos }}</p>
         </div>
       </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">-2</span>
+      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-[0.65rem] font-semibold h-6 px-2">Total</span>
     </div>
   </section>
 
@@ -91,11 +93,12 @@
     <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
 
       <!-- PRUEBAS -->
+      {% if has_permission('admin.tests') %}
       <a href="{{ url_for('app_routes.pruebas_clinicas') }}"
          class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
                 transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">42</span>
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.pruebas }}</span>
         <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-clipboard-list text-8xl text-indigo-600"></i></div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-indigo-200 bg-indigo-50">
@@ -107,11 +110,13 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
       <!-- INVENTARIO -->
+      {% if has_permission('admin.inventory') %}
       <a href="{{ url_for('app_routes.manage_inventory') }}"
          class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">7</span>
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.reactivos }}</span>
         <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-vials text-8xl text-emerald-600"></i></div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-emerald-200 bg-emerald-50">
@@ -123,11 +128,13 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
       <!-- PACIENTES -->
+      {% if has_permission('admin.patients') or has_permission('front.patients') %}
       <a href="{{ url_for('app_routes.manage_patients') }}"
          class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-sky-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">320</span>
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-sky-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.pacientes }}</span>
         <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-id-card text-8xl text-sky-600"></i></div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-sky-200 bg-sky-50">
@@ -139,11 +146,13 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
       <!-- PROVEEDORES -->
+      {% if has_permission('admin.providers') %}
       <a href="{{ url_for('app_routes.manage_proveedores') }}"
          class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">16</span>
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.proveedores }}</span>
         <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-truck text-8xl text-amber-600"></i></div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-amber-200 bg-amber-50">
@@ -155,11 +164,13 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
       <!-- DOCTORES -->
+      {% if has_permission('admin.doctors') %}
       <a href="{{ url_for('app_routes.manage_doctores') }}"
          class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-violet-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">22</span>
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-violet-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.doctores }}</span>
         <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-stethoscope text-8xl text-violet-600"></i></div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-violet-200 bg-violet-50">
@@ -171,11 +182,13 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
       <!-- HOSPITALES -->
+      {% if has_permission('admin.hospitals') %}
       <a href="{{ url_for('app_routes.manage_hospitals') }}"
          class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">5</span>
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.hospitales }}</span>
         <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-hospital text-8xl text-rose-600"></i></div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-rose-200 bg-rose-50">
@@ -187,11 +200,13 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
       <!-- EMPLEADOS -->
+      {% if has_permission('admin.employees') %}
       <a href="{{ url_for('app_routes.manage_employees') }}"
          class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-cyan-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">14</span>
+        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-cyan-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.empleados }}</span>
         <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-users text-8xl text-cyan-600"></i></div>
         <div class="relative flex items-center gap-4">
           <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-cyan-200 bg-cyan-50">
@@ -203,6 +218,7 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
       <!-- CONFIGURACIÓN (SIN badge) -->
       <a href="{{ url_for('app_routes.configuracion') }}"
@@ -222,41 +238,48 @@
     </div>
   </section>
 
-  <!-- Panel de alertas (queda, actividad eliminado) -->
+  <!-- Alertas basadas en existencias y vencimientos reales -->
+  {% if has_permission('admin.inventory') %}
   <section class="rounded-2xl ring-1 ring-gray-200 bg-white p-5">
     <h3 class="text-base font-semibold text-gray-900 mb-3">
       <i class="fas fa-bell text-amber-500 mr-2"></i> Alertas de Inventario
     </h3>
     <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-      <li class="flex items-center justify-between p-3 rounded-lg bg-amber-50 ring-1 ring-amber-200">
-        <span>Reactivo A — <span class="font-medium">5 u</span> (mín. 10)</span>
-        <span class="inline-flex items-center rounded-full bg-amber-600 text-white px-2 py-0.5 text-xs">Bajo</span>
+      {% for alert in inventory_alerts %}
+      <li class="flex items-center justify-between gap-3 p-3 rounded-lg bg-red-50 ring-1 ring-red-200">
+        <span><strong>{{ alert.nombre }}</strong> — {{ alert.detalle }}</span>
+        <span class="inline-flex shrink-0 items-center rounded-full bg-red-600 text-white px-2 py-0.5 text-xs">{{ alert.etiqueta }}</span>
       </li>
-      <li class="flex items-center justify-between p-3 rounded-lg bg-red-50 ring-1 ring-red-200">
-        <span>Reactivo B — <span class="font-medium">Vencido</span> (2025-08-15)</span>
-        <span class="inline-flex items-center rounded-full bg-red-600 text-white px-2 py-0.5 text-xs">Vencido</span>
+      {% else %}
+      <li class="col-span-full flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-emerald-700 ring-1 ring-emerald-200">
+        <i class="fas fa-check-circle" aria-hidden="true"></i>
+        No hay reactivos vencidos ni agotados.
       </li>
-      <li class="flex items-center justify-between p-3 rounded-lg bg-amber-50 ring-1 ring-amber-200">
-        <span>Reactivo C — <span class="font-medium">8 u</span> (mín. 12)</span>
-        <span class="inline-flex items-center rounded-full bg-amber-600 text-white px-2 py-0.5 text-xs">Bajo</span>
-      </li>
+      {% endfor %}
     </ul>
   </section>
+  {% endif %}
 
   <!-- FAB Acciones rápidas -->
-  <div class="fixed bottom-12 right-6 space-y-3">
+  <div class="admin-dashboard-fab fixed bottom-12 right-6 hidden sm:flex sm:flex-col sm:items-end sm:gap-3">
+    {% if has_permission('front.patients') or has_permission('admin.patients') %}
     <a href="{{ url_for('app_routes.manage_patients') }}"
        class="inline-flex items-center gap-2 rounded-full shadow-lg px-4 py-2 bg-sky-600 text-white hover:bg-sky-700 transition">
       <i class="fas fa-user-plus"></i><span class="hidden sm:inline">Nuevo Paciente</span>
     </a>
+    {% endif %}
+    {% if has_permission('admin.tests') %}
     <a href="{{ url_for('app_routes.pruebas_clinicas') }}"
        class="inline-flex items-center gap-2 rounded-full shadow-lg px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 transition">
       <i class="fas fa-plus-circle"></i><span class="hidden sm:inline">Nueva Prueba</span>
     </a>
+    {% endif %}
+    {% if has_permission('admin.providers') %}
     <a href="{{ url_for('app_routes.manage_proveedores') }}"
        class="inline-flex items-center gap-2 rounded-full shadow-lg px-4 py-2 bg-amber-600 text-white hover:bg-amber-700 transition">
       <i class="fas fa-truck-loading"></i><span class="hidden sm:inline">Nuevo Proveedor</span>
     </a>
+    {% endif %}
   </div>
 
 </div>
