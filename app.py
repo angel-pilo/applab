@@ -11,6 +11,10 @@ from supabase_client import supabase
 
 
 from menus import ROLE_MENU
+from permissions import (
+    PERMISSION_GROUPS,
+    endpoint_is_allowed,
+)
 
 # Dashboard de inicio por rol (botón "Inicio" en sidebar)
 ROLE_HOME = {
@@ -18,7 +22,42 @@ ROLE_HOME = {
     "Mostrador":  "app_routes.mostrador_dashboard",
     "Quimico":    "app_routes.quimico_dashboard",
     "Enfermero": "app_routes.enfermero_dashboard",
+    "Personalizado": "app_routes.dashboard",
 }
+
+
+def build_custom_menu(permissions):
+    """Combina módulos de varios roles y elimina accesos repetidos."""
+    permissions = set(permissions or [])
+    dashboard_items = [
+        ("admin.dashboard", "Panel administrativo", "fa-user-shield", "app_routes.admin_dashboard"),
+        ("front.dashboard", "Panel de mostrador", "fa-concierge-bell", "app_routes.mostrador_dashboard"),
+        ("nursing.dashboard", "Panel de enfermería", "fa-syringe", "app_routes.enfermero_dashboard"),
+        ("lab.dashboard", "Panel de químico", "fa-flask", "app_routes.quimico_dashboard"),
+    ]
+    items = [
+        {"text": text, "icon": icon, "url": endpoint}
+        for code, text, icon, endpoint in dashboard_items
+        if code in permissions
+    ]
+    seen = {item["url"] for item in items}
+    for role in ("Admin", "Mostrador", "Enfermero", "Quimico"):
+        for source in ROLE_MENU.get(role, []):
+            endpoint = source.get("url")
+            if endpoint == "app_routes.configuracion":
+                continue
+            if endpoint in seen or not endpoint_is_allowed(endpoint, permissions):
+                continue
+            item = dict(source)
+            item["text"] = f"{role} · {item['text']}"
+            items.append(item)
+            seen.add(endpoint)
+    items.append({
+        "text": "Configuración",
+        "icon": "fa-cog",
+        "url": "app_routes.configuracion",
+    })
+    return items
 
 
 def create_app() -> Flask:
@@ -60,11 +99,19 @@ def create_app() -> Flask:
     def inject_role_menu():
         # Endpoints disponibles para validar antes de url_for en plantillas
         available_endpoints = set(app.view_functions.keys())
+        menus = dict(ROLE_MENU)
+        if session.get("rol") == "Personalizado":
+            menus["Personalizado"] = build_custom_menu(session.get("permisos", []))
         return {
-            "role_sidebar_items": ROLE_MENU,
+            "role_sidebar_items": menus,
             "rol_actual": session.get("rol", ""),
             "role_home": ROLE_HOME,
             "available_endpoints": available_endpoints,
+            "permission_groups": PERMISSION_GROUPS,
+            "has_permission": lambda code: (
+                session.get("rol") != "Personalizado"
+                or code in session.get("permisos", [])
+            ),
         }
     
         # --- Páginas de error personalizadas ---

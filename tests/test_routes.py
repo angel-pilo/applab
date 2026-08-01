@@ -69,7 +69,19 @@ class OrderValidationTests(unittest.TestCase):
     def test_missing_order_fields_are_reported(self):
         errors = routes.validate_order_data({})
 
-        self.assertEqual(len(errors), 4)
+        self.assertEqual(len(errors), 3)
+
+    @patch.object(routes, "existe_paciente_activo", return_value=True)
+    def test_private_patient_does_not_require_hospital_room_or_doctor(self, *_):
+        data = {
+            "nombre": "Paciente Particular",
+            "patient_id": "1",
+            "hospital": "none",
+            "cuarto": "",
+            "doctor": "none",
+        }
+
+        self.assertEqual(routes.validate_order_data(data), [])
 
 
 class ClinicalTestValidationTests(unittest.TestCase):
@@ -142,6 +154,56 @@ class EmployeeServiceTests(unittest.TestCase):
 
         self.assertEqual(employees[0]["usuario_id"], 10)
         self.assertTrue(employees[0]["estado"])
+
+
+class AdminDashboardServiceTests(unittest.TestCase):
+    def test_dashboard_counts_use_supabase_rows(self):
+        table_rows = {
+            "pacientes": [{"id": 1, "activo": True}, {"id": 2, "activo": False}],
+            "pruebas_clinicas": [{"id": 1, "activo": True}],
+            "doctores": [{"id": 1, "activo": True}, {"id": 2, "activo": True}, {"id": 3, "activo": False}],
+            "proveedores": [],
+            "hospitales": [{"id": 1, "activo": True}],
+            "empleados": [{"id": index, "usuario_id": index} for index in range(5)],
+            "usuarios": [
+                {"id": 0, "estado_usuario": True},
+                {"id": 1, "estado_usuario": True},
+                {"id": 2, "estado_usuario": False},
+                {"id": 3, "estado_usuario": True},
+                {"id": 4, "estado_usuario": True},
+            ],
+            "reactivos": [{
+                "id": 1,
+                "nombre": "Glucosa",
+                "activo": True,
+                "cantidad_inicial": 10,
+                "existencia_actual": 8,
+                "fecha_vencimiento": None,
+            }],
+        }
+
+        class FakeQuery:
+            def __init__(self, table):
+                self.table = table
+
+            def select(self, *_):
+                return self
+
+            def in_(self, *_):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=table_rows[self.table])
+
+        fake_supabase = SimpleNamespace(table=lambda name: FakeQuery(name))
+        with patch.object(services, "supabase", fake_supabase):
+            dashboard = services.obtener_resumen_admin()
+
+        self.assertEqual(dashboard["counts"]["empleados"], 4)
+        self.assertEqual(dashboard["counts"]["doctores"], 2)
+        self.assertEqual(dashboard["counts"]["pacientes"], 1)
+        self.assertEqual(dashboard["counts"]["reactivos"], 1)
+        self.assertEqual(dashboard["inventory_alerts"], [])
 
 
 class ClinicalTestServiceTests(unittest.TestCase):
@@ -258,6 +320,41 @@ class AuthorizationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].endswith("/quimico"))
 
+    def test_custom_profile_redirects_to_first_authorized_workspace(self):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session["usuario"] = "mixto"
+            flask_session["rol"] = "Personalizado"
+            flask_session["permisos"] = ["nursing.samples", "lab.results.capture"]
+
+        response = client.get("/dashboard", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/muestra"))
+
+    @patch.object(routes, "obtener_eventos_bitacora", return_value=[])
+    def test_custom_profile_can_use_an_explicit_permission(self, _):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session["usuario"] = "supervisor"
+            flask_session["rol"] = "Personalizado"
+            flask_session["permisos"] = ["admin.backlog"]
+
+        response = client.get("/api/backlog/events")
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_custom_profile_cannot_use_an_unassigned_permission(self):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session["usuario"] = "supervisor"
+            flask_session["rol"] = "Personalizado"
+            flask_session["permisos"] = ["front.orders.view"]
+
+        response = client.get("/api/backlog/events")
+
+        self.assertEqual(response.status_code, 403)
+
     @patch.object(
         routes,
         "verificar_usuario",
@@ -277,6 +374,46 @@ class AuthorizationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].endswith("/admin"))
+
+    @patch.object(routes, "obtener_eventos_bitacora")
+    def test_backlog_api_reads_supabase_events(self, mock_events):
+        mock_events.return_value = [{
+            "id": 1,
+            "creado_en": "2026-07-28T12:00:00+00:00",
+            "modulo": "Pacientes",
+            "accion": "crear",
+            "severidad": "success",
+            "titulo": "Pacientes: registro creado",
+            "detalle": "Ana López",
+            "entidad_tipo": "pacientes",
+            "entidad_id": "7",
+            "actor_nombre": None,
+            "actor_username": "admin",
+            "metadata": {
+                "cambios": [{
+                    "campo": "telefono",
+                    "anterior": "3311111111",
+                    "nuevo": "3322222222",
+                }]
+            },
+        }]
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session["usuario"] = "admin"
+            flask_session["rol"] = "Admin"
+
+        response = client.get("/api/backlog/events?module=Pacientes")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["events"][0]["entidad_id"], "7")
+        self.assertEqual(payload["events"][0]["actor_username"], "admin")
+        self.assertEqual(
+            payload["events"][0]["metadata"]["cambios"][0]["campo"],
+            "telefono",
+        )
+        self.assertEqual(payload["stats"]["modules"], 1)
 
 
 class AdminTemplateTests(unittest.TestCase):
@@ -345,6 +482,29 @@ class AdminTemplateTests(unittest.TestCase):
         for template_name in self.app.jinja_env.list_templates():
             with self.subTest(template=template_name):
                 self.app.jinja_env.get_template(template_name)
+
+    def test_backlog_uses_live_supabase_endpoint(self):
+        with self.app.test_request_context("/backlog"):
+            session["rol"] = "Admin"
+            html = render_template("backlog.html")
+
+        self.assertIn("Bitácora de actividad", html)
+        self.assertIn("/api/backlog/events", html)
+        self.assertIn("Actualización en vivo", html)
+        self.assertIn("Cambios realizados", html)
+        self.assertIn("Realizado por", html)
+        self.assertNotIn("OC-7781", html)
+
+    def test_navbar_accepts_null_and_preset_profile_images(self):
+        with self.app.test_request_context("/admin"):
+            session["foto_perfil"] = None
+            null_avatar_html = render_template("components/navbar.html")
+
+            session["foto_perfil"] = "preset:4"
+            preset_avatar_html = render_template("components/navbar.html")
+
+        self.assertIn("app-avatar-fallback", null_avatar_html)
+        self.assertIn("avatar-preset-4", preset_avatar_html)
 
     def test_employee_and_inventory_use_detail_drawer(self):
         catalog_js = Path("static/js/admin_catalog.js").read_text(encoding="utf-8")
@@ -463,6 +623,115 @@ class AdminTemplateTests(unittest.TestCase):
 
         self.assertIn("Registrar paciente", create_html)
         self.assertIn("Información clínica", create_html)
+        self.assertIn("Guardar cambios", edit_html)
+
+    def test_provider_form_renders_in_create_and_edit_modes(self):
+        provider = SimpleNamespace(
+            id=4,
+            tipo="producto",
+            nombre="Insumos Clínicos",
+            telefono="3312345678",
+            correo="ventas@example.com",
+            contacto="María López",
+            calle="Industria",
+            numero_ext="25",
+            numero_int="",
+            codigo_postal="44900",
+            municipio="Guadalajara",
+            estado="Jalisco",
+            anotaciones="",
+        )
+
+        with self.app.test_request_context("/admin/add_proveedor"):
+            create_html = render_template(
+                "admin/add_proveedor.html",
+                proveedor={},
+                is_edit=False,
+                estados=["Jalisco"],
+            )
+            edit_html = render_template(
+                "admin/add_proveedor.html",
+                proveedor=provider,
+                is_edit=True,
+                estados=["Jalisco"],
+            )
+
+        self.assertIn("Registrar proveedor", create_html)
+        self.assertIn("Información del proveedor", create_html)
+        self.assertIn("Guardar cambios", edit_html)
+
+    def test_doctor_form_renders_in_create_and_edit_modes(self):
+        doctor = SimpleNamespace(
+            id=7,
+            nombres="Andrea",
+            apellidos="Martínez",
+            telefono="3312345678",
+            correo="andrea@example.com",
+            tipo_consultorio="hospital",
+            hospital_id=2,
+            calle=None,
+            numero_ext=None,
+            numero_int=None,
+            codigo_postal=None,
+            municipio=None,
+            estado=None,
+            anotaciones="",
+        )
+        hospitals = [SimpleNamespace(id=2, nombre="Hospital Central")]
+
+        with self.app.test_request_context("/admin/add_doctor"):
+            create_html = render_template(
+                "admin/add_doctor.html",
+                doctor={},
+                hospitales=hospitals,
+                estados=["Jalisco"],
+                is_edit=False,
+            )
+            edit_html = render_template(
+                "admin/add_doctor.html",
+                doctor=doctor,
+                hospitales=hospitals,
+                estados=["Jalisco"],
+                is_edit=True,
+            )
+
+        self.assertIn("Registrar doctor", create_html)
+        self.assertIn("Lugar de consulta", create_html)
+        self.assertIn("Hospital Central", edit_html)
+        self.assertIn("Guardar cambios", edit_html)
+
+    def test_hospital_form_renders_in_create_and_edit_modes(self):
+        hospital = SimpleNamespace(
+            id=5,
+            nombre="Hospital Clínico del Centro",
+            telefono="3312345678",
+            correo="contacto@hospital.com",
+            calle="Salud",
+            numero_ext="120",
+            numero_int="",
+            codigo_postal="44100",
+            municipio="Guadalajara",
+            estado="Jalisco",
+            anotaciones="",
+        )
+
+        with self.app.test_request_context("/admin/add_hospital"):
+            create_html = render_template(
+                "admin/add_hospital.html",
+                hospital={},
+                estados=["Jalisco"],
+                is_edit=False,
+            )
+            edit_html = render_template(
+                "admin/add_hospital.html",
+                hospital=hospital,
+                estados=["Jalisco"],
+                is_edit=True,
+            )
+
+        self.assertIn("Registrar hospital", create_html)
+        self.assertIn("Información del hospital", create_html)
+        self.assertIn("Hospital Clínico del Centro", edit_html)
         self.assertIn("Guardar cambios", edit_html)
 
 

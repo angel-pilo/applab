@@ -3,16 +3,23 @@ import bcrypt
 import re
 import uuid
 from urllib.parse import unquote, urlparse
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for, jsonify
+from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for, jsonify
 from functools import wraps
 from services import *
 from datetime import datetime
 import json
+import logging
 from supabase_client import supabase, supabase_storage, SUPABASE_AVATAR_BUCKET
+from permissions import (
+    endpoint_is_allowed,
+    normalize_permissions,
+    preferred_home,
+)
 
 
 
 app_routes = Blueprint('app_routes', __name__)
+logger = logging.getLogger(__name__)
 
 # Obtener la ruta del archivo JSON con estados
 ruta_estados = os.path.join(os.path.dirname(__file__), 'static', 'JSON', 'estados.json')
@@ -28,7 +35,8 @@ role_map = {
     1: "Admin",
     2: "Mostrador",
     3: "Enfermero",
-    4: "Quimico"
+    4: "Quimico",
+    5: "Personalizado",
 }
 
 AVATAR_UPLOAD_FOLDER = os.path.join(
@@ -87,6 +95,34 @@ def save_employee_avatar(file, extension):
     file.seek(0)
     file.save(os.path.join(AVATAR_UPLOAD_FOLDER, filename))
     return url_for("static", filename=f"uploads/avatars/{filename}")
+
+
+def save_employee_signature(file, extension):
+    """Guarda la imagen de firma del responsable sin exponer archivos locales."""
+    filename = f"signature-{uuid.uuid4().hex}.{extension}"
+    if SUPABASE_AVATAR_BUCKET:
+        file.seek(0)
+        content = file.read()
+        path = f"profiles/signatures/{filename}"
+        supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).upload(
+            path,
+            content,
+            {
+                "content-type": file.mimetype or f"image/{extension}",
+                "cache-control": "3600",
+            },
+        )
+        return supabase_storage.storage.from_(
+            SUPABASE_AVATAR_BUCKET
+        ).get_public_url(path)
+
+    signature_folder = os.path.join(
+        os.path.dirname(__file__), "static", "uploads", "signatures"
+    )
+    os.makedirs(signature_folder, exist_ok=True)
+    file.seek(0)
+    file.save(os.path.join(signature_folder, filename))
+    return url_for("static", filename=f"uploads/signatures/{filename}")
 
 
 def delete_local_employee_avatar(avatar_url):
@@ -153,11 +189,30 @@ def require_role(roles):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            if session.get("rol") not in roles:
+            if "usuario" not in session:
                 return redirect(url_for("app_routes.login"))
-            return f(*args, **kwargs)
+            if session.get("rol") in roles:
+                return f(*args, **kwargs)
+            if (
+                session.get("rol") == "Personalizado"
+                and endpoint_is_allowed(
+                    request.endpoint, session.get("permisos", [])
+                )
+            ):
+                return f(*args, **kwargs)
+            abort(403)
         return wrapper
     return decorator
+
+
+def current_home_endpoint():
+    """Obtiene la página inicial según el rol o su mezcla de permisos."""
+    if session.get("rol") == "Personalizado":
+        return preferred_home(session.get("permisos", []))
+    role = session.get("rol", "")
+    if role in role_map.values() and role != "Personalizado":
+        return f"app_routes.{role.lower()}_dashboard"
+    return None
 
 
 def as_int_or_none(value):
@@ -177,22 +232,59 @@ def validate_order_data(data):
 
     if not nombre or not patient_id:
         errors.append("Selecciona un paciente desde la lista de sugerencias.")
+    has_hospital = hospital_id not in {"", "none"}
+    has_doctor = doctor_id not in {"", "none"}
     if not hospital_id:
-        errors.append("Selecciona un hospital.")
-    if not cuarto:
-        errors.append("Ingresa el número/nombre de cuarto.")
+        errors.append("Indica si la orden tiene hospital de procedencia.")
+    if has_hospital and not cuarto:
+        errors.append("Ingresa el cuarto o ubicación del hospital.")
     if not doctor_id:
-        errors.append("Selecciona un doctor.")
+        errors.append("Indica si la orden tiene médico solicitante.")
     if cuarto and not re.fullmatch(r"[A-Za-z0-9\-# ]{1,15}", cuarto):
         errors.append("El campo 'Cuarto' solo permite letras, números, espacio, -, # (máx. 15).")
     if patient_id and not existe_paciente_activo(as_int_or_none(patient_id)):
         errors.append("El paciente seleccionado no existe o está inactivo.")
-    if hospital_id and not existe_hospital_activo(as_int_or_none(hospital_id)):
+    if has_hospital and not existe_hospital_activo(as_int_or_none(hospital_id)):
         errors.append("El hospital seleccionado no existe o está inactivo.")
-    if doctor_id and not existe_doctor_activo(as_int_or_none(doctor_id)):
+    if has_doctor and not existe_doctor_activo(as_int_or_none(doctor_id)):
         errors.append("El doctor seleccionado no existe o está inactivo.")
 
     return errors
+
+
+def normalize_order_studies(items):
+    """Valida estudios contra el catálogo activo y recalcula precios."""
+    if not isinstance(items, list):
+        return []
+    catalog = {
+        str(test["id"]): test
+        for test in obtener_pruebas()
+        if test.get("activo", True) is True
+    }
+    normalized = []
+    seen = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        test_id = str(item.get("prueba_id") or "")
+        if test_id not in catalog or test_id in seen:
+            continue
+        try:
+            quantity = max(1, min(int(item.get("cantidad") or 1), 99))
+            unit_price = float(catalog[test_id].get("precio") or 0)
+        except (TypeError, ValueError):
+            continue
+        test = catalog[test_id]
+        normalized.append({
+            "prueba_id": int(test["id"]),
+            "prueba": test.get("nombre") or "Estudio",
+            "tipo_prueba": test.get("tipo") or "",
+            "cantidad": quantity,
+            "precio_unitario": unit_price,
+            "precio": round(unit_price * quantity, 2),
+        })
+        seen.add(test_id)
+    return normalized
 
 
 def validate_clinical_test_elements(elements):
@@ -253,20 +345,142 @@ def validate_clinical_test_elements(elements):
 
     return errors
 
+
+def _patient_age(patient):
+    try:
+        born = datetime.fromisoformat(str(patient.get("fecha_nacimiento"))[:10]).date()
+        today = datetime.now().date()
+        return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+    except (TypeError, ValueError):
+        return None
+
+
+def _patient_sex_code(patient):
+    value = str(patient.get("sexo") or "").strip().lower()
+    if value in {"m", "masculino", "hombre"}:
+        return "M"
+    if value in {"f", "femenino", "mujer"}:
+        return "F"
+    return None
+
+
+def resolve_clinical_reference(element, patient):
+    """Resuelve el rango aplicable usando edad y sexo del paciente."""
+    kind = element.get("tipo_separacion")
+    structure = element.get("estructura") or {}
+    reference = {
+        "tipo": kind,
+        "unidad": structure.get("unidad") or "",
+        "min": None,
+        "max": None,
+        "normal": None,
+        "descripcion": "Sin referencia aplicable",
+    }
+    sex = _patient_sex_code(patient)
+    age = _patient_age(patient)
+    selected = None
+    if kind == "sexo" and sex:
+        selected = structure.get(sex)
+    elif kind in {"edades", "edad-sexo"}:
+        for item in structure.get("rangos") or []:
+            if kind == "edad-sexo" and sex and item.get("sexo") != sex:
+                continue
+            minimum_age = item.get("min_edad")
+            maximum_age = item.get("max_edad")
+            if age is not None and (minimum_age is None or age >= minimum_age) and (
+                maximum_age is None or age <= maximum_age
+            ):
+                selected = item
+                break
+    elif kind == "min-max":
+        selected = structure
+    elif kind == "menor-que":
+        reference.update({
+            "max": structure.get("max"),
+            "unidad": structure.get("unidad") or "",
+            "descripcion": f"Menor que {structure.get('max')} {structure.get('unidad') or ''}".strip(),
+        })
+        return reference
+    elif kind == "positivo-negativo":
+        normal = str(structure.get("valor_normal") or "").lower()
+        reference.update({
+            "normal": normal,
+            "opciones": structure.get("valores_permitidos") or ["positivo", "negativo"],
+            "descripcion": f"Normal: {normal.title()}",
+        })
+        return reference
+    if selected:
+        reference.update({
+            "min": selected.get("min"),
+            "max": selected.get("max"),
+            "unidad": selected.get("unidad") or structure.get("unidad") or "",
+        })
+        reference["descripcion"] = (
+            f"{reference['min']} – {reference['max']} {reference['unidad']}".strip()
+        )
+    return reference
+
+
+def evaluate_clinical_value(value, reference):
+    raw = str(value or "").strip()
+    result = {
+        "valor": raw,
+        "estado": "sin_referencia",
+        "referencia": reference.get("descripcion"),
+        "unidad": reference.get("unidad") or "",
+    }
+    if reference.get("normal") is not None:
+        result["estado"] = (
+            "normal" if raw.lower() == str(reference["normal"]).lower() else "fuera"
+        )
+        return result
+    try:
+        numeric = float(raw.replace(",", "."))
+    except ValueError:
+        result["estado"] = "invalido"
+        return result
+    minimum = reference.get("min")
+    maximum = reference.get("max")
+    if minimum is not None and numeric < float(minimum):
+        result["estado"] = "bajo"
+    elif maximum is not None and numeric > float(maximum):
+        result["estado"] = "alto"
+    elif minimum is not None or maximum is not None:
+        result["estado"] = "normal"
+    return result
+
 # Ruta principal
 @app_routes.route("/")
 def home():
     if "usuario" in session:
-        rol = session.get("rol", "").capitalize()  # Asegurar que el rol esté bien escrito
-        if rol in role_map.values():
-            return redirect(url_for(f"app_routes.{rol.lower()}_dashboard"))
-    
+        endpoint = current_home_endpoint()
+        return redirect(url_for(endpoint or "app_routes.configuracion"))
+
     return redirect(url_for("app_routes.login"))
 
 @app_routes.route("/proximamente")
+@require_role(role_map.values())
 def proximamente():
-    feature = request.args.get("feature")
-    return render_template("proximamente.html", feature=feature)
+    feature = (request.args.get("feature") or "Esta función").strip()
+    feature_details = {
+        "Corte de caja": ("fa-cash-register", "Control y conciliación de movimientos del día."),
+        "Control de calidad": ("fa-vials", "Seguimiento de controles, lotes y criterios de aceptación."),
+        "Equipos": ("fa-tools", "Administración del estado y mantenimiento de equipos."),
+        "Incidencias": ("fa-flag", "Registro y seguimiento de eventos del laboratorio."),
+        "Registro de toma": ("fa-syringe", "Captura de hora, recipiente y condiciones de la muestra."),
+        "Bioseguridad": ("fa-shield-virus", "Control de incidencias y protocolos de bioseguridad."),
+        "Envío / Traslado": ("fa-truck", "Cadena de custodia y traslado de muestras."),
+    }
+    icon, description = feature_details.get(
+        feature,
+        ("fa-flask", "Esta herramienta formará parte de una próxima actualización."),
+    )
+    return render_template(
+        "proximamente.html",
+        feature=feature,
+        icon=icon,
+        description=description,
+    )
 
 # Ruta de Dashboard
 @app_routes.route("/dashboard")
@@ -278,7 +492,8 @@ def dashboard():
     if rol not in role_map.values():
         session.clear()
         return redirect(url_for("app_routes.login"))
-    return redirect(url_for(f"app_routes.{rol.lower()}_dashboard"))
+    endpoint = current_home_endpoint()
+    return redirect(url_for(endpoint or "app_routes.configuracion"))
 
 
 @app_routes.route('/login', methods=['GET', 'POST'])
@@ -304,11 +519,13 @@ def login():
         session["rol"] = rol
         session["nombres"] = user.get("nombres")
         session["foto_perfil"] = user.get("foto_perfil")
+        session["permisos"] = normalize_permissions(user.get("permisos"))
 
         session['user_id'] = user['id']  # Establecer user_id en la sesión correctamente
         session['empleado_id'] = user.get('empleado_id')
 
-        return redirect(url_for(f"app_routes.{rol.lower()}_dashboard"))
+        endpoint = current_home_endpoint()
+        return redirect(url_for(endpoint or "app_routes.configuracion"))
 
     return render_template('auth/login.html')
 
@@ -322,55 +539,160 @@ def logout():
 @app_routes.route("/admin")
 @require_role("Admin")
 def admin_dashboard():
-    return render_template("admin/admin.html")
+    dashboard = obtener_resumen_admin()
+    return render_template(
+        "admin/admin.html",
+        dashboard_counts=dashboard["counts"],
+        inventory_alerts=dashboard["inventory_alerts"],
+    )
+
+
+@app_routes.route("/api/notifications/today")
+@require_role(role_map.values())
+def notifications_today():
+    rol = session.get("rol")
+    permisos = set(session.get("permisos", []))
+    if rol == "Personalizado":
+        notifications = []
+        if "front.results.deliver" in permisos:
+            notifications.extend(
+                obtener_notificaciones_resultados(session.get("user_id"))
+            )
+        if permisos.intersection({
+            "admin.inventory", "lab.inventory.entry", "lab.results.capture"
+        }):
+            notifications.extend(
+                obtener_notificaciones_inventario(
+                    session.get("user_id"), "Quimico"
+                )
+            )
+    elif rol == "Mostrador":
+        notifications = obtener_notificaciones_resultados(session.get("user_id"))
+    else:
+        notifications = obtener_notificaciones_inventario(session.get("user_id"), rol)
+    return jsonify({
+        "notifications": notifications,
+        "unread": sum(not item.get("read") for item in notifications),
+        "scope": (
+            "combined" if rol == "Personalizado"
+            else "inventory" if rol in {"Admin", "Quimico"}
+            else "results" if rol == "Mostrador"
+            else "personal"
+        ),
+        "subtitle": (
+            "Avisos relacionados con tus permisos"
+            if rol == "Personalizado"
+            else "Alertas diarias de inventario"
+            if rol in {"Admin", "Quimico"}
+            else "Resultados listos para entregar"
+            if rol == "Mostrador"
+            else "Avisos relacionados con tus funciones"
+        ),
+        "empty_message": (
+            "No tienes notificaciones para hoy."
+            if rol == "Personalizado"
+            else "No tienes alertas de inventario para hoy."
+            if rol in {"Admin", "Quimico"}
+            else "No hay resultados nuevos para entregar."
+            if rol == "Mostrador"
+            else "No tienes notificaciones para hoy."
+        ),
+    })
+
+
+@app_routes.route("/api/notifications/read", methods=["POST"])
+@require_role(role_map.values())
+def notifications_read():
+    payload = request.get_json(silent=True) or {}
+    rol = session.get("rol")
+    permisos = set(session.get("permisos", []))
+    current = []
+    if rol in {"Mostrador", "Personalizado"} and (
+        rol == "Mostrador" or "front.results.deliver" in permisos
+    ):
+        current.extend(obtener_notificaciones_resultados(session.get("user_id")))
+    if rol != "Mostrador" and (
+        rol != "Personalizado"
+        or permisos.intersection({
+            "admin.inventory", "lab.inventory.entry", "lab.results.capture"
+        })
+    ):
+        current.extend(obtener_notificaciones_inventario(
+            session.get("user_id"),
+            "Quimico" if rol == "Personalizado" else rol,
+        ))
+    valid_keys = {item["key"] for item in current}
+    requested = payload.get("keys") or []
+    keys = valid_keys if payload.get("all") else valid_keys.intersection(requested)
+    if not marcar_notificaciones_leidas(session.get("user_id"), keys):
+        return jsonify({"message": "No se pudieron guardar las lecturas."}), 500
+    return jsonify({"message": "Notificaciones marcadas como leídas."})
 
 @app_routes.route("/backlog")
 @require_role("Admin")
 def backlog():
-    # Dummy: lista de eventos (solo frontend por ahora)
-    events = [
-        {
-            "when": "2025-09-22 10:14",
-            "module": "Pruebas",
-            "icon": "fas fa-clipboard-check",
-            "severity": "info",
-            "title": "Resultado validado",
-            "detail": "Prueba #A-293014 validada por QFB Martínez"
-        },
-        {
-            "when": "2025-09-22 09:31",
-            "module": "Inventario",
-            "icon": "fas fa-vial",
-            "severity": "warning",
-            "title": "Stock bajo detectado",
-            "detail": "Reactivo Hematoxilina: 5 u (mín. 10)"
-        },
-        {
-            "when": "2025-09-21 18:02",
-            "module": "Pacientes",
-            "icon": "fas fa-id-card",
-            "severity": "success",
-            "title": "Paciente registrado",
-            "detail": "María P. (ID: P-1209) por Mostrador"
-        },
-        {
-            "when": "2025-09-21 16:45",
-            "module": "Proveedores",
-            "icon": "fas fa-truck",
-            "severity": "info",
-            "title": "Orden de compra creada",
-            "detail": "OC-7781 a QuimiLab SA de CV"
-        },
-        {
-            "when": "2025-09-21 12:20",
-            "module": "Doctores",
-            "icon": "fas fa-stethoscope",
-            "severity": "success",
-            "title": "Doctor agregado",
-            "detail": "Dr. Luis R. (CMP 33210)"
-        },
-    ]
-    return render_template("backlog.html", events=events)
+    return render_template("backlog.html")
+
+
+@app_routes.route("/api/backlog/events")
+@require_role("Admin")
+def backlog_events():
+    events = obtener_eventos_bitacora(limit=200)
+    if events is None:
+        return jsonify({
+            "ok": False,
+            "message": (
+                "La bitácora todavía no está disponible. Ejecuta la migración "
+                "20260728_realtime_audit_log.sql en Supabase."
+            ),
+            "events": [],
+        }), 503
+
+    search = (request.args.get("q") or "").strip().casefold()
+    module = (request.args.get("module") or "").strip()
+    severity = (request.args.get("severity") or "").strip()
+
+    filtered = []
+    for event in events:
+        searchable = " ".join(
+            str(event.get(field) or "")
+            for field in (
+                "titulo", "detalle", "modulo", "entidad_id",
+                "actor_nombre", "actor_username"
+            )
+        ).casefold()
+        if search and search not in searchable:
+            continue
+        if module and event.get("modulo") != module:
+            continue
+        if severity and event.get("severidad") != severity:
+            continue
+        filtered.append(event)
+
+    modules = sorted({
+        event.get("modulo") for event in events if event.get("modulo")
+    })
+    today = datetime.now().date().isoformat()
+    stats = {
+        "total": len(events),
+        "today": sum(
+            1 for event in events
+            if str(event.get("creado_en") or "")[:10] == today
+        ),
+        "warnings": sum(
+            1 for event in events
+            if event.get("severidad") in {"warning", "danger"}
+        ),
+        "modules": len(modules),
+    }
+
+    return jsonify({
+        "ok": True,
+        "events": filtered[:100],
+        "modules": modules,
+        "stats": stats,
+        "refreshed_at": datetime.now().isoformat(),
+    })
 
 @app_routes.route("/admin/employees", methods=["GET", "POST"])
 @require_role("Admin")
@@ -394,6 +716,8 @@ def add_employee():
             key: value.strip() if isinstance(value, str) else value
             for key, value in request.form.to_dict().items()
         }
+        selected_permissions = normalize_permissions(request.form.getlist("permisos"))
+        form_data["permisos"] = selected_permissions
         form_data["rol_id"] = form_data.get("tipo_empleado", "")
 
         required_fields = [
@@ -441,6 +765,12 @@ def add_employee():
                 role_map=role_map, estados=estados
             )
         rol_id = int(rol_id)
+        if rol_id == 5 and not selected_permissions:
+            flash("Selecciona al menos un permiso para el perfil personalizado.", "error")
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=False,
+                role_map=role_map, estados=estados
+            )
 
         # Verificar si el usuario ya existe
         existing_user = supabase.table('usuarios').select('id').eq('username', username).execute()
@@ -473,6 +803,33 @@ def add_employee():
         else:
             foto_perfil = None
 
+        signature_file = request.files.get("firma_resultados")
+        signature_extension, signature_error = validate_employee_avatar(signature_file)
+        cedula_profesional = (form_data.get("cedula_profesional") or "").strip() or None
+        puede_firmar = (
+            form_data.get("puede_firmar_resultados") == "on"
+            and rol_id in {1, 4}
+        )
+        if signature_error:
+            flash("La firma debe ser una imagen JPG, PNG, GIF o WEBP válida.", "error")
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=False,
+                role_map=role_map, estados=estados
+            )
+        firma_resultados_url = (
+            save_employee_signature(signature_file, signature_extension)
+            if signature_extension else None
+        )
+        if puede_firmar and (not cedula_profesional or not firma_resultados_url):
+            flash(
+                "Para autorizar la firma registra la cédula profesional y su imagen.",
+                "error",
+            )
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=False,
+                role_map=role_map, estados=estados
+            )
+
         # Encriptar la contraseña con bcrypt
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
@@ -500,7 +857,10 @@ def add_employee():
             "turno": turno,
             "condiciones_medicas": condiciones_medicas,
             "contacto_emergencia": contacto_emergencia,
-            "foto_perfil": foto_perfil
+            "foto_perfil": foto_perfil,
+            "cedula_profesional": cedula_profesional,
+            "firma_resultados_url": firma_resultados_url,
+            "puede_firmar_resultados": puede_firmar,
         }
         employee_response = supabase.table('empleados').insert(employee_data).execute()
         empleado_id = employee_response.data[0]['id']
@@ -508,7 +868,11 @@ def add_employee():
         # Insertar rol en la tabla empleado_roles
         employee_role_data = {"empleado_id": empleado_id, "rol_id": rol_id}
         role_response = supabase.table('empleado_roles').insert(employee_role_data).execute()
+        if rol_id == 5:
+            reemplazar_permisos_empleado(empleado_id, selected_permissions)
+        attribute_audit_event("empleados", empleado_id)
 
+        flash("Empleado registrado correctamente", "success")
         return redirect(url_for('app_routes.manage_employees'))  # Redirección tras éxito
 
     return render_template(
@@ -539,6 +903,10 @@ def edit_employee(empleado_id):
         rol = supabase.table('empleado_roles').select('rol_id').eq('empleado_id', empleado_id).execute()
         if rol.data:
             empleado['rol_id'] = rol.data[0]['rol_id']
+        empleado["permisos"] = (
+            obtener_permisos_empleado(empleado_id)
+            if empleado.get("rol_id") == 5 else []
+        )
 
         # Obtener únicamente el nombre de usuario; la contraseña nunca se envía al formulario.
         usuario = supabase.table('usuarios').select('username').eq('id', empleado['usuario_id']).execute()
@@ -553,6 +921,8 @@ def edit_employee(empleado_id):
             key: value.strip() if isinstance(value, str) else value
             for key, value in request.form.to_dict().items()
         }
+        selected_permissions = normalize_permissions(request.form.getlist("permisos"))
+        form_data["permisos"] = selected_permissions
         form_data["rol_id"] = form_data.get("tipo_empleado", "")
 
         required_fields = [
@@ -601,11 +971,17 @@ def edit_employee(empleado_id):
                 role_map=role_map, estados=estados
             )
         rol_id = int(rol_id)
+        if rol_id == 5 and not selected_permissions:
+            flash("Selecciona al menos un permiso para el perfil personalizado.", "error")
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=True,
+                role_map=role_map, estados=estados
+            )
 
         # Obtener el empleado actual para recuperar el usuario_id
         empleado_actual = (
             supabase.table('empleados')
-            .select('usuario_id, foto_perfil')
+            .select('usuario_id, foto_perfil, cedula_profesional, firma_resultados_url, puede_firmar_resultados')
             .eq('id', empleado_id)
             .execute()
         )
@@ -615,6 +991,7 @@ def edit_employee(empleado_id):
 
         usuario_id = empleado_actual.data[0]['usuario_id']
         foto_actual = empleado_actual.data[0].get('foto_perfil')
+        firma_actual = empleado_actual.data[0].get("firma_resultados_url")
         rol_actual_response = (
             supabase.table("empleado_roles")
             .select("rol_id")
@@ -653,6 +1030,37 @@ def edit_employee(empleado_id):
         else:
             nueva_foto = foto_actual
 
+        signature_file = request.files.get("firma_resultados")
+        signature_extension, signature_error = validate_employee_avatar(signature_file)
+        if signature_error:
+            flash("La firma debe ser una imagen JPG, PNG, GIF o WEBP válida.", "error")
+            form_data["foto_perfil"] = foto_actual
+            form_data["firma_resultados_url"] = firma_actual
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=True,
+                role_map=role_map, estados=estados
+            )
+        nueva_firma = (
+            save_employee_signature(signature_file, signature_extension)
+            if signature_extension else firma_actual
+        )
+        cedula_profesional = (form_data.get("cedula_profesional") or "").strip() or None
+        puede_firmar = (
+            form_data.get("puede_firmar_resultados") == "on"
+            and rol_id in {1, 4}
+        )
+        if puede_firmar and (not cedula_profesional or not nueva_firma):
+            flash(
+                "Para autorizar la firma registra la cédula profesional y su imagen.",
+                "error",
+            )
+            form_data["foto_perfil"] = foto_actual
+            form_data["firma_resultados_url"] = firma_actual
+            return render_template(
+                'admin/edit_employee.html', empleado=form_data, is_edit=True,
+                role_map=role_map, estados=estados
+            )
+
         # Actualizar el usuario
         usuario_data = {"username": username}
         if nueva_password:  # Si se proporciona una nueva contraseña
@@ -679,7 +1087,10 @@ def edit_employee(empleado_id):
             "turno": turno,
             "condiciones_medicas": condiciones_medicas,
             "contacto_emergencia": contacto_emergencia,
-            "foto_perfil": nueva_foto
+            "foto_perfil": nueva_foto,
+            "cedula_profesional": cedula_profesional,
+            "firma_resultados_url": nueva_firma,
+            "puede_firmar_resultados": puede_firmar,
         }
         supabase.table('empleados').update(empleado_data).eq('id', empleado_id).execute()
 
@@ -690,6 +1101,10 @@ def edit_employee(empleado_id):
 
         # Actualizar el rol del empleado
         supabase.table('empleado_roles').update({"rol_id": rol_id}).eq('empleado_id', empleado_id).execute()
+        if rol_id == 5 or rol_actual == 5:
+            reemplazar_permisos_empleado(
+                empleado_id, selected_permissions if rol_id == 5 else []
+            )
         cambios_extra = []
         if nueva_password:
             cambios_extra.append({
@@ -702,6 +1117,12 @@ def edit_employee(empleado_id):
                 "campo": "rol",
                 "anterior": role_map.get(rol_actual, "Sin rol"),
                 "nuevo": role_map.get(rol_id, "Sin rol"),
+            })
+        if rol_id == 5:
+            cambios_extra.append({
+                "campo": "permisos",
+                "anterior": "Configuración anterior",
+                "nuevo": f"{len(selected_permissions)} permisos asignados",
             })
         attribute_audit_event("empleados", empleado_id, cambios_extra)
 
@@ -787,17 +1208,45 @@ def activate_employee(user_id):
 @app_routes.route("/mostrador")
 @require_role("Mostrador")
 def mostrador_dashboard():
-    return render_template("mostrador/mostrador.html")
+    return render_template(
+        "mostrador/mostrador.html",
+        resumen=obtener_resumen_mostrador(),
+    )
 
 @app_routes.route("/enfermero")
 @require_role("Enfermero")
 def enfermero_dashboard():
-    return render_template("enfermero/enfermero.html")
+    pendientes = obtener_ordenes_para_muestra()
+    en_analisis = obtener_ordenes_para_quimico()
+    return render_template(
+        "enfermero/enfermero.html",
+        pendientes=pendientes,
+        en_analisis=en_analisis,
+        resumen={
+            "muestras_pendientes": len(pendientes),
+            "en_analisis": len(en_analisis),
+            "carga_operativa": len(pendientes) + len(en_analisis),
+        },
+    )
 
 @app_routes.route("/quimico")
 @require_role("Quimico")
 def quimico_dashboard():
-    return render_template("quimico/quimico.html")
+    ordenes = obtener_ordenes_para_quimico()
+    faltantes = obtener_ordenes_para_muestra()
+    finalizados = obtener_historial_resultados()
+    return render_template(
+        "quimico/quimico.html",
+        ordenes=ordenes,
+        faltantes=faltantes,
+        finalizados=finalizados,
+        resumen={
+            "ordenes_laboratorio": len(ordenes),
+            "faltantes_muestra": len(faltantes),
+            "carga_operativa": len(ordenes) + len(faltantes),
+            "resultados_finalizados": len(finalizados),
+        },
+    )
 
 # Ruta para la gestión de hospitales con estados únicos
 @app_routes.route('/admin/hospitals')
@@ -814,23 +1263,57 @@ def manage_hospitals():
 
 # Ruta para agregar un hospital
 @app_routes.route('/admin/add_hospital', methods=['GET', 'POST'])
-@require_role("Admin")
+@require_role(["Admin", "Mostrador"])
 def add_hospital():
     """Formulario para agregar un hospital"""
     if request.method == 'POST':
-        nombre = request.form['nombre']
-        telefono = request.form['telefono']
-        correo = request.form['correo']
-        calle = request.form['calle']
-        numero_ext = request.form['numero_ext']
-        numero_int = request.form.get('numero_int', None)
-        codigo_postal = request.form['codigo_postal']
-        municipio = request.form['municipio']
-        estado = request.form['estado']
-        anotaciones = request.form.get('anotaciones', '')
+        form_data = {
+            key: value.strip() if isinstance(value, str) else value
+            for key, value in request.form.to_dict().items()
+        }
+        is_embedded = form_data.pop("embed", "") == "1"
+        required_fields = ('nombre', 'telefono')
+        if not all(form_data.get(field) for field in required_fields):
+            flash("Completa todos los campos obligatorios antes de guardar.", "error")
+            return render_template(
+                'admin/add_hospital.html', hospital=form_data,
+                is_edit=False, estados=estados
+            )
 
-        crear_hospital(nombre, telefono, correo, calle, numero_ext, numero_int, codigo_postal, municipio, estado, anotaciones)
+        nombre = form_data['nombre']
+        telefono = form_data['telefono']
+        correo = form_data.get('correo') or None
+        calle = form_data.get('calle') or None
+        numero_ext = form_data.get('numero_ext') or None
+        numero_int = form_data.get('numero_int') or None
+        codigo_postal = form_data.get('codigo_postal') or None
+        municipio = form_data.get('municipio') or None
+        estado = form_data.get('estado') or None
+        anotaciones = form_data.get('anotaciones', '')
+
+        duplicado = (
+            supabase.table("hospitales")
+            .select("id")
+            .eq("telefono", telefono)
+            .execute()
+        )
+        if duplicado.data:
+            flash("Ya existe un hospital registrado con ese teléfono.", "error")
+            return render_template(
+                "admin/add_hospital.html", hospital=form_data,
+                is_edit=False, estados=estados
+            )
+
+        creado = crear_hospital(nombre, telefono, correo, calle, numero_ext, numero_int, codigo_postal, municipio, estado, anotaciones)
+        if is_embedded and creado:
+            return render_template(
+                "components/embed_success.html",
+                entity="hospital",
+                entity_id=creado[0].get("id"),
+            )
         flash("Hospital registrado exitosamente", "success")
+        if session.get("rol") == "Mostrador":
+            return redirect(url_for("app_routes.manage_orden"))
         return redirect(url_for('app_routes.manage_hospitals'))
     
     return render_template('admin/add_hospital.html', hospital={}, is_edit=False, estados=estados)
@@ -847,18 +1330,31 @@ def edit_hospital(hospital_id):
         return redirect(url_for('app_routes.manage_hospitals'))
 
     if request.method == 'POST':
-        nombre = request.form['nombre']
-        telefono = request.form['telefono']
-        correo = request.form['correo']
-        calle = request.form['calle']
-        numero_ext = request.form['numero_ext']
-        numero_int = request.form.get('numero_int', None)
-        codigo_postal = request.form['codigo_postal']
-        municipio = request.form['municipio']
-        estado = request.form['estado']
-        anotaciones = request.form.get('anotaciones', '')
+        form_data = {
+            key: value.strip() if isinstance(value, str) else value
+            for key, value in request.form.to_dict().items()
+        }
+        required_fields = ('nombre', 'telefono')
+        if not all(form_data.get(field) for field in required_fields):
+            flash("Completa todos los campos obligatorios antes de guardar.", "error")
+            return render_template(
+                'admin/add_hospital.html', hospital=form_data,
+                is_edit=True, estados=estados
+            )
+
+        nombre = form_data['nombre']
+        telefono = form_data['telefono']
+        correo = form_data.get('correo') or None
+        calle = form_data.get('calle') or None
+        numero_ext = form_data.get('numero_ext') or None
+        numero_int = form_data.get('numero_int') or None
+        codigo_postal = form_data.get('codigo_postal') or None
+        municipio = form_data.get('municipio') or None
+        estado = form_data.get('estado') or None
+        anotaciones = form_data.get('anotaciones', '')
 
         actualizar_hospital(hospital_id, nombre, telefono, correo, calle, numero_ext, numero_int, codigo_postal, municipio, estado, anotaciones)
+        attribute_audit_event("hospitales", hospital_id)
         flash("Hospital actualizado exitosamente", "success")
         return redirect(url_for('app_routes.manage_hospitals'))
 
@@ -886,6 +1382,7 @@ def delete_hospital(hospital_id):
     
     try:
         eliminar_hospital(hospital_id)
+        attribute_audit_event("hospitales", hospital_id)
         return jsonify({"message": "Hospital eliminado correctamente."}), 200
     except Exception:
         return jsonify({"message": "Error al eliminar hospital."}), 500
@@ -912,6 +1409,7 @@ def activate_hospital(hospital_id):
     
     try:
         response = supabase.table('hospitales').update({"activo": True}).eq('id', hospital_id).execute()
+        attribute_audit_event("hospitales", hospital_id)
         return jsonify({"message": "Hospital activado correctamente."}), 200
     except Exception:
         return jsonify({"message": "Error al activar hospital."}), 500
@@ -994,17 +1492,37 @@ def manage_doctores():
     return render_template("admin/doctores.html", doctores=doctores)
 
 @app_routes.route("/admin/add_doctor", methods=["GET", "POST"])
-@require_role("Admin")
+@require_role(["Admin", "Mostrador"])
 def add_doctor():
     hospitales = supabase.table("hospitales").select("id, nombre").execute().data
 
     if request.method == "POST":
-        nombres = request.form["nombres"].strip()
-        apellidos = request.form["apellidos"].strip()
-        telefono = request.form["telefono"].strip()
-        correo = request.form["correo"].strip()
-        tipo_consultorio = request.form["tipo_consultorio"]
-        anotaciones = request.form.get("anotaciones", "")
+        form_data = {
+            key: value.strip() if isinstance(value, str) else value
+            for key, value in request.form.to_dict().items()
+        }
+        is_embedded = form_data.pop("embed", "") == "1"
+        nombres = form_data.get("nombres", "")
+        apellidos = form_data.get("apellidos", "")
+        telefono = form_data.get("telefono", "")
+        correo = form_data.get("correo", "")
+        tipo_consultorio = form_data.get("tipo_consultorio", "")
+        anotaciones = form_data.get("anotaciones", "")
+
+        required_data = all((nombres, apellidos, telefono))
+        valid_office = tipo_consultorio in {"na", "propio", "hospital"}
+        valid_address = tipo_consultorio != "propio" or all(
+            form_data.get(field)
+            for field in ("calle", "numero_ext", "codigo_postal", "municipio", "estado")
+        )
+        valid_hospital = tipo_consultorio != "hospital" or form_data.get("hospital_id")
+
+        if not all((required_data, valid_office, valid_address, valid_hospital)):
+            flash("Completa todos los campos obligatorios antes de guardar.", "error")
+            return render_template(
+                "admin/add_doctor.html", doctor=form_data, hospitales=hospitales,
+                estados=estados, is_edit=False
+            )
 
         # Validación de duplicados (sin .and_())
         exists_by_data = supabase.table("doctores").select("id") \
@@ -1013,15 +1531,16 @@ def add_doctor():
             .eq("telefono", telefono) \
             .execute()
 
-        exists_by_email = supabase.table("doctores").select("id") \
-            .eq("correo", correo) \
-            .execute()
+        exists_by_email = (
+            supabase.table("doctores").select("id").eq("correo", correo).execute()
+            if correo else None
+        )
 
-        if exists_by_data.data or exists_by_email.data:
+        if exists_by_data.data or (exists_by_email and exists_by_email.data):
             flash("Ya existe un doctor registrado con el mismo nombre, teléfono o correo.", "error")
             return render_template(
                 "admin/add_doctor.html",
-                doctor=request.form,
+                doctor=form_data,
                 hospitales=hospitales,
                 estados=estados,
                 is_edit=False
@@ -1032,25 +1551,25 @@ def add_doctor():
             "nombres": nombres,
             "apellidos": apellidos,
             "telefono": telefono,
-            "correo": correo,
-            "tipo_consultorio": tipo_consultorio,
+            "correo": correo or None,
+            "tipo_consultorio": tipo_consultorio or "na",
             "anotaciones": anotaciones,
             "activo": True
         }
 
         if tipo_consultorio == "propio":
             data.update({
-                "calle": request.form.get("calle"),
-                "numero_ext": request.form.get("numero_ext"),
-                "numero_int": request.form.get("numero_int"),
-                "codigo_postal": request.form.get("codigo_postal"),
-                "municipio": request.form.get("municipio"),
-                "estado": request.form.get("estado"),
+                "calle": form_data.get("calle"),
+                "numero_ext": form_data.get("numero_ext"),
+                "numero_int": form_data.get("numero_int") or None,
+                "codigo_postal": form_data.get("codigo_postal"),
+                "municipio": form_data.get("municipio"),
+                "estado": form_data.get("estado"),
                 "hospital_id": None
             })
         elif tipo_consultorio == "hospital":
             data.update({
-                "hospital_id": request.form.get("hospital_id"),
+                "hospital_id": form_data.get("hospital_id"),
                 "calle": None,
                 "numero_ext": None,
                 "numero_int": None,
@@ -1069,8 +1588,16 @@ def add_doctor():
                 "estado": None
             })
 
-        crear_doctor(data)
+        creado = crear_doctor(data)
+        if is_embedded and creado:
+            return render_template(
+                "components/embed_success.html",
+                entity="doctor",
+                entity_id=creado.get("id"),
+            )
         flash("Doctor registrado correctamente.", "success")
+        if session.get("rol") == "Mostrador":
+            return redirect(url_for("app_routes.manage_orden"))
         return redirect(url_for("app_routes.manage_doctores"))
 
     return render_template("admin/add_doctor.html", doctor={}, hospitales=hospitales, estados=estados, is_edit=False)
@@ -1091,12 +1618,32 @@ def edit_doctor(doctor_id):
         )
 
     elif request.method == "POST":
-        nombres = request.form["nombres"].strip()
-        apellidos = request.form["apellidos"].strip()
-        telefono = request.form["telefono"].strip()
-        correo = request.form["correo"].strip()
-        tipo_consultorio = request.form["tipo_consultorio"]
-        anotaciones = request.form.get("anotaciones", "")
+        form_data = {
+            key: value.strip() if isinstance(value, str) else value
+            for key, value in request.form.to_dict().items()
+        }
+        nombres = form_data.get("nombres", "")
+        apellidos = form_data.get("apellidos", "")
+        telefono = form_data.get("telefono", "")
+        correo = form_data.get("correo", "")
+        tipo_consultorio = form_data.get("tipo_consultorio", "")
+        anotaciones = form_data.get("anotaciones", "")
+        hospitales = supabase.table("hospitales").select("id, nombre").execute().data
+
+        required_data = all((nombres, apellidos, telefono))
+        valid_office = tipo_consultorio in {"na", "propio", "hospital"}
+        valid_address = tipo_consultorio != "propio" or all(
+            form_data.get(field)
+            for field in ("calle", "numero_ext", "codigo_postal", "municipio", "estado")
+        )
+        valid_hospital = tipo_consultorio != "hospital" or form_data.get("hospital_id")
+
+        if not all((required_data, valid_office, valid_address, valid_hospital)):
+            flash("Completa todos los campos obligatorios antes de guardar.", "error")
+            return render_template(
+                "admin/add_doctor.html", doctor=form_data, hospitales=hospitales,
+                estados=estados, is_edit=True
+            )
 
         # Verificar duplicados en otros doctores
         same_data = supabase.table("doctores").select("id") \
@@ -1106,17 +1653,17 @@ def edit_doctor(doctor_id):
             .neq("id", doctor_id) \
             .execute()
 
-        same_email = supabase.table("doctores").select("id") \
-            .eq("correo", correo) \
-            .neq("id", doctor_id) \
-            .execute()
+        same_email = (
+            supabase.table("doctores").select("id")
+            .eq("correo", correo).neq("id", doctor_id).execute()
+            if correo else None
+        )
 
-        if same_data.data or same_email.data:
+        if same_data.data or (same_email and same_email.data):
             flash("Ya existe otro doctor con los mismos datos. Revisa nombre, teléfono o correo.", "error")
-            hospitales = supabase.table("hospitales").select("id, nombre").execute().data
             return render_template(
                 "admin/add_doctor.html",
-                doctor=request.form,
+                doctor=form_data,
                 hospitales=hospitales,
                 estados=estados,
                 is_edit=True
@@ -1127,24 +1674,24 @@ def edit_doctor(doctor_id):
             "nombres": nombres,
             "apellidos": apellidos,
             "telefono": telefono,
-            "correo": correo,
+            "correo": correo or None,
             "tipo_consultorio": tipo_consultorio,
             "anotaciones": anotaciones
         }
 
         if tipo_consultorio == "propio":
             data.update({
-                "calle": request.form.get("calle"),
-                "numero_ext": request.form.get("numero_ext"),
-                "numero_int": request.form.get("numero_int"),
-                "codigo_postal": request.form.get("codigo_postal"),
-                "municipio": request.form.get("municipio"),
-                "estado": request.form.get("estado"),
+                "calle": form_data.get("calle"),
+                "numero_ext": form_data.get("numero_ext"),
+                "numero_int": form_data.get("numero_int") or None,
+                "codigo_postal": form_data.get("codigo_postal"),
+                "municipio": form_data.get("municipio"),
+                "estado": form_data.get("estado"),
                 "hospital_id": None
             })
         elif tipo_consultorio == "hospital":
             data.update({
-                "hospital_id": request.form.get("hospital_id"),
+                "hospital_id": form_data.get("hospital_id"),
                 "calle": None,
                 "numero_ext": None,
                 "numero_int": None,
@@ -1164,6 +1711,7 @@ def edit_doctor(doctor_id):
             })
 
         actualizar_doctor(doctor_id, data)
+        attribute_audit_event("doctores", doctor_id)
         flash("Doctor actualizado correctamente.", "success")
         return redirect(url_for("app_routes.manage_doctores"))
 
@@ -1190,6 +1738,7 @@ def delete_doctor(doctor_id):
 
     try:
         supabase.table('doctores').update({'activo': False}).eq('id', doctor_id).execute()
+        attribute_audit_event("doctores", doctor_id)
         return jsonify({"message": "Doctor desactivado correctamente."}), 200
     except Exception as e:
         print(f"Error al desactivar doctor: {e}")
@@ -1218,6 +1767,7 @@ def activate_doctor(doctor_id):
 
     try:
         supabase.table('doctores').update({'activo': True}).eq('id', doctor_id).execute()
+        attribute_audit_event("doctores", doctor_id)
         return jsonify({"message": "Doctor activado correctamente."}), 200
     except Exception as e:
         print(f"Error al activar doctor: {e}")
@@ -1256,6 +1806,20 @@ def manage_patients():
     pacientes = obtener_pacientes()
     return render_template('admin/patients.html', pacientes=pacientes, rol=session.get("rol"))
 
+
+@app_routes.route("/pacientes/<int:patient_id>/historial")
+@require_role(["Admin", "Mostrador"])
+def historial_paciente(patient_id):
+    paciente = obtener_paciente_por_id(patient_id)
+    if not paciente:
+        flash("No se encontró el expediente del paciente.", "error")
+        return redirect(url_for("app_routes.manage_patients"))
+    return render_template(
+        "mostrador/historial_paciente.html",
+        paciente=paciente,
+        ordenes=obtener_historial_ordenes_paciente(patient_id),
+    )
+
 # CREAR
 @app_routes.route('/admin/add_patient', methods=['GET', 'POST'])
 @require_role(['Admin', 'Mostrador'])
@@ -1263,6 +1827,7 @@ def add_patient():
     hospitales = obtener_hospitales()
     if request.method == 'POST':
         data = request.form.to_dict()
+        is_embedded = data.pop("embed", "") == "1"
         data["activo"] = True
 
         ok, result = crear_paciente_seguro(data)
@@ -1270,6 +1835,12 @@ def add_patient():
             flash(result, "error")
             return render_template('admin/add_patient.html', is_edit=False, estados=estados, hospitales=hospitales, patient=data)
 
+        if is_embedded:
+            return render_template(
+                "components/embed_success.html",
+                entity="patient",
+                entity_id=result.get("id"),
+            )
         flash("Paciente registrado exitosamente.", "success")
         return redirect(url_for('app_routes.manage_patients'))
 
@@ -1284,6 +1855,7 @@ def edit_patient(patient_id):
 
     if request.method == 'POST':
         data = request.form.to_dict()
+        is_embedded = data.pop("embed", "") == "1"
 
         ok, result = actualizar_paciente_seguro(patient_id, data)
         if not ok:
@@ -1291,6 +1863,13 @@ def edit_patient(patient_id):
             data["id"] = patient_id
             return render_template('admin/add_patient.html', is_edit=True, estados=estados, hospitales=hospitales, patient=data)
 
+        attribute_audit_event("pacientes", patient_id)
+        if is_embedded:
+            return render_template(
+                "components/embed_success.html",
+                entity="patient",
+                entity_id=patient_id,
+            )
         flash("Paciente actualizado correctamente.", "success")
         return redirect(url_for('app_routes.manage_patients'))
 
@@ -1317,6 +1896,7 @@ def delete_patient(patient_id):
 
     try:
         eliminar_paciente(patient_id)
+        attribute_audit_event("pacientes", patient_id)
         return jsonify({"message": "Paciente desactivado correctamente."}), 200
     except Exception as e:
         print(f"Error al desactivar paciente: {e}")
@@ -1371,8 +1951,12 @@ def manage_proveedores():
 @require_role("Admin")
 def add_proveedor():
     if request.method == "POST":
-        data = request.form.to_dict()
+        data = {key: value.strip() for key, value in request.form.to_dict().items()}
         data["activo"] = True
+
+        if data.get("tipo") not in {"producto", "servicio"} or not data.get("nombre"):
+            flash("Selecciona el tipo y escribe el nombre del proveedor.", "error")
+            return render_template("admin/add_proveedor.html", proveedor=data, is_edit=False, estados=estados)
 
         ok, result = crear_proveedor_seguro(data)
         if not ok:
@@ -1398,8 +1982,10 @@ def edit_proveedor(proveedor_id):
         ok, result = actualizar_proveedor_seguro(proveedor_id, data)
         if not ok:
             flash(result, "error")
+            data["id"] = proveedor_id
             return render_template("admin/add_proveedor.html", proveedor=data, is_edit=True, estados=estados)
 
+        attribute_audit_event("proveedores", proveedor_id)
         flash("Proveedor actualizado correctamente.", "success")
         return redirect(url_for("app_routes.manage_proveedores"))
 
@@ -1417,6 +2003,7 @@ def delete_proveedor(proveedor_id):
         return jsonify({"message": "Contraseña incorrecta."}), 401
 
     desactivar_proveedor(proveedor_id)
+    attribute_audit_event("proveedores", proveedor_id)
     return jsonify({"message": "Proveedor desactivado correctamente."}), 200
 
 @app_routes.route("/admin/activate_proveedor/<int:proveedor_id>", methods=["POST"])
@@ -1431,6 +2018,7 @@ def activate_proveedor(proveedor_id):
         return jsonify({"message": "Contraseña incorrecta."}), 401
 
     activar_proveedor(proveedor_id)
+    attribute_audit_event("proveedores", proveedor_id)
     return jsonify({"message": "Proveedor activado correctamente."}), 200
 
 # VERIFICAR DUPLICADOS (AJAX)
@@ -1455,9 +2043,10 @@ def manage_inventory():
 
 
 @app_routes.route("/admin/inventory/entry", methods=["GET", "POST"])
-@require_role("Admin")
+@require_role("Admin, Quimico")
 def registrar_entrada_inventario():
     reactivos = [reactivo for reactivo in obtener_reactivos() if reactivo.get("activo")]
+    lotes = obtener_lotes_reactivos(solo_con_existencia=True)
 
     if request.method == "POST":
         reactivo_id = request.form.get("reactivo_id", "").strip()
@@ -1476,6 +2065,7 @@ def registrar_entrada_inventario():
                 "admin/inventory_entry.html",
                 reactivos=reactivos,
                 movimientos=obtener_movimientos_inventario(),
+                lotes=lotes,
             )
 
         ok, result = registrar_entrada_reactivo(
@@ -1491,7 +2081,7 @@ def registrar_entrada_inventario():
             nueva_existencia = result.get("existencia_nueva") if isinstance(result, dict) else None
             suffix = f" Nueva existencia: {nueva_existencia}." if nueva_existencia is not None else ""
             flash(f"Entrada registrada correctamente.{suffix}", "success")
-            return redirect(url_for("app_routes.manage_inventory"))
+            return redirect(url_for("app_routes.registrar_entrada_inventario"))
 
         flash(result, "error")
 
@@ -1499,6 +2089,7 @@ def registrar_entrada_inventario():
         "admin/inventory_entry.html",
         reactivos=reactivos,
         movimientos=obtener_movimientos_inventario(),
+        lotes=lotes,
     )
 
 
@@ -1507,7 +2098,12 @@ def registrar_entrada_inventario():
 @require_role("Admin")
 def add_reactivo():
     if request.method == "POST":
-        data = request.form.to_dict()
+        data = {key: value.strip() for key, value in request.form.to_dict().items()}
+        alert_days = sorted({
+            int(value) for value in request.form.getlist("alertas_vencimiento_dias")
+            if value.isdigit() and int(value) in {7, 15, 30, 60, 90}
+        }, reverse=True)
+        data["alertas_vencimiento_dias"] = alert_days
 
         # CORREGIR clave 'proveedor' → 'proveedor_id'
         if 'proveedor' in data:
@@ -1529,7 +2125,9 @@ def add_reactivo():
             )
 
         try:
-            if float(data["costo_unidad"]) < 0 or float(data["precio_unidad"]) < 0 or int(data["cantidad_inicial"]) < 0:
+            data["alerta_existencia_minima"] = int(data.get("alerta_existencia_minima") or 0)
+            if (float(data["costo_unidad"]) < 0 or float(data["precio_unidad"]) < 0
+                    or int(data["cantidad_inicial"]) < 0 or data["alerta_existencia_minima"] < 0):
                 raise ValueError
         except ValueError:
             flash("Costo, precio y cantidad deben ser valores válidos y no negativos.", "error")
@@ -1591,6 +2189,27 @@ def edit_reactivo(reactivo_id):
         fecha_vencimiento = request.form.get('fecha_vencimiento')
         ubicacion_inventario = request.form.get('ubicacion_inventario')
         anotaciones = request.form.get('anotaciones')
+        alerta_existencia_minima = request.form.get("alerta_existencia_minima", "0")
+        alertas_vencimiento_dias = sorted({
+            int(value) for value in request.form.getlist("alertas_vencimiento_dias")
+            if value.isdigit() and int(value) in {7, 15, 30, 60, 90}
+        }, reverse=True)
+        submitted_reactivo = {
+            **reactivo,
+            "id": reactivo_id,
+            "nombre": (nombre or "").strip(),
+            "tipo_reactivo": (tipo_reactivo or "").strip(),
+            "costo_unidad": costo_unidad,
+            "precio_unidad": precio_unidad,
+            "proveedor_id": int(proveedor_id) if str(proveedor_id or "").isdigit() else proveedor_id,
+            "fecha_entrada": fecha_entrada,
+            "numero_lote": (numero_lote or "").strip() or None,
+            "fecha_vencimiento": fecha_vencimiento or None,
+            "ubicacion_inventario": (ubicacion_inventario or "").strip() or None,
+            "anotaciones": (anotaciones or "").strip() or None,
+            "alerta_existencia_minima": alerta_existencia_minima,
+            "alertas_vencimiento_dias": alertas_vencimiento_dias,
+        }
 
         if any(not str(value or "").strip() for value in (
             nombre, tipo_reactivo, costo_unidad, precio_unidad, proveedor_id, fecha_entrada
@@ -1598,36 +2217,67 @@ def edit_reactivo(reactivo_id):
             flash("Completa todos los campos obligatorios del reactivo.", "error")
             return render_template(
                 "admin/add_reactivo.html",
-                reactivo=reactivo,
+                reactivo=submitted_reactivo,
                 proveedores=proveedores,
                 is_edit=True,
             )
 
         try:
-            if float(costo_unidad) < 0 or float(precio_unidad) < 0:
+            alerta_existencia_minima = int(alerta_existencia_minima)
+            submitted_reactivo["alerta_existencia_minima"] = alerta_existencia_minima
+            if float(costo_unidad) < 0 or float(precio_unidad) < 0 or alerta_existencia_minima < 0:
                 raise ValueError
         except ValueError:
             flash("Costo y precio deben ser valores válidos y no negativos.", "error")
             return render_template(
                 "admin/add_reactivo.html",
-                reactivo=reactivo,
+                reactivo=submitted_reactivo,
                 proveedores=proveedores,
                 is_edit=True,
             )
         
-        # Actualiza el reactivo en la base de datos
-        supabase.table('reactivos').update({
-            'nombre': nombre,
-            'tipo_reactivo': tipo_reactivo,
+        update_data = {
+            'nombre': submitted_reactivo["nombre"],
+            'tipo_reactivo': submitted_reactivo["tipo_reactivo"],
             'costo_unidad': costo_unidad,
             'precio_unidad': precio_unidad,
-            'proveedor_id': proveedor_id,
+            'proveedor_id': submitted_reactivo["proveedor_id"],
             'fecha_entrada': fecha_entrada,
-            'numero_lote': numero_lote.strip() or None,
-            'fecha_vencimiento': fecha_vencimiento or None,
-            'ubicacion_inventario': ubicacion_inventario.strip() or None,
-            'anotaciones': anotaciones.strip() or None
-        }).eq('id', reactivo_id).execute()
+            'numero_lote': submitted_reactivo["numero_lote"],
+            'fecha_vencimiento': submitted_reactivo["fecha_vencimiento"],
+            'ubicacion_inventario': submitted_reactivo["ubicacion_inventario"],
+            'anotaciones': submitted_reactivo["anotaciones"],
+            'alerta_existencia_minima': alerta_existencia_minima,
+            'alertas_vencimiento_dias': alertas_vencimiento_dias,
+        }
+        try:
+            supabase.table('reactivos').update(update_data).eq('id', reactivo_id).execute()
+            attribute_audit_event("reactivos", reactivo_id)
+        except Exception as error:
+            error_text = str(error)
+            if (
+                "PGRST204" in error_text
+                or "alerta_existencia_minima" in error_text
+                or "alertas_vencimiento_dias" in error_text
+            ):
+                flash(
+                    "Supabase todavía no tiene las columnas de alertas. "
+                    "Ejecuta la migración 20260728_inventory_alert_notifications.sql "
+                    "y vuelve a intentarlo.",
+                    "error",
+                )
+            else:
+                print(f"Error al actualizar reactivo {reactivo_id}: {error}")
+                flash(
+                    "No se pudo actualizar el reactivo. Verifica los datos e inténtalo nuevamente.",
+                    "error",
+                )
+            return render_template(
+                "admin/add_reactivo.html",
+                reactivo=submitted_reactivo,
+                proveedores=proveedores,
+                is_edit=True,
+            )
         
         flash("Reactivo actualizado correctamente", "success")
         return redirect(url_for('app_routes.manage_inventory'))
@@ -1650,6 +2300,7 @@ def delete_reactivo(reactivo_id):
     try:
         # Desactivar el reactivo
         supabase.table('reactivos').update({"activo": False}).eq('id', reactivo_id).execute()
+        attribute_audit_event("reactivos", reactivo_id)
         return jsonify({"message": "Reactivo desactivado correctamente."}), 200
     except Exception as e:
         print(f"Error al eliminar reactivo: {e}")
@@ -1671,6 +2322,7 @@ def activate_reactivo(reactivo_id):
     try:
         # Activar el reactivo
         supabase.table('reactivos').update({"activo": True}).eq('id', reactivo_id).execute()
+        attribute_audit_event("reactivos", reactivo_id)
         return jsonify({"message": "Reactivo activado correctamente."}), 200
     except Exception as e:
         print(f"Error al activar reactivo: {e}")
@@ -1695,7 +2347,8 @@ def get_reactivo_details(reactivo_id):
                 "precio_unidad": reactivo['precio_unidad'],
                 "fecha_entrada": reactivo['fecha_entrada'],
                 "fecha_vencimiento": reactivo['fecha_vencimiento'],
-                "proveedor_nombre": proveedor['nombre'] if proveedor else "N/A"  # Retorna el nombre del proveedor
+                "proveedor_nombre": proveedor['nombre'] if proveedor else "N/A",
+                "lotes": obtener_lotes_reactivos(reactivo_id, solo_con_existencia=True),
             }), 200
         else:
             return jsonify({"message": "Reactivo no encontrado"}), 404
@@ -1855,6 +2508,7 @@ def edit_prueba(prueba_id):
                 valor.get('estructura', {}) or {}
             )
 
+        attribute_audit_event("pruebas_clinicas", prueba_id)
         flash("Prueba actualizada correctamente", "success")
         return redirect(url_for('app_routes.pruebas_clinicas'))
 
@@ -1893,6 +2547,7 @@ def delete_prueba(prueba_id):
 
     try:
         supabase.table('pruebas_clinicas').update({'activo': False}).eq('id', prueba_id).execute()
+        attribute_audit_event("pruebas_clinicas", prueba_id)
         return jsonify({"message": "Prueba desactivada correctamente."}), 200
     except Exception as e:
         print(f"Error al desactivar prueba: {e}")
@@ -1914,6 +2569,7 @@ def activate_prueba(prueba_id):
 
     try:
         supabase.table('pruebas_clinicas').update({'activo': True}).eq('id', prueba_id).execute()
+        attribute_audit_event("pruebas_clinicas", prueba_id)
         return jsonify({"message": "Prueba activada correctamente."}), 200
     except Exception as e:
         print(f"Error al activar prueba: {e}")
@@ -1921,6 +2577,17 @@ def activate_prueba(prueba_id):
 
 
 #Mostrador
+@app_routes.route("/orden/nueva", methods=["GET"])
+@require_role("Mostrador")
+def nueva_orden():
+    """Inicia un expediente limpio sin afectar el borrador al volver de pasos posteriores."""
+    session.pop("orden_actual", None)
+    session.pop("pruebas_seleccionadas", None)
+    session.pop("orden_id_db", None)
+    session.modified = True
+    return redirect(url_for("app_routes.manage_orden"))
+
+
 @app_routes.route("/orden", methods=["GET", "POST"])
 @require_role("Mostrador")
 def manage_orden():
@@ -1949,14 +2616,15 @@ def manage_orden():
                 hospitales=hospitales,
                 doctores=doctores,
                 folio_sugerido=folio_sugerido,
+                orden_form=request.form,
             )
 
         # OK: puedes guardar en sesión para siguiente paso
         session["orden_actual"] = {
             "patient_id": int(patient_id),
-            "hospital_id": int(hospital_id),
-            "cuarto": cuarto,
-            "doctor_id": int(doctor_id),
+            "hospital_id": as_int_or_none(hospital_id) if hospital_id != "none" else None,
+            "cuarto": cuarto if hospital_id != "none" else None,
+            "doctor_id": as_int_or_none(doctor_id) if doctor_id != "none" else None,
             "observaciones": observaciones,
         }
         return redirect(url_for("app_routes.manage_orden_pruebas"))
@@ -1966,12 +2634,28 @@ def manage_orden():
     hospitales = obtener_hospitales()
     doctores = obtener_doctores()
     folio_sugerido = obtener_siguiente_folio_orden()
+    draft = session.get("orden_actual") or {}
+    patient = obtener_paciente_por_id(draft.get("patient_id")) if draft.get("patient_id") else None
+    order_form = {}
+    if draft:
+        order_form = {
+            "patient_id": draft.get("patient_id") or "",
+            "nombre": (
+                f"{patient.get('nombres', '')} {patient.get('apellidos', '')}".strip()
+                if patient else ""
+            ),
+            "hospital": draft.get("hospital_id") or "none",
+            "cuarto": draft.get("cuarto") or "",
+            "doctor": draft.get("doctor_id") or "none",
+            "observaciones": draft.get("observaciones") or "",
+        }
     return render_template(
         "mostrador/orden.html",
         fecha_actual=fecha_actual,
         hospitales=hospitales,
         doctores=doctores,
         folio_sugerido=folio_sugerido,
+        orden_form=order_form,
     )
 
 
@@ -1983,6 +2667,25 @@ def api_validar_orden():
 
     ok = len(errors) == 0
     return jsonify({"ok": ok, "errors": errors}), (200 if ok else 400)
+
+
+@app_routes.route("/api/orden/catalogos", methods=["GET"])
+@require_role("Mostrador")
+def api_catalogos_orden():
+    hospitales = [
+        {"id": hospital["id"], "nombre": hospital["nombre"]}
+        for hospital in obtener_hospitales()
+        if hospital.get("activo", True) is True
+    ]
+    doctores = [
+        {
+            "id": doctor["id"],
+            "nombre": f"{doctor.get('nombres', '')} {doctor.get('apellidos', '')}".strip(),
+        }
+        for doctor in obtener_doctores()
+        if doctor.get("activo", True) is True
+    ]
+    return jsonify({"hospitales": hospitales, "doctores": doctores})
 
     
 @app_routes.route("/api/buscar_pacientes")
@@ -1999,13 +2702,55 @@ def buscar_pacientes():
     resultados = [
         {
             'id': p['id'],
-            'nombre_completo': f"{p['nombres']} {p['apellidos']}"
+            'nombre_completo': f"{p['nombres']} {p['apellidos']}",
+            'telefono': p.get('telefono'),
+            'correo': p.get('correo'),
+            'sexo': p.get('sexo'),
+            'fecha_nacimiento': p.get('fecha_nacimiento'),
+            'direccion': ", ".join(filter(None, [
+                " ".join(filter(None, [
+                    p.get('calle'), p.get('numero_ext'),
+                    f"Int. {p.get('numero_int')}" if p.get('numero_int') else None,
+                ])),
+                p.get('municipio'),
+                p.get('estado'),
+                p.get('codigo_postal'),
+            ])),
         }
         for p in pacientes
-        if query.lower() in p['nombres'].lower() or query.lower() in p['apellidos'].lower()
+        if p.get("activo", True) is True and (
+            query.lower() in p['nombres'].lower()
+            or query.lower() in p['apellidos'].lower()
+        )
     ][:10]  # limitar resultados a 10
 
     return jsonify(resultados)
+
+
+@app_routes.route("/api/paciente/<int:patient_id>/resumen")
+@require_role("Mostrador")
+def resumen_paciente_orden(patient_id):
+    paciente = obtener_paciente_por_id(patient_id)
+    if not paciente or paciente.get("activo", True) is False:
+        return jsonify({"message": "Paciente no encontrado."}), 404
+    return jsonify({
+        "id": paciente["id"],
+        "nombre_completo": f"{paciente.get('nombres', '')} {paciente.get('apellidos', '')}".strip(),
+        "telefono": paciente.get("telefono"),
+        "correo": paciente.get("correo"),
+        "sexo": paciente.get("sexo"),
+        "fecha_nacimiento": paciente.get("fecha_nacimiento"),
+        "direccion": ", ".join(filter(None, [
+            " ".join(filter(None, [
+                paciente.get("calle"),
+                paciente.get("numero_ext"),
+                f"Int. {paciente.get('numero_int')}" if paciente.get("numero_int") else None,
+            ])),
+            paciente.get("municipio"),
+            paciente.get("estado"),
+            paciente.get("codigo_postal"),
+        ])),
+    })
 
 
 @app_routes.route("/reporte", methods=["GET", "POST"])
@@ -2021,7 +2766,27 @@ def reporte():
                 datos = json.loads(datos_raw)
             except Exception:
                 datos = []
-            session["pruebas_seleccionadas"] = datos
+            session["pruebas_seleccionadas"] = normalize_order_studies(datos)
+            session.modified = True
+        orden_actual = session.get("orden_actual")
+        estudios = session.get("pruebas_seleccionadas", [])
+        if not orden_actual or not estudios:
+            flash("Completa la orden y selecciona al menos un estudio.", "error")
+            return redirect(url_for("app_routes.manage_orden_pruebas"))
+        if not session.get("orden_id_db"):
+            try:
+                orden_id = crear_orden_atomica(
+                    orden_actual,
+                    estudios,
+                    session.get("empleado_id"),
+                )
+                session["orden_id_db"] = orden_id
+                session.modified = True
+                flash(f"Orden #{orden_id} creada. Ya puedes registrar el abono.", "success")
+            except Exception as exc:
+                logger.exception("No se pudo crear la orden antes del abono")
+                flash(str(exc), "error")
+                return redirect(url_for("app_routes.manage_orden_pruebas"))
         return redirect(url_for("app_routes.reporte"))
 
     # ---------------------------------
@@ -2263,41 +3028,58 @@ def imprimir_orden():
 @require_role("Mostrador")
 def abonar_orden(orden_id: int):
     orden_id_session = session.get("orden_id_db")
+    reporte_orden_url = url_for("app_routes.reporte", orden_id=orden_id)
 
     if not orden_id_session or orden_id_session != orden_id:
         flash("Primero guarda la orden (Imprimir) antes de registrar abonos.", "error")
-        return redirect(url_for("app_routes.reporte"))
+        return redirect(reporte_orden_url)
 
     orden_db = obtener_orden_por_id(orden_id)
     if not orden_db:
         flash("La orden no existe en la base de datos. Vuelve a guardarla.", "error")
         # limpia el folio fantasma para que al imprimir se vuelva a crear
         session.pop("orden_id_db", None)
-        return redirect(url_for("app_routes.reporte"))
+        return redirect(reporte_orden_url)
 
     cantidad_str = request.form.get("cantidad")
     nota = request.form.get("nota")
+    metodo_pago = (request.form.get("metodo_pago") or "").strip().lower()
+    metodo_pago_otro = (request.form.get("metodo_pago_otro") or "").strip()
+
+    if metodo_pago not in {"efectivo", "tarjeta", "transferencia", "otro"}:
+        flash("Selecciona un método de pago válido.", "error")
+        return redirect(reporte_orden_url)
+    if metodo_pago == "otro" and not metodo_pago_otro:
+        flash("Especifica el método de pago utilizado.", "error")
+        return redirect(reporte_orden_url)
 
     try:
         cantidad = float(cantidad_str)
     except (TypeError, ValueError):
         flash("Cantidad de abono inválida.", "error")
-        return redirect(url_for("app_routes.reporte"))
+        return redirect(reporte_orden_url)
 
     if cantidad <= 0:
         flash("La cantidad debe ser mayor a cero.", "error")
-        return redirect(url_for("app_routes.reporte"))
+        return redirect(reporte_orden_url)
 
     empleado_id = session.get("empleado_id")
 
     try:
-        registrar_abono(orden_id, cantidad, empleado_id, nota)
+        registrar_abono(
+            orden_id,
+            cantidad,
+            empleado_id,
+            nota,
+            metodo_pago,
+            metodo_pago_otro,
+        )
         flash("Abono registrado correctamente.", "success")
     except Exception as e:
         print("Error al registrar abono:", e)
         flash("Ocurrió un error al registrar el abono.", "error")
 
-    return redirect(url_for("app_routes.reporte"))
+    return redirect(reporte_orden_url)
 
 @app_routes.route("/orden_pruebas")
 @require_role("Mostrador")
@@ -2308,7 +3090,29 @@ def manage_orden_pruebas():
 
     pruebas = obtener_pruebas()  # usa la función ya existente en services.py
     folio_sugerido = obtener_siguiente_folio_orden()
-    return render_template("mostrador/orden_pruebas.html", pruebas=pruebas, folio_sugerido=folio_sugerido)
+    return render_template(
+        "mostrador/orden_pruebas.html",
+        pruebas=pruebas,
+        folio_sugerido=folio_sugerido,
+        seleccionados=session.get("pruebas_seleccionadas", []),
+    )
+
+
+@app_routes.route("/api/orden/estudios", methods=["POST"])
+@require_role("Mostrador")
+def guardar_estudios_orden():
+    if "orden_actual" not in session:
+        return jsonify({"message": "No hay una orden en proceso."}), 400
+    data = request.get_json() or {}
+    studies = normalize_order_studies(data.get("estudios"))
+    session["pruebas_seleccionadas"] = studies
+    session.modified = True
+    return jsonify({
+        "ok": True,
+        "cantidad": len(studies),
+        "total": round(sum(float(item["precio"]) for item in studies), 2),
+        "estudios": studies,
+    })
 
 
 @app_routes.route("/recientes", methods=["GET"])
@@ -2326,9 +3130,43 @@ def recientes():
 @app_routes.route("/listos")
 @require_role("Mostrador")
 def listos():
-    # Obtener las órdenes que ya llegaron a Químico
-    ordenes_quimico = obtener_ordenes_para_quimico()  
-    return render_template("mostrador/listos.html", ordenes_quimico=ordenes_quimico)
+    return render_template(
+        "mostrador/listos.html",
+        resultados_listos=obtener_resultados_listos(),
+        ordenes_quimico=obtener_ordenes_para_quimico(),
+    )
+
+
+@app_routes.route("/api/mostrador/resumen")
+@require_role("Mostrador")
+def api_resumen_mostrador():
+    resumen = obtener_resumen_mostrador(limit=6)
+    return jsonify({
+        key: resumen[key]
+        for key in (
+            "ordenes_hoy", "pagos_pendientes",
+            "muestras_pendientes", "resultados_listos",
+        )
+    })
+
+
+@app_routes.route("/resultados/<int:orden_id>/entregar", methods=["POST"])
+@require_role("Mostrador")
+def entregar_resultado(orden_id):
+    medio = (request.form.get("medio_entrega") or "").strip().lower()
+    if medio not in {"whatsapp", "impreso", "correo", "directo", "otro"}:
+        flash("Selecciona un medio de entrega válido.", "error")
+        return redirect(url_for("app_routes.listos"))
+    try:
+        finalizar_entrega_resultado(orden_id, session.get("user_id"), medio)
+        flash(
+            f"Orden #{orden_id:04d} finalizada y conservada en el historial.",
+            "success",
+        )
+    except Exception:
+        logger.exception("No se pudo finalizar la entrega de la orden %s", orden_id)
+        flash("No se pudo finalizar la entrega del resultado.", "error")
+    return redirect(url_for("app_routes.listos"))
 
 
 # Enfermero
@@ -2342,17 +3180,172 @@ def manage_muestra():
 @app_routes.route("/api/analisis/<int:orden_id>")
 @require_role("Enfermero, Quimico")
 def get_analisis(orden_id):
-    datos = consultar_analisis_por_folio(orden_id)
-    return jsonify(datos)
+    if session.get("rol") == "Quimico":
+        try:
+            captura = obtener_captura_resultados(orden_id) or {}
+            estudios = captura.get("estudios") or []
+            if estudios:
+                return jsonify(estudios)
+        except Exception as exc:
+            logger.exception("No se pudieron consultar los estudios de la orden %s", orden_id)
+            # La consulta básica mantiene disponible "Ver estudios" aunque la
+            # migración de captura estructurada todavía no esté aplicada.
+            estudios = consultar_analisis_por_folio(orden_id)
+            if estudios:
+                return jsonify(estudios)
+            return jsonify({
+                "error": (
+                    "No se pudieron consultar los estudios. Verifica que la "
+                    "migración 20260729_structured_results_inventory.sql esté aplicada."
+                ),
+                "detail": str(exc),
+            }), 500
+    return jsonify(consultar_analisis_por_folio(orden_id))
 
 
 @app_routes.route("/api/muestra/finalizar/<int:orden_id>", methods=["POST"])
 @require_role("Enfermero")
 def api_finalizar_muestra(orden_id):
-    ok = actualizar_flujo_orden(orden_id, "en_quimico")
-    if not ok:
-        return jsonify({"ok": False, "error": "No se pudo actualizar el flujo de la orden"}), 500
-    return jsonify({"ok": True})
+    try:
+        ok = finalizar_muestras_orden(orden_id, session.get("user_id"))
+        return jsonify({"ok": bool(ok)})
+    except Exception as exc:
+        logger.exception("No se pudieron finalizar las muestras de la orden %s", orden_id)
+        return jsonify({
+            "ok": False,
+            "error": "Aún existen muestras pendientes o la orden ya fue procesada.",
+            "detail": str(exc),
+        }), 400
+
+
+@app_routes.route("/api/muestra/<int:orden_id>/requisitos")
+@require_role("Enfermero")
+def api_requisitos_muestra(orden_id):
+    try:
+        muestras = obtener_muestras_orden(orden_id)
+        return jsonify({
+            "ok": True,
+            "muestras": muestras,
+            "completa": bool(muestras) and all(
+                item.get("recolectada") for item in muestras
+            ),
+        })
+    except Exception:
+        logger.exception("No se pudieron consultar las muestras de la orden %s", orden_id)
+        return jsonify({
+            "ok": False,
+            "error": "No se pudieron cargar los requisitos de muestra.",
+        }), 500
+
+
+@app_routes.route("/api/muestra/<int:orden_id>/requisitos", methods=["POST"])
+@require_role("Enfermero")
+def api_actualizar_requisito_muestra(orden_id):
+    payload = request.get_json(silent=True) or {}
+    tipo_muestra = (payload.get("tipo_muestra") or "").strip().lower()
+    if not tipo_muestra:
+        return jsonify({"ok": False, "error": "Indica el tipo de muestra."}), 400
+    try:
+        actualizar_muestra_orden(
+            orden_id,
+            tipo_muestra,
+            payload.get("recolectada") is True,
+            session.get("user_id"),
+            payload.get("observaciones"),
+        )
+        muestras = obtener_muestras_orden(orden_id)
+        return jsonify({
+            "ok": True,
+            "muestras": muestras,
+            "completa": bool(muestras) and all(
+                item.get("recolectada") for item in muestras
+            ),
+        })
+    except Exception:
+        logger.exception("No se pudo actualizar la muestra %s", tipo_muestra)
+        return jsonify({
+            "ok": False,
+            "error": "No se pudo guardar el estado de la muestra.",
+        }), 400
+
+
+@app_routes.route("/enfermero/etiquetas")
+@require_role("Admin, Enfermero")
+def etiquetas_muestra():
+    try:
+        etiquetas = listar_etiquetas_muestra()
+        configuracion = obtener_configuracion_etiquetas()
+    except Exception:
+        logger.exception("No se pudieron cargar las etiquetas de muestras")
+        etiquetas = []
+        configuracion = {
+            "ancho_mm": 60, "alto_mm": 40,
+            "copias_predeterminadas": 1, "mostrar_qr": True,
+        }
+        flash(
+            "No se pudieron cargar las etiquetas. Verifica la migración de Supabase.",
+            "error",
+        )
+    return render_template(
+        "enfermero/etiquetas.html",
+        etiquetas=etiquetas,
+        configuracion=configuracion,
+    )
+
+
+@app_routes.route("/configuracion/etiquetas", methods=["POST"])
+@require_role("Admin")
+def guardar_configuracion_etiquetas():
+    try:
+        formato = (request.form.get("formato") or "60x40").split("x", 1)
+        ancho, alto = int(formato[0]), int(formato[1])
+        copias = int(request.form.get("copias") or 1)
+        actualizar_configuracion_etiquetas(
+            ancho,
+            alto,
+            copias,
+            request.form.get("mostrar_qr") == "on",
+            session.get("user_id"),
+        )
+        flash("Configuración de etiquetas actualizada.", "success")
+    except Exception:
+        logger.exception("No se pudo actualizar la configuración de etiquetas")
+        flash("No se pudo guardar la configuración de etiquetas.", "error")
+    return redirect(url_for("app_routes.etiquetas_muestra"))
+
+
+@app_routes.route("/api/etiquetas/impresion", methods=["POST"])
+@require_role("Admin, Enfermero")
+def api_registrar_impresion_etiquetas():
+    payload = request.get_json(silent=True) or {}
+    ids = payload.get("muestra_ids") or []
+    try:
+        copias = int(payload.get("copias") or 1)
+        if not ids or copias not in range(1, 11):
+            raise ValueError("Selección de impresión inválida")
+        registradas = registrar_impresion_etiquetas(
+            ids, copias, session.get("user_id")
+        )
+        return jsonify({"ok": True, "registradas": registradas})
+    except Exception:
+        logger.exception("No se pudo registrar la impresión de etiquetas")
+        return jsonify({
+            "ok": False,
+            "error": "No se pudo registrar la impresión.",
+        }), 400
+
+
+@app_routes.route("/muestras/escanear/<uuid:token>")
+@require_role("Admin, Enfermero, Quimico")
+def escanear_etiqueta_muestra(token):
+    try:
+        muestra = obtener_etiqueta_por_token(token)
+    except Exception:
+        logger.exception("No se pudo consultar la etiqueta %s", token)
+        muestra = None
+    if not muestra:
+        return render_template("errors/404.html"), 404
+    return render_template("enfermero/etiqueta_scan.html", muestra=muestra)
 
 # Químico
 @app_routes.route("/resultados")
@@ -2360,15 +3353,57 @@ def api_finalizar_muestra(orden_id):
 def resultados():
     ordenes = obtener_ordenes_para_quimico()     # flujo = 'en_quimico'
     faltantes = obtener_ordenes_para_muestra()   # flujo = 'muestra_pendiente'
+    for orden in ordenes:
+        orden["estado_captura"] = "por_analizar"
+        try:
+            captura = obtener_captura_resultados(orden.get("id")) or {}
+            estudios = captura.get("estudios") or []
+            if estudios and all(item.get("ejecuciones") for item in estudios):
+                orden["estado_captura"] = "listo_para_finalizar"
+            elif estudios and all(
+                item.get("elementos")
+                and all(
+                    str(elemento.get("id")) in (
+                        (item.get("borrador") or {}).get("valores") or {}
+                    )
+                    for elemento in item.get("elementos") or []
+                )
+                for item in estudios
+            ):
+                orden["estado_captura"] = "listo_para_reportar"
+            elif any((item.get("borrador") or {}).get("valores") for item in estudios):
+                orden["estado_captura"] = "en_captura"
+        except Exception:
+            logger.exception(
+                "No se pudo calcular el estado de captura de la orden %s",
+                orden.get("id"),
+            )
     return render_template(
         "quimico/resultados.html",
         ordenes=ordenes,
         faltantes=faltantes
     )
 
-@app_routes.route('/orden/<int:orden_id>/captura_resultados', methods=['GET'])
+
+@app_routes.route("/resultados/finalizados")
 @require_role("Quimico")
-def captura_resultados(orden_id):
+def historial_resultados():
+    resultados_finalizados = obtener_historial_resultados()
+    return render_template(
+        "quimico/resultados_finalizados.html",
+        resultados=resultados_finalizados,
+        entregados=sum(
+            1 for item in resultados_finalizados if item.get("entregado") is True
+        ),
+        pendientes=sum(
+            1 for item in resultados_finalizados if item.get("entregado") is not True
+        ),
+    )
+
+
+@app_routes.route('/legacy/orden/<int:orden_id>/captura_resultados', methods=['GET'])
+@require_role("Quimico")
+def captura_resultados_legacy(orden_id):
     # Paso 1: Obtener las pruebas asociadas con la orden desde 'orden_pruebas_detalle'
     pruebas_query = supabase.table('orden_pruebas_detalle') \
         .select('id, nombre_prueba, prueba_id, orden_id') \
@@ -2426,6 +3461,178 @@ def captura_resultados(orden_id):
 
     # Pasar el paciente y las pruebas junto con la orden a la plantilla
     return render_template('quimico/resultados_captura.html', orden=orden_id, paciente=paciente, pruebas=pruebas)
+
+
+@app_routes.route('/orden/<int:orden_id>/captura_resultados', methods=['GET'])
+@require_role("Quimico")
+def captura_resultados(orden_id):
+    try:
+        captura = obtener_captura_resultados(orden_id)
+    except Exception:
+        logger.exception("No se pudo cargar la captura de la orden %s", orden_id)
+        flash("No se pudo cargar la orden. Verifica la migración de resultados.", "error")
+        return redirect(url_for("app_routes.resultados"))
+    if not captura or not captura.get("estudios"):
+        flash("La orden no existe o no tiene estudios registrados.", "error")
+        return redirect(url_for("app_routes.resultados"))
+
+    paciente = captura.get("paciente") or {}
+    for estudio in captura["estudios"]:
+        for elemento in estudio.get("elementos") or []:
+            elemento["referencia_aplicable"] = resolve_clinical_reference(
+                elemento, paciente
+            )
+        ejecuciones = estudio.get("ejecuciones") or []
+        estudio["ultima_ejecucion"] = ejecuciones[0] if ejecuciones else None
+        estudio["tiene_resultado_fuera"] = bool(
+            ejecuciones and any(
+                item.get("estado") in {"alto", "bajo", "fuera"}
+                for item in (ejecuciones[0].get("evaluaciones") or {}).values()
+            )
+        )
+        estudio["verificacion_registrada"] = bool(
+            ejecuciones and (
+                ejecuciones[0].get("es_verificacion")
+                or any(
+                    item.get("verificado") is True
+                    for item in (ejecuciones[0].get("evaluaciones") or {}).values()
+                )
+            )
+        )
+    return render_template(
+        "quimico/resultados_captura.html",
+        orden=captura.get("orden") or {},
+        paciente=paciente,
+        estudios=captura["estudios"],
+    )
+
+
+@app_routes.route("/api/resultados/ejecutar", methods=["POST"])
+@require_role("Quimico")
+def api_ejecutar_resultado():
+    payload = request.get_json(silent=True) or {}
+    try:
+        orden_id = int(payload.get("orden_id"))
+        detalle_id = int(payload.get("detalle_id"))
+        captura = obtener_captura_resultados(orden_id) or {}
+        estudio = next(
+            (
+                item for item in captura.get("estudios") or []
+                if int(item.get("detalle_id")) == detalle_id
+            ),
+            None,
+        )
+        if not estudio:
+            return jsonify({"ok": False, "error": "El estudio no pertenece a la orden."}), 404
+
+        valores_entrada = payload.get("valores") or {}
+        verificaciones_entrada = payload.get("verificaciones") or {}
+        valores = {}
+        evaluaciones = {}
+        for elemento in estudio.get("elementos") or []:
+            key = str(elemento.get("id"))
+            value = str(valores_entrada.get(key, "")).strip()
+            if not value:
+                return jsonify({
+                    "ok": False,
+                    "error": f"Captura el resultado de {elemento.get('nombre')}.",
+                    "campo": key,
+                }), 400
+            reference = resolve_clinical_reference(
+                elemento, captura.get("paciente") or {}
+            )
+            evaluation = evaluate_clinical_value(value, reference)
+            if evaluation["estado"] == "invalido":
+                return jsonify({
+                    "ok": False,
+                    "error": f"El resultado de {elemento.get('nombre')} no es válido.",
+                    "campo": key,
+                }), 400
+            valores[key] = value
+            evaluation["verificado"] = verificaciones_entrada.get(key) is True
+            evaluaciones[key] = evaluation
+
+        result = registrar_ejecucion_resultado(
+            orden_id,
+            detalle_id,
+            valores,
+            evaluaciones,
+            session.get("user_id"),
+            payload.get("clave_idempotencia") or uuid.uuid4(),
+            payload.get("verificacion_de_id"),
+        )
+        return jsonify({"ok": True, "ejecucion": result, "evaluaciones": evaluaciones})
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Los datos de la captura no son válidos."}), 400
+    except Exception as exc:
+        logger.exception("No se pudo registrar la ejecución del estudio")
+        message = str(exc)
+        if "Inventario insuficiente" in message or "lotes vigentes" in message:
+            message = (
+                "El reactivo no tiene lotes vigentes suficientes. Ejecuta la "
+                "migración actualizada para registrar el déficit sin bloquear "
+                "el resultado."
+            )
+            status = 409
+        else:
+            message = "No se pudo completar el estudio. Revisa los datos e intenta nuevamente."
+            status = 400
+        return jsonify({"ok": False, "error": message}), status
+
+
+@app_routes.route("/api/resultados/borrador", methods=["POST"])
+@require_role("Quimico")
+def api_guardar_borrador_resultado():
+    payload = request.get_json(silent=True) or {}
+    try:
+        orden_id = int(payload.get("orden_id"))
+        detalle_id = int(payload.get("detalle_id"))
+        captura = obtener_captura_resultados(orden_id) or {}
+        estudio = next(
+            (
+                item for item in captura.get("estudios") or []
+                if int(item.get("detalle_id")) == detalle_id
+            ),
+            None,
+        )
+        if not estudio:
+            return jsonify({"ok": False, "error": "El estudio no pertenece a la orden."}), 404
+
+        allowed = {str(item.get("id")) for item in estudio.get("elementos") or []}
+        valores = {
+            str(key): str(value).strip()
+            for key, value in (payload.get("valores") or {}).items()
+            if str(key) in allowed and str(value).strip()
+        }
+        for key, checked in (payload.get("verificaciones") or {}).items():
+            if str(key) in allowed and checked is True:
+                valores[f"__verificado_{key}"] = True
+        if not valores:
+            return jsonify({
+                "ok": False,
+                "error": "Captura al menos un resultado para guardar el avance.",
+            }), 400
+        borrador = guardar_borrador_resultado(
+            orden_id, detalle_id, valores, session.get("user_id")
+        )
+        return jsonify({
+            "ok": True,
+            "borrador": borrador,
+            "message": "Avance guardado. Puedes continuar después.",
+        })
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Los datos del avance no son válidos."}), 400
+    except Exception as exc:
+        logger.exception("No se pudo guardar el avance del resultado")
+        message = str(exc)
+        if "PGRST202" in message or "guardar_borrador_resultado_app" in message:
+            message = (
+                "Falta habilitar el guardado parcial en Supabase. "
+                "Ejecuta la migración 20260729_result_drafts_patch.sql."
+            )
+        else:
+            message = "No se pudo guardar el avance. Intenta nuevamente."
+        return jsonify({"ok": False, "error": message}), 400
 
 
 @app_routes.route('/ordenes/resultados', methods=['GET'])
@@ -2491,9 +3698,9 @@ def guardar_resultados():
 
 
 
-@app_routes.route('/finalizar_resultados', methods=['POST'])
+@app_routes.route('/legacy/finalizar_resultados', methods=['POST'])
 @require_role("Quimico")
-def finalizar_resultados():
+def finalizar_resultados_legacy():
     orden_id = request.json.get('orden_id')  # ID de la orden
     # Verificar que todos los campos estén llenos y los resultados están completos
     resultado_query = supabase.table('resultados_paciente') \
@@ -2520,6 +3727,91 @@ def finalizar_resultados():
         .execute()
     
     return jsonify({"message": "Resultados finalizados y listos para mostrador"}), 200
+
+@app_routes.route('/finalizar_resultados', methods=['POST'])
+@require_role("Quimico")
+def finalizar_resultados():
+    payload = request.get_json(silent=True) or {}
+    try:
+        orden_id = int(payload.get("orden_id"))
+        finalizar_resultados_orden(orden_id, session.get("user_id"))
+        return jsonify({
+            "ok": True,
+            "message": "Resultados finalizados y enviados a mostrador.",
+        })
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "La orden no es válida."}), 400
+    except Exception as exc:
+        logger.exception("No se pudieron finalizar los resultados")
+        message = str(exc)
+        if "Faltan estudios por capturar" in message:
+            message = (
+                "Aún faltan estudios por completar. Guardar un avance no "
+                "equivale a completar el estudio."
+            )
+        else:
+            message = "No se pudo finalizar la orden. Intenta nuevamente."
+        return jsonify({"ok": False, "error": message}), 400
+
+
+@app_routes.route("/resultados/<int:orden_id>/imprimir")
+@require_role("Mostrador, Quimico")
+def imprimir_resultados_laboratorio(orden_id):
+    try:
+        captura = obtener_captura_resultados(orden_id) or {}
+    except Exception:
+        logger.exception("No se pudo preparar la impresión de la orden %s", orden_id)
+        flash("No se pudieron cargar los resultados para imprimir.", "error")
+        return redirect(url_for("app_routes.listos"))
+    if not captura:
+        flash("No se encontró la orden solicitada.", "error")
+        return redirect(url_for("app_routes.listos"))
+
+    estudios_impresos = []
+    for estudio in captura.get("estudios") or []:
+        ejecuciones = estudio.get("ejecuciones") or []
+        if not ejecuciones:
+            continue
+        latest = ejecuciones[0]
+        rows = []
+        for elemento in estudio.get("elementos") or []:
+            key = str(elemento.get("id"))
+            evaluation = (latest.get("evaluaciones") or {}).get(key) or {}
+            rows.append({
+                "nombre": elemento.get("nombre"),
+                "valor": (latest.get("valores") or {}).get(key),
+                "unidad": evaluation.get("unidad") or "",
+                "referencia": evaluation.get("referencia") or "Sin referencia",
+                "estado": evaluation.get("estado") or "sin_referencia",
+                "verificado": evaluation.get("verificado") is True,
+            })
+        estudios_impresos.append({
+            "nombre": estudio.get("nombre_prueba"),
+            "tipo": estudio.get("tipo_prueba"),
+            "resultados": rows,
+            "verificado": bool(latest.get("es_verificacion")) or any(
+                row.get("verificado") for row in rows
+            ),
+            "numero_ejecucion": latest.get("numero_ejecucion"),
+            "capturado_en": latest.get("creado_en"),
+        })
+    if not estudios_impresos:
+        flash("La orden todavía no tiene estudios terminados para imprimir.", "error")
+        return redirect(url_for("app_routes.resultados"))
+    try:
+        firma = obtener_firma_resultado(orden_id)
+    except Exception:
+        logger.exception("No se pudo cargar la firma de la orden %s", orden_id)
+        firma = {}
+    return render_template(
+        "resultados/imprimir.html",
+        orden=captura.get("orden") or {},
+        paciente=captura.get("paciente") or {},
+        estudios=estudios_impresos,
+        firma=firma,
+        fecha_impresion=datetime.now().strftime("%d/%m/%Y %H:%M"),
+    )
+
 
 @app_routes.route('/mostrar_resultados', methods=['GET'])
 @require_role("Mostrador")
