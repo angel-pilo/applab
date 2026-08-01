@@ -1,205 +1,124 @@
 {% extends "base.html" %}
 
-{% block title %}Pruebas{% endblock %}
+{% block title %}Seleccionar estudios | AppLab{% endblock %}
 
 {% block content %}
-
-<div class="w-full max-w-7xl mx-auto px-6 py-8">
-  <div class="flex items-center space-x-2 mb-6">
-    <button class="text-2xl" onclick="window.history.back()">
+<div class="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <a href="{{ url_for('app_routes.manage_orden') }}"
+       class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm hover:text-gray-900"
+       aria-label="Volver a los datos de la orden">
       <i class="fas fa-arrow-left"></i>
-    </button>
-    <h1 class="text-3xl font-bold">Pruebas</h1>
+    </a>
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Orden clínica · Paso 2 de 3</p>
+      <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight text-gray-900">Seleccionar estudios</h1>
+          <p class="mt-2 text-sm text-gray-500">Agrega los análisis solicitados y revisa el importe antes de continuar al abono.</p>
+        </div>
+        <span class="self-start rounded-lg bg-[#0b1f33] px-3 py-2 text-sm font-bold text-white sm:self-auto">
+          Folio {{ "#%04d"|format(folio_sugerido) if folio_sugerido else "#0000" }}
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <div id="studies-alert" class="hidden rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
+    <i class="fas fa-exclamation-circle mr-2"></i>Selecciona al menos un estudio para continuar.
   </div>
 
-  <div class="flex flex-col lg:flex-row items-start justify-between gap-8">
-    <div class="bg-white rounded-[1rem] shadow-md overflow-x-auto max-w-[1200px] w-full">
-      <div class="flex items-center gap-4 p-4">
-        <input type="text" id="buscador-pruebas" placeholder="Buscar"
-               class="border rounded px-4 py-2 w-full max-w-md focus:outline-none focus:ring">
-        <button type="button" class="border px-4 py-2 rounded shadow hover:bg-gray-100">Filtro</button>
-      </div>
+  <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_23rem]">
+    <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm" aria-labelledby="catalog-title">
+      <header class="border-b border-gray-200 p-4 sm:p-5">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 id="catalog-title" class="font-bold text-gray-900">Catálogo de estudios</h2>
+            <p class="text-sm text-gray-500">Solo se muestran estudios activos.</p>
+          </div>
+          <label class="relative block w-full sm:w-80">
+            <span class="sr-only">Buscar estudio</span>
+            <i class="fas fa-search pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input id="study-search" type="search" placeholder="Buscar por nombre o tipo..."
+                   class="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-cyan-400 focus:bg-white focus:ring-2 focus:ring-cyan-100">
+          </label>
+        </div>
+      </header>
 
-      <table class="min-w-full text-base text-left">
-        <thead>
-          <tr class="border-t border-b">
-            <th class="px-6 py-2">
-              <input type="checkbox" id="select-all">
-            </th>
-            <th class="px-6 py-4 text-blue-600 font-semibold">ID ⬇</th>
-            <th class="px-6 py-4 font-semibold text-gray-700">Prueba</th>
-            <th class="px-6 py-4 font-semibold text-gray-700">Tipo de prueba</th>
-            <th class="px-6 py-4 font-semibold text-gray-700 text-right">Venta</th>
-          </tr>
-        </thead>
-        <tbody id="tabla-pruebas">
-          {% for prueba in pruebas %}
-          <tr class="border-b hover:bg-gray-50"
-              data-id="{{ prueba.id }}"
-              data-nombre="{{ prueba.nombre }}"
-              data-tipo="{{ prueba.tipo }}"
-              data-precio="{{ prueba.precio or 0 }}">
-            <td class="px-6 py-2">
-              <input type="checkbox" class="seleccionar-prueba">
-            </td>
-            <td class="px-6 py-2">{{ prueba.id }}</td>
-            <td class="px-6 py-2">{{ prueba.nombre }}</td>
-            <td class="px-6 py-2">{{ prueba.tipo }}</td>
-            <td class="px-6 py-2 text-right">
-              ${{ "%.2f"|format(prueba.precio or 0) }}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="bg-white border border-gray-200 shadow-lg rounded-[1rem] p-6 w-full lg:w-[420px] self-start">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-bold">Orden
-          <span class="text-lg font-bold text-red-600"> <!-- Esto es para simular folio sin meter en la base de datos -->
-            {% if folio_sugerido %}
-              #{{ "%04d"|format(folio_sugerido) }}  
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-left text-sm">
+          <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th class="w-14 px-4 py-3 text-center">Agregar</th>
+              <th class="px-4 py-3">Estudio</th>
+              <th class="px-4 py-3">Tipo</th>
+              <th class="px-4 py-3 text-right">Precio</th>
+            </tr>
+          </thead>
+          <tbody id="study-catalog" class="divide-y divide-gray-100">
+            {% for prueba in pruebas if prueba.activo is not defined or prueba.activo %}
+            <tr class="study-row cursor-pointer transition hover:bg-cyan-50/50"
+                data-id="{{ prueba.id }}"
+                data-name="{{ prueba.nombre }}"
+                data-type="{{ prueba.tipo }}"
+                data-price="{{ prueba.precio or 0 }}"
+                data-search="{{ (prueba.nombre ~ ' ' ~ prueba.tipo)|lower }}">
+              <td class="px-4 py-3 text-center">
+                <input type="checkbox" class="study-checkbox h-4 w-4 rounded border-gray-300 text-cyan-700 focus:ring-cyan-500"
+                       aria-label="Agregar {{ prueba.nombre }}">
+              </td>
+              <td class="px-4 py-3">
+                <strong class="block font-semibold text-gray-900">{{ prueba.nombre }}</strong>
+                <small class="text-gray-400">ID #{{ prueba.id }}</small>
+              </td>
+              <td class="px-4 py-3 text-gray-600">{{ prueba.tipo }}</td>
+              <td class="px-4 py-3 text-right font-semibold text-gray-900">${{ "%.2f"|format(prueba.precio or 0) }}</td>
+            </tr>
             {% else %}
-              #0000
-            {% endif %}
-          </span>
-        </h2>
+            <tr><td colspan="4" class="px-5 py-12 text-center text-gray-500">No hay estudios activos disponibles.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
+      <p id="study-no-results" class="hidden px-5 py-10 text-center text-sm text-gray-500">No encontramos estudios con esa búsqueda.</p>
+    </section>
 
-      <table class="w-full text-base text-left mb-4">
-        <thead>
-          <tr class="border-b">
-            <th class="pb-2">Prueba</th>
-            <th class="pb-2 text-center">Cantidad</th>
-            <th class="pb-2 text-right">Precio final</th>
-          </tr>
-        </thead>
-        <tbody id="tabla-orden"></tbody>
-      </table>
-      <div class="flex justify-between text-lg font-bold mt-4">
-        <span>Total</span>
-        <span id="total-orden">$0.00</span>
+    <aside class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:sticky lg:top-24" aria-labelledby="order-summary-title">
+      <header class="border-b border-gray-200 px-4 py-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 id="order-summary-title" class="font-bold text-gray-900">Estudios seleccionados</h2>
+            <p id="study-save-status" class="mt-0.5 text-xs text-gray-500">Los cambios se guardan automáticamente.</p>
+          </div>
+          <span id="selected-count" class="grid h-8 min-w-8 place-items-center rounded-full bg-cyan-50 px-2 text-xs font-bold text-cyan-700">0</span>
+        </div>
+      </header>
+
+      <div id="selected-empty" class="px-5 py-10 text-center">
+        <span class="mx-auto grid h-11 w-11 place-items-center rounded-full bg-gray-100 text-gray-400"><i class="fas fa-flask"></i></span>
+        <p class="mt-3 text-sm font-semibold text-gray-900">Sin estudios seleccionados</p>
+        <p class="mt-1 text-xs leading-5 text-gray-500">Marca un estudio del catálogo para agregarlo.</p>
       </div>
-    </div>
+      <div id="selected-studies" class="max-h-[25rem] divide-y divide-gray-100 overflow-y-auto"></div>
+
+      <footer class="border-t border-gray-200 bg-gray-50 px-4 py-4">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-semibold text-gray-600">Total de estudios</span>
+          <strong id="studies-total" class="text-xl font-bold text-gray-900">$0.00</strong>
+        </div>
+      </footer>
+    </aside>
   </div>
 
-  <div class="flex justify-end mt-8 gap-4">
-    <form id="form-orden-pruebas" method="POST" action="{{ url_for('app_routes.reporte') }}">
-      <input type="hidden" id="datosSeleccionados" name="datosSeleccionados">
-      <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">Continuar</button>
-    </form>
-    <button type="button" class="btn-cancelar px-6 py-2 rounded-[1rem]" onclick="window.history.back()">Cancelar</button>
-  </div>
+  <form id="studies-form" method="POST" action="{{ url_for('app_routes.reporte') }}" class="flex flex-col-reverse gap-3 border-t border-gray-200 pt-5 sm:flex-row sm:justify-end">
+    <input type="hidden" id="selected-studies-json" name="datosSeleccionados">
+    <a href="{{ url_for('app_routes.manage_orden') }}" class="btn-cancelar text-center">Volver a datos</a>
+    <button type="submit" class="btn-guardar">
+      Continuar al abono <i class="fas fa-arrow-right ml-2"></i>
+    </button>
+  </form>
 </div>
 
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const checkboxes = Array.from(document.querySelectorAll(".seleccionar-prueba"));
-    const tablaOrden = document.getElementById("tabla-orden");
-    const totalOrdenEl = document.getElementById("total-orden");
-    const form = document.getElementById("form-orden-pruebas");
-    const hiddenInput = document.getElementById("datosSeleccionados");
-    const selectAll = document.getElementById("select-all");
-
-    if (selectAll) {
-      selectAll.addEventListener("change", (e) => {
-        const checked = e.target.checked;
-        checkboxes.forEach(cb => {
-          cb.checked = checked;
-        });
-        construirTablaOrden();
-      });
-    }
-
-    checkboxes.forEach(cb => {
-      cb.addEventListener("change", construirTablaOrden);
-    });
-
-    function construirTablaOrden() {
-      tablaOrden.innerHTML = "";
-      let total = 0;
-
-      checkboxes.forEach(cb => {
-        if (!cb.checked) return;
-
-        const row = cb.closest("tr");
-        const nombre = row.dataset.nombre;
-        const tipo = row.dataset.tipo || "";
-        const pruebaId = row.dataset.id;
-        const precioUnitario = parseFloat(row.dataset.precio || "0") || 0;
-
-        const tr = document.createElement("tr");
-        tr.className = "border-b";
-        tr.dataset.pruebaId = pruebaId;
-        tr.dataset.nombrePrueba = nombre;
-        tr.dataset.tipoPrueba = tipo;
-        tr.dataset.precioUnitario = precioUnitario.toString();
-
-        tr.innerHTML = `
-          <td class="py-2">${nombre}</td>
-          <td class="py-2 text-center">
-            <select class="border rounded px-2 py-1 text-base cantidad-select">
-              ${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${n === 1 ? "selected" : ""}>${n}</option>`).join("")}
-            </select>
-          </td>
-          <td class="py-2 text-right precio-final">$${precioUnitario.toFixed(2)}</td>
-        `;
-
-        tablaOrden.appendChild(tr);
-        total += precioUnitario;
-      });
-
-      totalOrdenEl.textContent = `$${total.toFixed(2)}`;
-    }
-
-    tablaOrden.addEventListener("change", (event) => {
-      if (!event.target.classList.contains("cantidad-select")) return;
-
-      const select = event.target;
-      const fila = select.closest("tr");
-      const precioUnitario = parseFloat(fila.dataset.precioUnitario || "0") || 0;
-      const cantidad = parseInt(select.value || "1", 10) || 1;
-      const subtotal = precioUnitario * cantidad;
-
-      const celdaPrecio = fila.querySelector(".precio-final");
-      celdaPrecio.textContent = `$${subtotal.toFixed(2)}`;
-
-      recalcularTotal();
-    });
-
-    function recalcularTotal() {
-      let total = 0;
-      tablaOrden.querySelectorAll(".precio-final").forEach(td => {
-        const valor = parseFloat(td.textContent.replace("$", "").trim() || "0") || 0;
-        total += valor;
-      });
-      totalOrdenEl.textContent = `$${total.toFixed(2)}`;
-    }
-
-    form.addEventListener("submit", () => {
-      const datos = [];
-      tablaOrden.querySelectorAll("tr").forEach(fila => {
-        const nombre = fila.dataset.nombrePrueba || "";
-        const tipo = fila.dataset.tipoPrueba || "";
-        const pruebaId = fila.dataset.pruebaId || null;
-        const select = fila.querySelector(".cantidad-select");
-        const cantidad = select ? select.value : "1";
-        const precioFinal = fila.querySelector(".precio-final").textContent.replace("$", "").trim();
-        const precioUnitario = fila.dataset.precioUnitario || "0";
-
-        datos.push({
-          prueba_id: pruebaId,
-          prueba: nombre,
-          tipo_prueba: tipo,
-          cantidad: cantidad,
-          precio: precioFinal,
-          precio_unitario: precioUnitario
-        });
-      });
-
-      hiddenInput.value = JSON.stringify(datos);
-    });
-  });
-</script>
+<script id="initial-selected-studies" type="application/json">{{ seleccionados|tojson }}</script>
+<script src="{{ url_for('static', filename='js/orden_estudios.js') }}?v=20260728-1"></script>
 {% endblock %}

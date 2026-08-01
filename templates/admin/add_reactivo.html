@@ -80,6 +80,39 @@
 
     <section class="admin-form-card">
       <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon is-cyan"><i class="fas fa-bell"></i></span>
+        <div><h2>Alertas de inventario</h2><p>Define cuándo debe avisarte AppLab sobre existencias y vencimiento.</p></div>
+      </div>
+
+      {% set selected_alert_days = reactivo.alertas_vencimiento_dias if reactivo and reactivo.alertas_vencimiento_dias is defined else [30, 7] %}
+      <div class="admin-form-grid">
+        <div class="admin-field">
+          <label for="alerta_existencia_minima">Avisar cuando queden <span>*</span></label>
+          <input type="number" id="alerta_existencia_minima" name="alerta_existencia_minima"
+                 min="0" step="1"
+                 value="{{ reactivo.alerta_existencia_minima if reactivo and reactivo.alerta_existencia_minima is defined else 0 }}"
+                 required>
+          <small>La alerta aparecerá cuando la existencia sea igual o menor a esta cantidad.</small>
+        </div>
+
+        <fieldset class="admin-field inventory-alert-options">
+          <legend>Avisar antes del vencimiento</legend>
+          <div class="inventory-alert-choice-grid">
+            {% for days, label in [(7, '1 semana'), (15, '15 días'), (30, '1 mes'), (60, '2 meses'), (90, '3 meses')] %}
+            <label>
+              <input type="checkbox" name="alertas_vencimiento_dias" value="{{ days }}"
+                     {% if days in selected_alert_days %}checked{% endif %}>
+              <span><i class="fas fa-calendar-check" aria-hidden="true"></i>{{ label }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <small>Puedes elegir varias opciones o dejar todas sin seleccionar para no recibir avisos previos.</small>
+        </fieldset>
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
         <span class="admin-form-section-icon is-cyan"><i class="fas fa-box-open"></i></span>
         <div><h2>Almacenamiento</h2><p>Lote, vencimiento, ubicación y notas de control.</p></div>
       </div>
