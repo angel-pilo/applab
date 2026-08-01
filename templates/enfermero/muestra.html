@@ -1,126 +1,119 @@
 {% extends "base.html" %}
-
-{% block title %}Faltantes de muestra{% endblock %}
+{% block title %}Faltantes de muestra | AppLab{% endblock %}
 
 {% block content %}
-
-  <script src="{{ url_for('static', filename='js/enfermero.js') }}"></script>
-
-<div class="w-full max-w-7xl mx-auto px-6 py-8">
-  <!-- Encabezado -->
-  <div class="flex items-center space-x-2 mb-6">
-    <button class="text-2xl" onclick="window.history.back()">
-      <i class="fas fa-arrow-left"></i>
-    </button>
-    <h1 class="text-3xl font-bold">Faltantes de muestra</h1>
-  </div>
-
-  <!-- Filtros -->
-  <div class="flex flex-wrap gap-4 mb-6 items-center">
-    <div class="flex items-center gap-2">
-      <span class="h-3 w-3 rounded-full bg-red-600 inline-block"></span>
-      <span>Pendientes de toma</span>
+<div class="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <a href="{{ url_for('app_routes.enfermero_dashboard') }}"
+       class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm"
+       aria-label="Volver a Enfermería"><i class="fas fa-arrow-left"></i></a>
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Enfermería · Etapa preanalítica</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Faltantes de muestra</h1>
+      <p class="mt-2 max-w-3xl text-sm text-gray-500">Confirma cada muestra recibida. La orden pasará a Químico únicamente cuando todos los requisitos estén completos.</p>
     </div>
-    <div class="flex items-center gap-2">
-      <span class="h-3 w-3 rounded-full bg-green-600 inline-block"></span>
-      <span>Enviados a químico</span>
-    </div>
-  </div>
+  </header>
 
-  <!-- Tabla -->
-  <div class="bg-white rounded-[1rem] shadow-md p-6">
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="px-6 py-2 text-red-600 font-semibold">Folio ⬇</th>
-          <th class="px-6 py-2">Nombre del paciente</th>
-          <th class="px-6 py-2">Cuarto / Origen</th>
-          <th class="px-6 py-2 text-center">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if ordenes and ordenes|length > 0 %}
-          {% for orden in ordenes %}
-          <tr class="border-b hover:bg-gray-50">
-            <td class="px-6 py-4 text-red-600 font-bold flex items-center gap-2">
-              <span class="h-3 w-3 rounded-full bg-red-600 inline-block"></span>
-              #{{ "%05d"|format(orden.id) }}
-            </td>
-            <td class="px-6 py-4">
-              {{ orden.nombre_paciente }}
-            </td>
-            <td class="px-6 py-4">
-              {{ orden.cuarto }}
-            </td>
-            <td class="px-6 py-4 flex gap-2 justify-center">
-              <button
-                type="button"
-                onclick="abrirModal({{ orden.id }})"
-                class="btn-cancelar px-4 py-1 rounded-[1rem]"
-              >
-                Análisis
-              </button>
-              <button
-                type="button"
-                class="btn-guardar px-4 py-1 rounded-[1rem] finalizar-btn opacity-50 cursor-not-allowed"
-                data-orden-id="{{ orden.id }}"
-                disabled
-                onclick="finalizarOrden({{ orden.id }})"
-              >
-                Finalizar
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="4" class="text-center text-gray-500 py-4">
-              No hay órdenes pendientes de toma de muestra.
-            </td>
-          </tr>
-        {% endif %}
-      </tbody>
-    </table>
+  <section class="grid gap-3 sm:grid-cols-3">
+    <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div class="flex items-start justify-between">
+        <span class="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-700"><i class="fas fa-vial"></i></span>
+        <strong id="ordenes-pendientes-count" class="text-2xl font-bold text-gray-900">{{ ordenes|length }}</strong>
+      </div>
+      <h2 class="mt-3 text-sm font-bold text-gray-900">Órdenes pendientes</h2>
+      <p class="mt-1 text-xs text-gray-500">Esperan una o más muestras.</p>
+    </article>
+    <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <span class="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><i class="fas fa-save"></i></span>
+      <h2 class="mt-3 text-sm font-bold text-gray-900">Progreso persistente</h2>
+      <p class="mt-1 text-xs text-gray-500">Cada confirmación queda guardada en Supabase.</p>
+    </article>
+    <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <span class="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><i class="fas fa-lock"></i></span>
+      <h2 class="mt-3 text-sm font-bold text-gray-900">Validación segura</h2>
+      <p class="mt-1 text-xs text-gray-500">No se puede finalizar con faltantes.</p>
+    </article>
+  </section>
+
+  <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <header class="flex flex-col gap-3 border-b border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h2 class="font-bold text-gray-900">Bandeja de recepción</h2>
+        <p class="text-sm text-gray-500">Selecciona una orden para revisar sangre, orina u otras muestras requeridas.</p>
+      </div>
+      <label class="relative block w-full sm:max-w-xs">
+        <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        <input id="buscar-muestra" type="search" placeholder="Buscar folio o paciente..."
+               class="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-cyan-500 focus:bg-white focus:ring-2 focus:ring-cyan-100">
+      </label>
+    </header>
+
+    <div id="ordenes-muestra-list" class="divide-y divide-gray-100">
+      {% for orden in ordenes %}
+      {% set total = orden.muestras_total|default(0)|int %}
+      {% set recolectadas = orden.muestras_recolectadas|default(0)|int %}
+      {% set porcentaje = ((recolectadas * 100 / total)|round|int) if total else 0 %}
+      <article class="orden-muestra-row p-4 transition hover:bg-cyan-50/30 sm:p-5"
+               data-order-id="{{ orden.id }}"
+               data-search="{{ orden.id }} {{ orden.nombre_paciente|lower }}">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
+          <div class="flex min-w-0 flex-1 items-center gap-3">
+            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-amber-50 text-sm font-bold text-amber-700">#{{ orden.id }}</span>
+            <div class="min-w-0">
+              <h3 class="truncate font-bold text-gray-900">{{ orden.nombre_paciente }}</h3>
+              <p class="mt-1 text-xs text-gray-500">{{ (orden.creado_en or '')[:10] }} · {{ orden.cuarto or 'Paciente particular' }}</p>
+            </div>
+          </div>
+          <div class="w-full lg:w-64">
+            <div class="mb-1.5 flex justify-between text-xs">
+              <span class="font-medium text-gray-600">Muestras recolectadas</span>
+              <strong class="order-progress-label text-gray-900">{{ recolectadas }}/{{ total }}</strong>
+            </div>
+            <div class="h-2 overflow-hidden rounded-full bg-gray-100">
+              <span class="order-progress-bar block h-full rounded-full bg-cyan-600 transition-all" style="width: {{ porcentaje }}%"></span>
+            </div>
+          </div>
+          <button type="button" data-open-samples="{{ orden.id }}"
+                  class="inline-flex h-10 items-center justify-center rounded-xl bg-[#0b1f33] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#123654]">
+            <i class="fas fa-clipboard-check mr-2"></i>Revisar muestras
+          </button>
+        </div>
+      </article>
+      {% else %}
+      <div id="muestras-empty" class="px-5 py-16 text-center">
+        <span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><i class="fas fa-check-double"></i></span>
+        <h3 class="mt-4 font-bold text-gray-900">Sin muestras pendientes</h3>
+        <p class="mt-1 text-sm text-gray-500">Las órdenes generadas por Mostrador aparecerán aquí.</p>
+      </div>
+      {% endfor %}
+      <div id="muestras-search-empty" class="hidden px-5 py-12 text-center text-sm text-gray-500">No hay órdenes que coincidan con la búsqueda.</div>
+    </div>
+  </section>
+</div>
+
+<div id="sample-modal" class="fixed inset-0 z-[9999] hidden" role="dialog" aria-modal="true" aria-labelledby="sample-modal-title">
+  <button type="button" class="absolute inset-0 bg-slate-950/55 backdrop-blur-[1px]" data-close-samples aria-label="Cerrar"></button>
+  <div class="absolute left-1/2 top-1/2 flex max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <header class="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-cyan-700">Control preanalítico</p>
+        <h2 id="sample-modal-title" class="mt-1 text-lg font-bold text-gray-900">Requisitos de muestra</h2>
+        <p id="sample-modal-progress" class="mt-1 text-sm text-gray-500">Cargando información...</p>
+      </div>
+      <button type="button" data-close-samples class="grid h-9 w-9 place-items-center rounded-lg border border-gray-200 text-gray-500"><i class="fas fa-times"></i></button>
+    </header>
+    <div id="sample-modal-body" class="min-h-48 flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5"></div>
+    <footer class="flex flex-col-reverse gap-3 border-t border-gray-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <p id="sample-save-status" class="text-xs text-gray-500">Los cambios se guardan automáticamente.</p>
+      <div class="flex justify-end gap-2">
+        <button type="button" data-close-samples class="btn-cancelar">Cerrar</button>
+        <button id="finalize-samples" type="button" class="btn-guardar opacity-50" disabled>
+          <i class="fas fa-paper-plane mr-2"></i>Enviar a Químico
+        </button>
+      </div>
+    </footer>
   </div>
 </div>
 
-<!-- Modal -->
-<div id="modal-analisis" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-  <div class="bg-white rounded-[1rem] w-[90%] max-w-xl p-6 relative shadow-lg">
-    <h2 class="text-xl font-bold text-center mb-4">Análisis</h2>
-    
-    <table class="w-full text-sm text-left mb-6">
-      <thead>
-        <tr class="border-b">
-          <th class="pb-2 w-6"></th> <!-- Checkbox -->
-          <th class="pb-2">Análisis</th>
-          <th class="pb-2">Tipo de prueba</th>
-        </tr>
-      </thead>
-      <tbody id="analisis-body">
-        <!-- Se insertan dinámicamente -->
-      </tbody>
-    </table>
-
-    <div class="flex justify-center">
-      <button
-        type="button"
-        onclick="cerrarModal()"
-        class="btn-cancelar px-6 py-2 rounded-[1rem] mr-2"
-      >
-        Cerrar
-      </button>
-      <button
-        type="button"
-        onclick="guardarSeleccion(), cerrarModal()"
-        class="btn-guardar px-6 py-2 rounded-[1rem]"
-      >
-        Guardar selección
-      </button>
-    </div>
-  </div>
-</div>
-
-
-
+<script src="{{ url_for('static', filename='js/enfermero.js') }}"></script>
 {% endblock %}

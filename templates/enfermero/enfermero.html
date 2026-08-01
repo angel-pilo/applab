@@ -1,289 +1,133 @@
 {% extends "base.html" %}
-{% block title %}Dashboard Enfermero{% endblock %}
+{% block title %}Panel de enfermería | AppLab{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-
-  <!-- Header -->
-  <div class="mb-2 flex items-center justify-between gap-4">
+<div class="mx-auto w-full max-w-7xl space-y-7 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="flex flex-col gap-5 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <h1 class="text-2xl font-bold tracking-tight text-gray-900">Enfermería</h1>
-      <p class="text-sm text-gray-500">Toma, recepción y control de muestras</p>
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Atención preanalítica</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Panel de enfermería</h1>
+      <p class="mt-2 text-sm text-gray-500">Recepción, verificación y envío de muestras al área de laboratorio.</p>
     </div>
-    <div class="flex items-center gap-2">
+    {% if has_permission('nursing.samples') %}
+    <a href="{{ url_for('app_routes.manage_muestra') }}"
+       class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0b1f33] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#123654]">
+      <i class="fas fa-vial" aria-hidden="true"></i>
+      <span>Gestionar muestras</span>
+    </a>
+    {% endif %}
+  </header>
+
+  <section aria-labelledby="resumen-enfermeria">
+    <div class="mb-4">
+      <h2 id="resumen-enfermeria" class="text-lg font-bold text-gray-900">Resumen operativo</h2>
+      <p class="text-sm text-gray-500">Estado actual de las órdenes dentro del flujo preanalítico.</p>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-3">
+      {% set indicators = [
+        ('Muestras pendientes', resumen.muestras_pendientes, 'Órdenes que requieren recepción o toma.', 'fa-vial', 'bg-amber-50 text-amber-700 ring-amber-100'),
+        ('En análisis', resumen.en_analisis, 'Muestras enviadas al área de Químico.', 'fa-flask', 'bg-cyan-50 text-cyan-700 ring-cyan-100'),
+        ('Carga operativa', resumen.carga_operativa, 'Órdenes activas entre ambas etapas.', 'fa-clipboard-check', 'bg-violet-50 text-violet-700 ring-violet-100')
+      ] %}
+      {% for label, value, description, icon, colors in indicators %}
+      <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+        <div class="flex items-start justify-between gap-4">
+          <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 {{ colors }}">
+            <i class="fas {{ icon }}" aria-hidden="true"></i>
+          </span>
+          <strong class="text-3xl font-bold tracking-tight text-gray-900">{{ value }}</strong>
+        </div>
+        <h3 class="mt-4 text-sm font-bold text-gray-900">{{ label }}</h3>
+        <p class="mt-1 text-xs leading-5 text-gray-500">{{ description }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section aria-labelledby="acciones-enfermeria">
+    <h2 id="acciones-enfermeria" class="mb-4 text-lg font-bold text-gray-900">Accesos de enfermería</h2>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {% if has_permission('nursing.samples') %}
       <a href="{{ url_for('app_routes.manage_muestra') }}"
-         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition">
-        <i class="fas fa-vial"></i> Faltantes de muestra
+         class="group flex min-h-28 items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-md">
+        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><i class="fas fa-vial"></i></span>
+        <span class="min-w-0">
+          <strong class="block text-sm font-bold text-gray-900">Faltantes de muestra</strong>
+          <small class="mt-1 block leading-5 text-gray-500">Revisa análisis y completa la recepción.</small>
+        </span>
+        <span class="ml-auto rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-bold text-cyan-700">{{ resumen.muestras_pendientes }}</span>
       </a>
-      <a href="#"
-         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition">
-        <i class="fas fa-qrcode"></i> Imprimir etiquetas
+      {% endif %}
+
+      {% if has_permission('nursing.labels') %}
+      <a href="{{ url_for('app_routes.etiquetas_muestra') }}"
+         class="group flex min-h-28 items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md">
+        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700"><i class="fas fa-qrcode"></i></span>
+        <span class="min-w-0">
+          <strong class="block text-sm font-bold text-gray-900">Etiquetas y QR</strong>
+          <small class="mt-1 block leading-5 text-gray-500">Identifica e imprime etiquetas de muestras.</small>
+        </span>
+        <i class="fas fa-chevron-right ml-auto text-xs text-gray-300"></i>
       </a>
-    </div>
-  </div>
+      {% endif %}
 
-  <!-- KPIs superiores (dummy) -->
-  <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-    <!-- Faltantes -->
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-indigo-50 ring-1 ring-indigo-200">
-          <i class="fas fa-vial text-indigo-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Faltantes de muestra</p>
-          <p class="text-2xl font-bold text-gray-900">9</p>
-        </div>
-      </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">+2</span>
-    </div>
-
-    <!-- Recolectadas hoy -->
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-emerald-50 ring-1 ring-emerald-200">
-          <i class="fas fa-vials text-emerald-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Recolectadas (hoy)</p>
-          <p class="text-2xl font-bold text-gray-900">37</p>
-        </div>
-      </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">↑</span>
-    </div>
-
-    <!-- Incidencias bioseguridad -->
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-rose-50 ring-1 ring-rose-200">
-          <i class="fas fa-exclamation-triangle text-rose-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Incidencias (hoy)</p>
-          <p class="text-2xl font-bold text-gray-900">1</p>
-        </div>
-      </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">!</span>
-    </div>
-
-    <!-- En traslado -->
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-amber-50 ring-1 ring-amber-200">
-          <i class="fas fa-truck text-amber-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Muestras en traslado</p>
-          <p class="text-2xl font-bold text-gray-900">4</p>
-        </div>
-      </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">→</span>
+      {% for title, description, icon, feature, colors in [
+        ('Registro de toma', 'Hora, tipo de muestra y observaciones.', 'fa-syringe', 'Registro de toma', 'bg-emerald-50 text-emerald-700'),
+        ('Incidencias', 'Registro de rechazo o bioseguridad.', 'fa-shield-virus', 'Bioseguridad', 'bg-rose-50 text-rose-700')
+      ] %}
+      <a href="{{ url_for('app_routes.proximamente', feature=feature) }}"
+         class="group flex min-h-28 items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md">
+        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl {{ colors }}"><i class="fas {{ icon }}"></i></span>
+        <span class="min-w-0">
+          <strong class="block text-sm font-bold text-gray-900">{{ title }}</strong>
+          <small class="mt-1 block leading-5 text-gray-500">{{ description }}</small>
+          <small class="mt-2 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Próximamente</small>
+        </span>
+      </a>
+      {% endfor %}
     </div>
   </section>
 
-  <!-- Accesos rápidos -->
-  <section>
-    <h2 class="text-lg font-semibold text-gray-900 mb-3">Accesos de enfermería</h2>
-    <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-
-      <!-- Faltantes de muestra -->
-      <a href="{{ url_for('app_routes.manage_muestra') }}"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">9</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-vial text-8xl text-indigo-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-indigo-200 bg-indigo-50">
-            <i class="fas fa-vial text-indigo-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Faltantes de muestra</h3>
-            <p class="text-sm text-gray-500">Órdenes sin muestra registrada</p>
-          </div>
-        </div>
-      </a>
-
-      <!-- Registro de toma -->
-      <a href="{{ url_for('app_routes.proximamente', feature='Registro de toma') }}"
-        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-        aria-label="Registro de toma próximamente">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">Hoy</span>
-        <div class="absolute -right-4 -top-4 opacity-10">
-          <i class="fas fa-syringe text-8xl text-emerald-600"></i>
-        </div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-emerald-200 bg-emerald-50">
-            <i class="fas fa-syringe text-emerald-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Registro de toma</h3>
-            <p class="text-sm text-gray-500">Captura de hora, tipo y observaciones</p>
-          </div>
-        </div>
-      </a>
-
-      <!-- Etiquetas / QR -->
-      <a href="{{ url_for('app_routes.proximamente', feature='Etiquetas / QR') }}"
-        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-        aria-label="Etiquetas y QR próximamente">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-slate-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">QR</span>
-        <div class="absolute -right-4 -top-4 opacity-10">
-          <i class="fas fa-qrcode text-8xl text-slate-600"></i>
-        </div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-slate-200 bg-slate-50">
-            <i class="fas fa-qrcode text-slate-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Etiquetas / QR</h3>
-            <p class="text-sm text-gray-500">Imprimir y pegar en contenedores</p>
-          </div>
-        </div>
-      </a>
-
-      <!-- Bioseguridad -->
-      <a href="{{ url_for('app_routes.proximamente', feature='Bioseguridad') }}"
-        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-        aria-label="Bioseguridad próximamente">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">1</span>
-        <div class="absolute -right-4 -top-4 opacity-10">
-          <i class="fas fa-shield-virus text-8xl text-rose-600"></i>
-        </div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-rose-200 bg-rose-50">
-            <i class="fas fa-shield-virus text-rose-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Bioseguridad</h3>
-            <p class="text-sm text-gray-500">Incidencias y bitácora</p>
-          </div>
-        </div>
-      </a>
-
-      <!-- Envío / Traslado -->
-      <a href="{{ url_for('app_routes.proximamente', feature='Envío / Traslado') }}"
-        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-        aria-label="Envío y traslado próximamente">
-        <div class="absolute -right-4 -top-4 opacity-10">
-          <i class="fas fa-truck text-8xl text-amber-600"></i>
-        </div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-amber-200 bg-amber-50">
-            <i class="fas fa-truck text-amber-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Envío / Traslado</h3>
-            <p class="text-sm text-gray-500">Cadena de custodia y recepción</p>
-          </div>
-        </div>
-      </a>
-
-      <!-- Configuración (sin badge) -->
-      <a href="{{ url_for('app_routes.configuracion') }}"
-        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-cog text-8xl text-slate-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-slate-200 bg-slate-50">
-            <i class="fas fa-cog text-slate-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Configuración</h3>
-            <p class="text-sm text-gray-500">Preferencias de enfermería</p>
-          </div>
-        </div>
-      </a>
-
-    </div>
-  </section>
-
-  <!-- Bandeja: Faltantes de muestra (dummy) -->
-  <section class="rounded-2xl ring-1 ring-gray-200 bg-white p-5">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="text-base font-semibold text-gray-900">
-        <i class="fas fa-vial text-indigo-600 mr-2"></i> Faltantes de muestra (hoy)
-      </h3>
-      <div class="flex gap-2">
-        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200">Actualizar</button>
-        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200">Filtrar</button>
+  {% if has_permission('nursing.samples') %}
+  <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm" aria-labelledby="pendientes-recientes">
+    <header class="flex items-center justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-5">
+      <div>
+        <h2 id="pendientes-recientes" class="font-bold text-gray-900">Pendientes de muestra</h2>
+        <p class="text-sm text-gray-500">Órdenes que esperan revisión por Enfermería.</p>
       </div>
-    </div>
-    <div class="overflow-x-auto -mx-3">
-      <table class="min-w-full text-sm mx-3">
-        <thead>
-          <tr class="text-left text-gray-500">
-            <th class="py-2">Orden</th>
-            <th class="py-2">Paciente</th>
-            <th class="py-2">Prueba</th>
-            <th class="py-2">Prioridad</th>
-            <th class="py-2">Tiempo</th>
-            <th class="py-2 text-right">Acciones</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y">
-          <!-- Datos dummy; quita o sustituye al conectar a BD -->
-          <tr class="hover:bg-gray-50">
-            <td class="py-2 font-medium text-gray-900">ORD-2101</td>
-            <td class="py-2">María Pérez</td>
-            <td class="py-2">Biometría hemática</td>
-            <td class="py-2">
-              <span class="inline-flex items-center rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-200 px-2 py-0.5">Alta</span>
-            </td>
-            <td class="py-2 text-gray-600">18m</td>
-            <td class="py-2 text-right">
-              <div class="inline-flex gap-1">
-                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
-                <a class="px-2 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" href="#"><i class="fas fa-check" title="Registrar toma"></i></a>
-                <a class="px-2 py-1 rounded-lg bg-slate-600 text-white hover:bg-slate-700" href="#"><i class="fas fa-qrcode" title="Etiquetas"></i></a>
-              </div>
-            </td>
-          </tr>
-          <tr class="hover:bg-gray-50">
-            <td class="py-2 font-medium text-gray-900">ORD-2102</td>
-            <td class="py-2">Juan López</td>
-            <td class="py-2">QS (perfil)</td>
-            <td class="py-2">
-              <span class="inline-flex items-center rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 px-2 py-0.5">Media</span>
-            </td>
-            <td class="py-2 text-gray-600">10m</td>
-            <td class="py-2 text-right">
-              <div class="inline-flex gap-1">
-                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
-                <a class="px-2 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" href="#"><i class="fas fa-check" title="Registrar toma"></i></a>
-                <a class="px-2 py-1 rounded-lg bg-slate-600 text-white hover:bg-slate-700" href="#"><i class="fas fa-qrcode" title="Etiquetas"></i></a>
-              </div>
-            </td>
-          </tr>
-          <tr class="hover:bg-gray-50">
-            <td class="py-2 font-medium text-gray-900">ORD-2103</td>
-            <td class="py-2">Luisa Díaz</td>
-            <td class="py-2">Glucosa</td>
-            <td class="py-2">
-              <span class="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 px-2 py-0.5">Normal</span>
-            </td>
-            <td class="py-2 text-gray-600">7m</td>
-            <td class="py-2 text-right">
-              <div class="inline-flex gap-1">
-                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
-                <a class="px-2 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" href="#"><i class="fas fa-check" title="Registrar toma"></i></a>
-                <a class="px-2 py-1 rounded-lg bg-slate-600 text-white hover:bg-slate-700" href="#"><i class="fas fa-qrcode" title="Etiquetas"></i></a>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+      <a href="{{ url_for('app_routes.manage_muestra') }}" class="shrink-0 text-sm font-semibold text-cyan-700 hover:text-cyan-900">Ver todas</a>
+    </header>
 
+    {% if pendientes %}
+    <div class="divide-y divide-gray-100">
+      {% for orden in pendientes[:6] %}
+      <article class="flex flex-col gap-3 px-4 py-4 transition hover:bg-gray-50 sm:flex-row sm:items-center sm:px-5">
+        <div class="flex min-w-0 flex-1 items-center gap-3">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-xs font-bold text-amber-700">#{{ orden.id }}</span>
+          <div class="min-w-0">
+            <h3 class="truncate text-sm font-semibold text-gray-900">{{ orden.nombre_paciente }}</h3>
+            <p class="mt-0.5 text-xs text-gray-500">
+              {{ (orden.creado_en or '')[:10] }}
+              · {{ orden.cuarto or 'Paciente particular' }}
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center justify-between gap-3 pl-[3.25rem] sm:justify-end sm:pl-0">
+          <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Pendiente</span>
+          <a href="{{ url_for('app_routes.manage_muestra') }}"
+             class="inline-flex h-9 items-center justify-center rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-700 hover:bg-white">Gestionar</a>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="px-5 py-12 text-center">
+      <span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><i class="fas fa-check-double"></i></span>
+      <h3 class="mt-4 text-sm font-bold text-gray-900">Sin muestras pendientes</h3>
+      <p class="mt-1 text-sm text-gray-500">Las nuevas órdenes enviadas por Mostrador aparecerán aquí.</p>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
 </div>
 {% endblock %}

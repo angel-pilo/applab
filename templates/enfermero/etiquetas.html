@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Etiquetas y QR | AppLab{% endblock %}
+
+{% block content %}
+<style>
+  .sample-label {
+    box-sizing: border-box;
+    overflow: hidden;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: .3mm solid #0b1f33;
+    background: white;
+    color: #0b1f33;
+    font-family: Arial, sans-serif;
+  }
+  @media print {
+    @page { margin: 0; }
+    body * { visibility: hidden !important; }
+    #label-print-sheet, #label-print-sheet * { visibility: visible !important; }
+    #label-print-sheet {
+      display: flex !important;
+      position: absolute;
+      inset: 0 auto auto 0;
+      flex-wrap: wrap;
+      gap: 0;
+      background: white;
+    }
+    .sample-label { margin: 0; }
+  }
+</style>
+
+<div class="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <a href="{{ url_for('app_routes.enfermero_dashboard') if session.get('rol') == 'Enfermero' else url_for('app_routes.configuracion') }}"
+       class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm"
+       aria-label="Regresar"><i class="fas fa-arrow-left"></i></a>
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Identificación preanalítica</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Etiquetas y QR</h1>
+      <p class="mt-2 max-w-3xl text-sm text-gray-500">Selecciona las muestras, revisa la vista previa y utiliza la impresora configurada en tu computadora o teléfono.</p>
+    </div>
+  </header>
+
+  <section class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <header class="flex flex-col gap-3 border-b border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="font-bold text-gray-900">Muestras disponibles</h2>
+          <p class="text-sm text-gray-500">{{ etiquetas|length }} etiqueta{{ '' if etiquetas|length == 1 else 's' }} disponible{{ '' if etiquetas|length == 1 else 's' }}.</p>
+        </div>
+        <label class="relative block w-full sm:max-w-xs">
+          <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input id="label-search" type="search" placeholder="Buscar folio o paciente..."
+                 class="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-cyan-500 focus:bg-white">
+        </label>
+      </header>
+      {% if etiquetas %}
+      <div class="border-b border-gray-100 bg-slate-50 px-4 py-2.5">
+        <label class="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-gray-700">
+          <input id="select-all-labels" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-cyan-600">
+          Seleccionar visibles
+        </label>
+      </div>
+      <div class="divide-y divide-gray-100" id="label-list">
+        {% for etiqueta in etiquetas %}
+        <label class="label-row flex cursor-pointer items-start gap-3 p-4 transition hover:bg-cyan-50/40 sm:px-5"
+               data-search="{{ etiqueta.orden_id }} {{ etiqueta.nombres|lower }} {{ etiqueta.apellidos|lower }} {{ etiqueta.tipo_muestra|lower }}">
+          <input type="checkbox" class="label-checkbox mt-1 h-4 w-4 rounded border-gray-300 text-cyan-600"
+                 value="{{ etiqueta.muestra_id }}"
+                 data-order-id="{{ etiqueta.orden_id }}"
+                 data-patient="{{ etiqueta.nombres }} {{ etiqueta.apellidos }}"
+                 data-sample="{{ etiqueta.tipo_muestra }}"
+                 data-created="{{ (etiqueta.creado_en or '')[:10] }}"
+                 data-token="{{ etiqueta.etiqueta_token }}"
+                 data-scan-url="{{ url_for('app_routes.escanear_etiqueta_muestra', token=etiqueta.etiqueta_token, _external=True) }}">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl {{ 'bg-emerald-50 text-emerald-700' if etiqueta.recolectada else 'bg-amber-50 text-amber-700' }}">
+            <i class="fas {{ 'fa-check' if etiqueta.recolectada else 'fa-vial' }}"></i>
+          </span>
+          <span class="min-w-0 flex-1">
+            <strong class="block truncate text-sm text-gray-900">#{{ "%04d"|format(etiqueta.orden_id) }} · {{ etiqueta.nombres }} {{ etiqueta.apellidos }}</strong>
+            <small class="mt-1 block text-gray-500">{{ etiqueta.tipo_muestra|title }} · {{ etiqueta.estudios|join(', ') }}</small>
+          </span>
+          <span class="shrink-0 rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">{{ etiqueta.impresiones }} imp.</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="px-5 py-16 text-center">
+        <span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-gray-100 text-gray-400"><i class="fas fa-tags"></i></span>
+        <h3 class="mt-4 font-bold text-gray-900">No hay etiquetas disponibles</h3>
+        <p class="mt-1 text-sm text-gray-500">Primero deben existir órdenes con requisitos de muestra.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <aside class="space-y-4">
+      <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <h2 class="font-bold text-gray-900">Trabajo de impresión</h2>
+        <p class="mt-1 text-xs leading-5 text-gray-500">La impresora se elige en el diálogo del sistema.</p>
+        <div class="mt-4 space-y-3">
+          <label class="block text-sm font-semibold text-gray-700">Formato
+            <select id="label-format" class="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm">
+              {% for width, height, label in [(50,30,'50 × 30 mm'),(60,40,'60 × 40 mm'),(100,50,'100 × 50 mm')] %}
+              <option value="{{ width }}x{{ height }}" {{ 'selected' if configuracion.ancho_mm == width and configuracion.alto_mm == height }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="block text-sm font-semibold text-gray-700">Copias por muestra
+            <input id="label-copies" type="number" min="1" max="10" value="{{ configuracion.copias_predeterminadas }}"
+                   class="mt-1.5 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+          </label>
+          <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <input id="label-show-qr" type="checkbox" class="h-4 w-4 rounded text-cyan-600" {{ 'checked' if configuracion.mostrar_qr }}>
+            Incluir código QR
+          </label>
+          <p id="label-selection-count" class="rounded-xl bg-slate-50 px-3 py-2 text-center text-xs font-semibold text-gray-600">0 muestras seleccionadas</p>
+          <button id="print-labels" type="button" class="btn-guardar w-full opacity-50" disabled>
+            <i class="fas fa-print mr-2"></i>Vista previa e imprimir
+          </button>
+        </div>
+      </section>
+
+      {% if session.get('rol') == 'Admin' %}
+      <form method="POST" action="{{ url_for('app_routes.guardar_configuracion_etiquetas') }}"
+            class="rounded-2xl border border-cyan-200 bg-cyan-50/50 p-4">
+        <h2 class="font-bold text-gray-900">Predeterminados del laboratorio</h2>
+        <p class="mt-1 text-xs leading-5 text-gray-600">Guarda el formato actual para todos los equipos.</p>
+        <input type="hidden" name="formato" id="admin-label-format">
+        <input type="hidden" name="copias" id="admin-label-copies">
+        <input type="hidden" name="mostrar_qr" id="admin-label-qr">
+        <button type="submit" id="save-label-defaults" class="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-cyan-300 bg-white px-3 py-2.5 text-sm font-semibold text-cyan-800">
+          <i class="fas fa-save mr-2"></i>Guardar como predeterminado
+        </button>
+      </form>
+      {% endif %}
+
+      <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
+        <strong class="block"><i class="fas fa-info-circle mr-1"></i>Sobre Bluetooth</strong>
+        AppLab usa el servicio de impresión del dispositivo. Vincula primero la impresora desde Windows, Android o iOS.
+      </div>
+    </aside>
+  </section>
+</div>
+
+<div id="label-print-sheet" class="hidden" aria-hidden="true"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/etiquetas.js') }}"></script>
+{% endblock %}
