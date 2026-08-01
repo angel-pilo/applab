@@ -1,272 +1,158 @@
 {% extends "base.html" %}
-{% block title %}Dashboard Químico{% endblock %}
+{% block title %}Panel de Químico | AppLab{% endblock %}
 
 {% block content %}
-
-<head>
-    <script src="{{ url_for('static', filename='js/quimico.js') }}"></script>
-</head>
-
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-
-  <!-- Header -->
-  <div class="mb-2 flex items-center justify-between gap-4">
+<div class="mx-auto w-full max-w-7xl space-y-7 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="flex flex-col gap-5 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <h1 class="text-2xl font-bold tracking-tight text-gray-900">Químico</h1>
-      <p class="text-sm text-gray-500">Validación de resultados, control de calidad y equipos</p>
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Fase analítica</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Panel de Químico</h1>
+      <p class="mt-2 text-sm text-gray-500">Captura, revisión y liberación de resultados del laboratorio.</p>
     </div>
-    <div class="flex items-center gap-2">
+    {% if has_permission('lab.results.capture') %}
+    <a href="{{ url_for('app_routes.resultados') }}"
+       class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0b1f33] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#123654]">
+      <i class="fas fa-clipboard-check"></i>
+      <span>Gestionar resultados</span>
+    </a>
+    {% endif %}
+  </header>
+
+  <section aria-labelledby="resumen-quimico">
+    <div class="mb-4">
+      <h2 id="resumen-quimico" class="text-lg font-bold text-gray-900">Resumen operativo</h2>
+      <p class="text-sm text-gray-500">Estado actual de las órdenes dentro del proceso analítico.</p>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {% set indicators = [
+        ('Órdenes en laboratorio', resumen.ordenes_laboratorio, 'Listas para captura o validación.', 'fa-flask', 'bg-cyan-50 text-cyan-700 ring-cyan-100'),
+        ('Faltantes de muestra', resumen.faltantes_muestra, 'Continúan pendientes con Enfermería.', 'fa-vial', 'bg-amber-50 text-amber-700 ring-amber-100'),
+        ('Carga operativa', resumen.carga_operativa, 'Órdenes activas de ambas etapas.', 'fa-clipboard-list', 'bg-violet-50 text-violet-700 ring-violet-100'),
+        ('Resultados finalizados', resumen.resultados_finalizados, 'Banco histórico de reportes liberados.', 'fa-file-medical-alt', 'bg-emerald-50 text-emerald-700 ring-emerald-100')
+      ] %}
+      {% for label, value, description, icon, colors in indicators %}
+      <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+        <div class="flex items-start justify-between gap-4">
+          <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 {{ colors }}"><i class="fas {{ icon }}"></i></span>
+          <strong class="text-3xl font-bold tracking-tight text-gray-900">{{ value }}</strong>
+        </div>
+        <h3 class="mt-4 text-sm font-bold text-gray-900">{{ label }}</h3>
+        <p class="mt-1 text-xs leading-5 text-gray-500">{{ description }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section aria-labelledby="accesos-quimico">
+    <h2 id="accesos-quimico" class="mb-4 text-lg font-bold text-gray-900">Accesos de laboratorio</h2>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {% if has_permission('lab.results.capture') %}
       <a href="{{ url_for('app_routes.resultados') }}"
-         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition">
-        <i class="fas fa-clipboard-check"></i> Validar resultados
+         class="group flex min-h-28 items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-md">
+        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><i class="fas fa-clipboard-check"></i></span>
+        <span class="min-w-0">
+          <strong class="block text-sm font-bold text-gray-900">Reporte de resultados</strong>
+          <small class="mt-1 block leading-5 text-gray-500">Captura y valida resultados clínicos.</small>
+        </span>
+        <span class="ml-auto rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-bold text-cyan-700">{{ resumen.ordenes_laboratorio }}</span>
       </a>
-      <a href="#"
-         class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition">
-        <i class="fas fa-vials"></i> Control de calidad
+      {% endif %}
+
+      {% if has_permission('lab.results.history') %}
+      <a href="{{ url_for('app_routes.historial_resultados') }}"
+         class="group flex min-h-28 items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><i class="fas fa-file-medical-alt"></i></span>
+        <span class="min-w-0">
+          <strong class="block text-sm font-bold text-gray-900">Resultados finalizados</strong>
+          <small class="mt-1 block leading-5 text-gray-500">Consulta el historial de reportes enviados.</small>
+        </span>
+        <span class="ml-auto rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{{ resumen.resultados_finalizados }}</span>
       </a>
+      {% endif %}
+
+      {% if has_permission('lab.inventory.entry') %}
+      <a href="{{ url_for('app_routes.registrar_entrada_inventario') }}"
+         class="group flex min-h-28 items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md">
+        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700"><i class="fas fa-dolly-flatbed"></i></span>
+        <span class="min-w-0">
+          <strong class="block text-sm font-bold text-gray-900">Ingresar inventario</strong>
+          <small class="mt-1 block leading-5 text-gray-500">Recibe existencias y registra lotes nuevos.</small>
+        </span>
+      </a>
+      {% endif %}
+
+      {% for title, description, icon, feature, colors in [
+        ('Control de calidad', 'Controles, lotes y criterios de aceptación.', 'fa-vials', 'Control de calidad', 'bg-emerald-50 text-emerald-700'),
+        ('Equipos', 'Mantenimiento y calibración.', 'fa-tools', 'Equipos', 'bg-amber-50 text-amber-700'),
+        ('Incidencias', 'No conformidades y seguimiento.', 'fa-flag', 'Incidencias', 'bg-rose-50 text-rose-700')
+      ] %}
+      <a href="{{ url_for('app_routes.proximamente', feature=feature) }}"
+         class="group flex min-h-28 items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md">
+        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl {{ colors }}"><i class="fas {{ icon }}"></i></span>
+        <span class="min-w-0">
+          <strong class="block text-sm font-bold text-gray-900">{{ title }}</strong>
+          <small class="mt-1 block leading-5 text-gray-500">{{ description }}</small>
+          <small class="mt-2 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Próximamente</small>
+        </span>
+      </a>
+      {% endfor %}
     </div>
+  </section>
+
+  <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    {% if has_permission('lab.results.capture') %}
+    <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm" aria-labelledby="bandeja-quimico">
+      <header class="flex items-center justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-5">
+        <div>
+          <h2 id="bandeja-quimico" class="font-bold text-gray-900">Bandeja de resultados</h2>
+          <p class="text-sm text-gray-500">Órdenes recibidas desde Enfermería.</p>
+        </div>
+        <a href="{{ url_for('app_routes.resultados') }}" class="text-sm font-semibold text-cyan-700 hover:text-cyan-900">Ver todas</a>
+      </header>
+      {% if ordenes %}
+      <div class="divide-y divide-gray-100">
+        {% for orden in ordenes[:6] %}
+        <article class="flex flex-col gap-3 px-4 py-4 transition hover:bg-gray-50 sm:flex-row sm:items-center sm:px-5">
+          <div class="flex min-w-0 flex-1 items-center gap-3">
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cyan-50 text-xs font-bold text-cyan-700">#{{ orden.id }}</span>
+            <div class="min-w-0">
+              <h3 class="truncate text-sm font-semibold text-gray-900">{{ orden.nombre_paciente }}</h3>
+              <p class="mt-0.5 text-xs text-gray-500">{{ (orden.creado_en or '')[:10] }} · {{ orden.cuarto or 'Paciente particular' }}</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-3 pl-[3.25rem] sm:pl-0">
+            <span class="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700">Por analizar</span>
+            <a href="{{ url_for('app_routes.captura_resultados', orden_id=orden.id) }}"
+               class="inline-flex h-9 items-center justify-center rounded-lg bg-[#0b1f33] px-3 text-xs font-semibold text-white">Capturar</a>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="px-5 py-12 text-center">
+        <span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><i class="fas fa-check-double"></i></span>
+        <h3 class="mt-4 text-sm font-bold text-gray-900">Sin órdenes pendientes</h3>
+        <p class="mt-1 text-sm text-gray-500">Las muestras liberadas por Enfermería aparecerán aquí.</p>
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <aside class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <header class="border-b border-gray-200 px-4 py-4"><h2 class="font-bold text-gray-900">Esperando muestra</h2><p class="text-sm text-gray-500">Visibilidad del flujo preanalítico.</p></header>
+      {% if faltantes %}
+      <div class="divide-y divide-gray-100">
+        {% for orden in faltantes[:5] %}
+        <div class="px-4 py-3">
+          <div class="flex items-center justify-between gap-3"><strong class="text-xs text-gray-900">#{{ "%04d"|format(orden.id) }}</strong><span class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Enfermería</span></div>
+          <p class="mt-1 truncate text-xs text-gray-500">{{ orden.nombre_paciente }}</p>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="px-4 py-8 text-center text-sm text-gray-500">No hay muestras pendientes.</p>
+      {% endif %}
+    </aside>
   </div>
-
-  <!-- KPIs superiores (dummy) -->
-  <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-    <!-- Muestras por validar -->
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-indigo-50 ring-1 ring-indigo-200">
-          <i class="fas fa-clipboard-list text-indigo-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Muestras por validar</p>
-          <p class="text-2xl font-bold text-gray-900">12</p>
-        </div>
-      </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">+2</span>
-    </div>
-
-    <!-- Controles fuera de rango -->
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-rose-50 ring-1 ring-rose-200">
-          <i class="fas fa-exclamation-triangle text-rose-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Controles fuera de rango</p>
-          <p class="text-2xl font-bold text-gray-900">3</p>
-        </div>
-      </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">QC</span>
-    </div>
-
-    <!-- Equipos en mantenimiento -->
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-amber-50 ring-1 ring-amber-200">
-          <i class="fas fa-tools text-amber-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Equipos en mantto.</p>
-          <p class="text-2xl font-bold text-gray-900">1</p>
-        </div>
-      </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">Svc</span>
-    </div>
-
-    <!-- Incidencias abiertas -->
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-slate-50 ring-1 ring-slate-200">
-          <i class="fas fa-flag text-slate-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Incidencias abiertas</p>
-          <p class="text-2xl font-bold text-gray-900">4</p>
-        </div>
-      </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-slate-600 text-white text-xs font-semibold min-w-[1.75rem] h-6 px-2">!</span>
-    </div>
-  </section>
-
-  <!-- Grid de módulos -->
-  <section>
-    <h2 class="text-lg font-semibold text-gray-900 mb-3">Accesos de laboratorio</h2>
-    <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-
-      <!-- Reporte de resultados -->
-      <a href="{{ url_for('app_routes.resultados') }}"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-         aria-label="Reporte de resultados">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">12</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-clipboard-check text-8xl text-indigo-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-indigo-200 bg-indigo-50">
-            <i class="fas fa-clipboard-check text-indigo-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Reporte de resultados</h3>
-            <p class="text-sm text-gray-500">Captura y validación</p>
-          </div>
-        </div>
-      </a>
-
-      <!-- Control de calidad -->
-      <a href="{{ url_for('app_routes.proximamente', feature='Control de calidad') }}"
-        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-        aria-label="Control de calidad próximamente">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">QC</span>
-        <div class="absolute -right-4 -top-4 opacity-10">
-          <i class="fas fa-vials text-8xl text-emerald-600"></i>
-        </div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-emerald-200 bg-emerald-50">
-            <i class="fas fa-vials text-emerald-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Control de calidad</h3>
-            <p class="text-sm text-gray-500">Levey-Jennings / Westgard</p>
-          </div>
-        </div>
-      </a>
-
-      <!-- Equipos -->
-      <a href="{{ url_for('app_routes.proximamente', feature='Equipos') }}"
-        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-        aria-label="Equipos próximamente">
-        <div class="absolute -right-4 -top-4 opacity-10">
-          <i class="fas fa-tools text-8xl text-amber-600"></i>
-        </div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-amber-200 bg-amber-50">
-            <i class="fas fa-tools text-amber-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Equipos</h3>
-            <p class="text-sm text-gray-500">Mantenimiento y calibración</p>
-          </div>
-        </div>
-      </a>
-
-      <!-- Incidencias -->
-      <a href="{{ url_for('app_routes.proximamente', feature='Incidencias') }}"
-        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-        aria-label="Incidencias próximamente">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">4</span>
-        <div class="absolute -right-4 -top-4 opacity-10">
-          <i class="fas fa-flag text-8xl text-rose-600"></i>
-        </div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-rose-200 bg-rose-50">
-            <i class="fas fa-flag text-rose-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Incidencias</h3>
-            <p class="text-sm text-gray-500">No conformidades y CAPA</p>
-          </div>
-        </div>
-      </a>
-
-      <!-- Configuración (sin badge) -->
-      <a href="{{ url_for('app_routes.configuracion') }}"
-        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-        aria-label="Configuración">
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-cog text-8xl text-slate-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-slate-200 bg-slate-50">
-            <i class="fas fa-cog text-slate-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Configuración</h3>
-            <p class="text-sm text-gray-500">Preferencias del laboratorio</p>
-          </div>
-        </div>
-      </a>
-
-    </div>
-  </section>
-
-  <!-- Bandeja de validación (dummy) -->
-  <section class="rounded-2xl ring-1 ring-gray-200 bg-white p-5">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="text-base font-semibold text-gray-900">
-        <i class="fas fa-clipboard-check text-indigo-600 mr-2"></i> Bandeja de validación (hoy)
-      </h3>
-      <div class="flex gap-2">
-        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200">Actualizar</button>
-        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200">Filtrar</button>
-      </div>
-    </div>
-    <div class="overflow-x-auto -mx-3">
-      <table class="min-w-full text-sm mx-3">
-        <thead>
-          <tr class="text-left text-gray-500">
-            <th class="py-2">Orden</th>
-            <th class="py-2">Paciente</th>
-            <th class="py-2">Prueba</th>
-            <th class="py-2">Estatus</th>
-            <th class="py-2">Tiempo</th>
-            <th class="py-2 text-right">Acciones</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y">
-          <!-- Datos dummy; quita/ajusta cuando conectes a BD -->
-          <tr class="hover:bg-gray-50">
-            <td class="py-2 font-medium text-gray-900">ORD-1029</td>
-            <td class="py-2">María Pérez</td>
-            <td class="py-2">Biometría hemática</td>
-            <td class="py-2">
-              <span class="inline-flex items-center rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 px-2 py-0.5">En revisión</span>
-            </td>
-            <td class="py-2 text-gray-600">12m</td>
-            <td class="py-2 text-right">
-              <div class="inline-flex gap-1">
-                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
-                <a class="px-2 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" href="#"><i class="fas fa-check-double" title="Validar"></i></a>
-              </div>
-            </td>
-          </tr>
-          <tr class="hover:bg-gray-50">
-            <td class="py-2 font-medium text-gray-900">ORD-1030</td>
-            <td class="py-2">Juan López</td>
-            <td class="py-2">QS (perfil)</td>
-            <td class="py-2">
-              <span class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 px-2 py-0.5">Pendiente</span>
-            </td>
-            <td class="py-2 text-gray-600">5m</td>
-            <td class="py-2 text-right">
-              <div class="inline-flex gap-1">
-                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
-                <a class="px-2 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" href="#"><i class="fas fa-check-double" title="Validar"></i></a>
-              </div>
-            </td>
-          </tr>
-          <tr class="hover:bg-gray-50">
-            <td class="py-2 font-medium text-gray-900">ORD-1031</td>
-            <td class="py-2">Luisa Díaz</td>
-            <td class="py-2">Glucosa</td>
-            <td class="py-2">
-              <span class="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 px-2 py-0.5">Listo</span>
-            </td>
-            <td class="py-2 text-gray-600">2m</td>
-            <td class="py-2 text-right">
-              <div class="inline-flex gap-1">
-                <a class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200" href="#"><i class="fas fa-eye" title="Ver"></i></a>
-                <a class="px-2 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" href="#"><i class="fas fa-check-double" title="Validar"></i></a>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
 </div>
 {% endblock %}

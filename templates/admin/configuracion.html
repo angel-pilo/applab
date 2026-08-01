@@ -12,9 +12,9 @@
       <i class="fas fa-arrow-left" aria-hidden="true"></i>
     </button>
     <div>
-      <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p>
+      <p class="text-sm font-semibold uppercase tracking-wider {{ 'text-red-600' if session.get('rol') == 'Admin' else 'text-cyan-700' }}">{{ 'Administración' if session.get('rol') == 'Admin' else 'Cuenta personal' }}</p>
       <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Configuración</h1>
-      <p class="mt-2 text-sm text-gray-500">Administra tu identidad y consulta los datos asociados a tu cuenta.</p>
+      <p class="mt-2 text-sm text-gray-500">{{ 'Administra tu identidad y consulta los datos asociados a tu cuenta.' if session.get('rol') == 'Admin' else 'Actualiza únicamente tu imagen de perfil dentro de AppLab.' }}</p>
     </div>
   </header>
 
@@ -88,6 +88,22 @@
           <p>Tu imagen solo se utiliza dentro de AppLab. Si necesitas cambiar tus datos de acceso, solicítalo al administrador responsable.</p>
         </div>
       </section>
+
+      {% if session.get('rol') == 'Admin' %}
+      <section class="admin-form-card" aria-labelledby="labels-heading">
+        <div class="admin-form-section-heading">
+          <span class="admin-form-section-icon"><i class="fas fa-print" aria-hidden="true"></i></span>
+          <div>
+            <h2 id="labels-heading">Etiquetas de muestras</h2>
+            <p>Configura el tamaño predeterminado, las copias y el código QR.</p>
+          </div>
+        </div>
+        <a href="{{ url_for('app_routes.etiquetas_muestra') }}" class="btn-guardar inline-flex">
+          <i class="fas fa-qrcode" aria-hidden="true"></i>
+          Configurar etiquetas
+        </a>
+      </section>
+      {% endif %}
     </div>
   </div>
 </div>

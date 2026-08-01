@@ -1,235 +1,150 @@
 {% extends "base.html" %}
-
-{% block title %}Resultados de laboratorio{% endblock %}
+{% block title %}Resultados de laboratorio | AppLab{% endblock %}
 
 {% block content %}
+<div class="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <a href="{{ url_for('app_routes.quimico_dashboard') }}"
+       class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm"
+       aria-label="Volver al panel de Químico"><i class="fas fa-arrow-left"></i></a>
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Químico · Fase analítica</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Resultados de laboratorio</h1>
+      <p class="mt-2 text-sm text-gray-500">Consulta las órdenes liberadas por Enfermería y captura sus resultados clínicos.</p>
+    </div>
+  </header>
 
-<script>
-  window.faltantesData = {{ faltantes|tojson|safe }};
-</script>  <!-- si no meto esto no se muestra nada en los paneles -->
-<script src="{{ url_for('static', filename='js/quimico.js') }}"></script>
-<script>
-function finalizarOrden(button) {
-  // Cambiar el texto y color del botón
-  button.innerHTML = "Enviado a Mostrador";  // Cambia el texto
-  button.classList.add("bg-gray-400", "text-white", "opacity-50");  // Añadir clases para cambiar color de fondo y texto
-  
-  button.disabled = true;
-}
+  <section class="grid gap-3 sm:grid-cols-2">
+    <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+      <div class="flex items-start justify-between">
+        <span class="grid h-11 w-11 place-items-center rounded-xl bg-cyan-50 text-cyan-700 ring-1 ring-cyan-100"><i class="fas fa-flask"></i></span>
+        <strong id="chemical-order-count" class="text-3xl font-bold text-gray-900">{{ ordenes|length }}</strong>
+      </div>
+      <h2 class="mt-4 text-sm font-bold text-gray-900">Órdenes para resultados</h2>
+      <p class="mt-1 text-xs text-gray-500">Muestras listas para captura y validación.</p>
+    </article>
+    <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+      <div class="flex items-start justify-between">
+        <span class="grid h-11 w-11 place-items-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100"><i class="fas fa-vial"></i></span>
+        <strong class="text-3xl font-bold text-gray-900">{{ faltantes|length }}</strong>
+      </div>
+      <h2 class="mt-4 text-sm font-bold text-gray-900">Esperando muestra</h2>
+      <p class="mt-1 text-xs text-gray-500">Órdenes que continúan con Enfermería.</p>
+    </article>
+  </section>
 
+  <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
+    <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <header class="flex flex-col gap-3 border-b border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="font-bold text-gray-900">Bandeja de análisis</h2>
+          <p class="text-sm text-gray-500">Selecciona una orden para consultar estudios o capturar resultados.</p>
+        </div>
+        <label class="relative block w-full sm:max-w-xs">
+          <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input id="result-order-search" type="search" placeholder="Buscar folio o paciente..."
+                 class="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-cyan-500 focus:bg-white">
+        </label>
+      </header>
 
-</script>
-
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  <!-- Encabezado -->
-  <div class="flex items-center space-x-2 mb-6">
-    <button class="text-2xl" onclick="window.history.back()">
-      <i class="fas fa-arrow-left"></i>
-    </button>
-    <h1 class="text-3xl font-bold">Resultados de laboratorio</h1>
-  </div>
-
-  <!-- Layout principal: tabla + panel lateral -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Panel principal (órdenes en químico) -->
-    <div class="lg:col-span-2">
-      <div class="bg-white rounded-[1rem] shadow-md p-6">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 class="text-lg font-semibold text-gray-800">Órdenes para resultados</h2>
+      {% if ordenes %}
+      <div id="result-order-list" class="divide-y divide-gray-100">
+        {% for orden in ordenes %}
+        <article class="result-order-row p-4 transition hover:bg-cyan-50/30 sm:p-5"
+                 data-search="{{ orden.id }} {{ orden.nombre_paciente|lower }}">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div class="flex min-w-0 flex-1 items-center gap-3">
+              <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-cyan-50 text-sm font-bold text-cyan-700">#{{ orden.id }}</span>
+              <div class="min-w-0">
+                <h3 class="truncate font-bold text-gray-900">{{ orden.nombre_paciente }}</h3>
+                <p class="mt-1 text-xs text-gray-500">{{ (orden.creado_en or '')[:10] }} · {{ orden.cuarto or 'Paciente particular' }}</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              {% if orden.estado_captura == 'listo_para_finalizar' %}
+              <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Listo para finalizar</span>
+              {% elif orden.estado_captura == 'listo_para_reportar' %}
+              <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Listo para reportar</span>
+              {% elif orden.estado_captura == 'en_captura' %}
+              <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Captura en progreso</span>
+              {% else %}
+              <span class="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700">Por analizar</span>
+              {% endif %}
+              <button type="button" data-analysis-order="{{ orden.id }}"
+                      class="inline-flex h-10 items-center rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 hover:border-cyan-200 hover:text-cyan-700">
+                <i class="fas fa-list-ul mr-2"></i>Ver estudios
+              </button>
+              <a href="{{ url_for('app_routes.captura_resultados', orden_id=orden.id) }}"
+                 class="inline-flex h-10 items-center rounded-xl bg-[#0b1f33] px-3 text-sm font-semibold text-white hover:bg-[#123654]">
+                <i class="fas fa-edit mr-2"></i>Capturar
+              </a>
+              {% if orden.estado_captura == 'listo_para_finalizar' %}
+              <button type="button" data-finalize-order="{{ orden.id }}"
+                      class="inline-flex h-10 items-center rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white hover:bg-emerald-700">
+                <i class="fas fa-check-double mr-2"></i>Finalizar
+              </button>
+              {% endif %}
+            </div>
           </div>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm">
-            <thead>
-              <tr class="border-b">
-                <th class="px-6 py-2 text-red-600 font-semibold">Folio</th>
-                <th class="px-6 py-2 font-semibold text-gray-700">Nombre del paciente</th>
-                <th class="px-6 py-2 font-semibold text-gray-700">Cuarto / Origen</th>
-                <th class="px-6 py-2 text-center font-semibold text-gray-700">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% if ordenes and ordenes|length > 0 %}
-                {% for orden in ordenes %}
-                  {% set folio_str = "%05d"|format(orden.id) %}
-                  <tr class="border-b hover:bg-gray-50">
-                    <td class="px-6 py-4 font-bold flex items-center gap-2 text-red-600">
-                      <span class="h-3 w-3 rounded-full bg-red-600 inline-block"></span>
-                      #{{ folio_str }}
-                    </td>
-                    <td class="px-6 py-4">
-                      {{ orden.nombre_paciente }}
-                    </td>
-                    <td class="px-6 py-4">
-                      {{ orden.cuarto }}
-                    </td>
-                    <td class="px-6 py-4 flex gap-2 justify-center">
-                    <a href="{{ url_for('app_routes.captura_resultados', orden_id=folio_str) }}" class="btn-cancelar px-4 py-1 rounded-[1rem]">
-                        Agregar Resultados
-                    </a>
-                    <button
-                      type="button"
-                      class="finalizar-btn btn-guardar px-4 py-1 rounded-[1rem] transition-all duration-300 ease-in-out"
-                      onclick="finalizarOrden(this)"
-                    >
-                      Finalizar
-                    </button>
-                    </td>
-                  </tr>
-                {% endfor %}
-              {% else %}
-                <tr>
-                  <td colspan="4" class="text-center text-gray-500 py-4">
-                    No hay órdenes pendientes de resultados.
-                  </td>
-                </tr>
-              {% endif %}
-            </tbody>
-          </table>
-        </div>
+        </article>
+        {% endfor %}
+        <div id="result-search-empty" class="hidden px-5 py-12 text-center text-sm text-gray-500">No hay órdenes que coincidan con la búsqueda.</div>
       </div>
-    </div>
-
-    <!-- Panel lateral (faltantes de muestra) -->
-    <div class="lg:col-span-1">
-      <div class="bg-white rounded-[1rem] shadow-md p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-gray-800">Faltantes de muestra</h2>
-          <button
-            type="button"
-            class="text-sm text-blue-600 hover:underline"
-            onclick="abrirModalFaltantes()"
-          >
-            Ver todos
-          </button>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table
-            class="w-full text-left text-xs cursor-pointer"
-            onclick="abrirModalFaltantes()"
-          >
-            <thead>
-              <tr class="border-b">
-                <th class="py-2 text-red-600 font-semibold">Folio</th>
-                <th class="py-2 font-semibold text-gray-700">Paciente</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% if faltantes and faltantes|length > 0 %}
-                {% for orden in faltantes[:5] %}
-                  <tr class="border-b hover:bg-gray-50">
-                    <td class="py-2 text-red-600 font-bold">
-                      #{{ "%05d"|format(orden.id) }}
-                    </td>
-                    <td class="py-2">
-                      {{ orden.nombre_paciente }}
-                    </td>
-                  </tr>
-                {% endfor %}
-              {% else %}
-                <tr>
-                  <td colspan="2" class="text-center text-gray-500 py-2">
-                    No hay órdenes pendientes de muestra.
-                  </td>
-                </tr>
-              {% endif %}
-            </tbody>
-          </table>
-        </div>
+      {% else %}
+      <div class="px-5 py-16 text-center">
+        <span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><i class="fas fa-check-double"></i></span>
+        <h3 class="mt-4 font-bold text-gray-900">Sin órdenes por analizar</h3>
+        <p class="mt-1 text-sm text-gray-500">Las órdenes completas de Enfermería aparecerán aquí.</p>
       </div>
+      {% endif %}
+    </section>
+
+    <aside class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <header class="border-b border-gray-200 px-4 py-4">
+        <h2 class="font-bold text-gray-900">Faltantes de muestra</h2>
+        <p class="text-sm text-gray-500">Seguimiento de la fase preanalítica.</p>
+      </header>
+      {% if faltantes %}
+      <div class="divide-y divide-gray-100">
+        {% for orden in faltantes %}
+        <button type="button" data-analysis-order="{{ orden.id }}"
+                class="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-amber-50/50">
+          <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-50 text-xs font-bold text-amber-700">#{{ orden.id }}</span>
+          <span class="min-w-0 flex-1"><strong class="block truncate text-xs text-gray-900">{{ orden.nombre_paciente }}</strong><small class="mt-0.5 block truncate text-gray-500">{{ orden.cuarto or 'Paciente particular' }}</small></span>
+          <i class="fas fa-chevron-right text-xs text-gray-300"></i>
+        </button>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="px-4 py-10 text-center"><i class="fas fa-check-circle text-emerald-600"></i><p class="mt-2 text-sm text-gray-500">No hay muestras pendientes.</p></div>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+
+<div id="result-feedback-modal" class="fixed inset-0 z-[10000] hidden" role="dialog" aria-modal="true" aria-labelledby="result-feedback-title">
+  <div class="absolute inset-0 bg-slate-950/55 backdrop-blur-[1px]"></div>
+  <div class="absolute left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div class="p-6 text-center">
+      <span id="result-feedback-icon" class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><i class="fas fa-check-double"></i></span>
+      <h2 id="result-feedback-title" class="mt-4 text-lg font-bold text-gray-900">Orden finalizada</h2>
+      <p id="result-feedback-message" class="mt-2 text-sm text-gray-500">Los resultados fueron enviados correctamente a mostrador.</p>
+      <button type="button" data-close-feedback class="mt-5 rounded-xl bg-[#0b1f33] px-5 py-2.5 text-sm font-semibold text-white">Entendido</button>
     </div>
   </div>
 </div>
 
-<!-- Modal 1: Faltantes de muestra (lista completa) -->
-<div
-  id="modal-faltantes"
-  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
->
-  <div class="bg-white rounded-[1rem] w-[95%] max-w-3xl p-6 relative shadow-lg">
-    <h2 class="text-xl font-bold text-center mb-4">Faltantes de muestra</h2>
-
-    <div class="overflow-x-auto mb-4">
-      <table class="w-full text-sm text-left">
-        <thead>
-          <tr class="border-b">
-            <th class="pb-2 text-red-600 font-bold">Folio ⬇</th>
-            <th class="pb-2">Nombre del paciente</th>
-            <th class="pb-2">Cuarto / Origen</th>
-            <th class="pb-2 text-center">Acción</th>
-          </tr>
-        </thead>
-        <tbody id="modal-faltantes-body">
-          <!-- Se llenará dinámicamente -->
-        </tbody>
-      </table>
-    </div>
-
-    <div class="flex justify-center">
-      <button
-        type="button"
-        onclick="cerrarModalFaltantes()"
-        class="btn-cancelar px-6 py-2 rounded-[1rem]"
-      >
-        Cerrar
-      </button>
-    </div>
-
-    <!-- Botón X arriba a la derecha -->
-    <button
-      type="button"
-      onclick="cerrarModalFaltantes()"
-      class="absolute top-2 right-3 text-gray-400 hover:text-gray-600"
-    >
-      <i class="fas fa-times"></i>
-    </button>
+<div id="analysis-modal" class="fixed inset-0 z-[9999] hidden" role="dialog" aria-modal="true" aria-labelledby="analysis-modal-title">
+  <button type="button" data-close-analysis class="absolute inset-0 bg-slate-950/55 backdrop-blur-[1px]" aria-label="Cerrar"></button>
+  <div class="absolute left-1/2 top-1/2 flex max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <header class="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+      <div><p class="text-xs font-semibold uppercase tracking-wide text-cyan-700">Orden clínica</p><h2 id="analysis-modal-title" class="mt-1 font-bold text-gray-900">Estudios solicitados</h2></div>
+      <button type="button" data-close-analysis class="grid h-9 w-9 place-items-center rounded-lg border border-gray-200 text-gray-500"><i class="fas fa-times"></i></button>
+    </header>
+    <div id="analysis-modal-body" class="min-h-40 flex-1 overflow-y-auto bg-slate-50 p-5"></div>
+    <footer class="flex justify-end border-t border-gray-200 px-5 py-4"><button type="button" data-close-analysis class="btn-cancelar">Cerrar</button></footer>
   </div>
 </div>
 
-<!-- Modal 2: Análisis (solo lectura, sin checkbox) -->
-<div
-  id="modal-analisis"
-  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
->
-  <div class="bg-white rounded-[1rem] w-[90%] max-w-xl p-6 relative shadow-lg">
-    <h2 class="text-xl font-bold text-center mb-4">Análisis de la orden</h2>
-
-    <div class="overflow-x-auto mb-4">
-      <table class="w-full text-sm text-left mb-2">
-        <thead>
-          <tr class="border-b">
-            <th class="pb-2 font-semibold text-gray-700">Análisis</th>
-            <th class="pb-2 font-semibold text-gray-700">Tipo de prueba</th>
-          </tr>
-        </thead>
-        <tbody id="analisis-body">
-          <!-- Se llenará dinámicamente -->
-        </tbody>
-      </table>
-    </div>
-
-    <div class="flex justify-center">
-      <button
-        type="button"
-        onclick="cerrarModalAnalisis()"
-        class="btn-cancelar px-6 py-2 rounded-[1rem]"
-      >
-        Cerrar
-      </button>
-    </div>
-
-    <!-- Botón X -->
-    <button
-      type="button"
-      onclick="cerrarModalAnalisis()"
-      class="absolute top-2 right-3 text-gray-400 hover:text-gray-600"
-    >
-      <i class="fas fa-times"></i>
-    </button>
-  </div>
-</div>
-
+<script src="{{ url_for('static', filename='js/quimico.js') }}"></script>
 {% endblock %}

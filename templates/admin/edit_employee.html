@@ -103,7 +103,45 @@
               </label>
             {% endfor %}
           </div>
+          <small>Selecciona “Personalizado” cuando una persona necesite combinar funciones de distintas áreas.</small>
         </fieldset>
+        {% set employee_permissions = empleado.permisos|default([], true) %}
+        <section id="employee-permissions-panel"
+                 class="admin-field admin-field-full rounded-2xl border border-cyan-100 bg-cyan-50/40 p-4 {% if empleado.rol_id|default('')|string != '5' %}hidden{% endif %}">
+          <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <strong class="block text-sm text-gray-900">Permisos del perfil personalizado</strong>
+              <small class="mt-1 block text-gray-500">Activa únicamente las acciones que esta persona necesita. El servidor también protege cada acceso.</small>
+            </div>
+            <span id="employee-permission-count" class="rounded-full bg-cyan-100 px-3 py-1 text-xs font-bold text-cyan-800">0 seleccionados</span>
+          </div>
+          <div class="grid gap-3 lg:grid-cols-2">
+            {% for group in permission_groups %}
+            <fieldset class="rounded-xl border border-gray-200 bg-white p-4" data-permission-group>
+              <div class="mb-3 flex items-start justify-between gap-3">
+                <legend class="flex items-center gap-2 text-sm font-bold text-gray-900">
+                  <i class="fas {{ group.icon }} text-cyan-700"></i>{{ group.label }}
+                </legend>
+                <button type="button" class="text-xs font-semibold text-cyan-700 hover:text-cyan-900" data-select-permission-group>Seleccionar área</button>
+              </div>
+              <p class="mb-3 text-xs leading-relaxed text-gray-500">{{ group.description }}</p>
+              <div class="space-y-2">
+                {% for code, label in group.permissions %}
+                <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-transparent px-2 py-2 transition hover:border-gray-200 hover:bg-slate-50">
+                  <input type="checkbox" name="permisos" value="{{ code }}"
+                         class="mt-0.5 h-4 w-4 rounded border-gray-300 text-cyan-700"
+                         {% if code in employee_permissions %}checked{% endif %}>
+                  <span class="text-xs font-medium leading-relaxed text-gray-700">{{ label }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </fieldset>
+            {% endfor %}
+          </div>
+          <p id="employee-permissions-error" class="mt-3 hidden text-xs font-semibold text-red-700">
+            Selecciona al menos un permiso para este perfil.
+          </p>
+        </section>
         <div class="admin-field">
           <label for="turno">Turno <span>*</span></label>
           <select id="turno" name="turno" required>
@@ -122,6 +160,47 @@
                  placeholder="Identificador fiscal o personal"
                  autocomplete="off" maxlength="18" required>
         </div>
+      </div>
+    </section>
+
+    <section class="admin-form-card">
+      <div class="admin-form-section-heading">
+        <span class="admin-form-section-icon is-cyan"><i class="fas fa-file-signature"></i></span>
+        <div>
+          <h2>Firma de resultados</h2>
+          <p>Responsabilidad profesional mostrada en los reportes clínicos.</p>
+        </div>
+      </div>
+      <div class="rounded-xl border border-cyan-100 bg-cyan-50/50 p-4 text-sm text-cyan-900">
+        Un empleado sin cédula, firma o autorización puede capturar resultados, pero los reportes serán firmados automáticamente por el Admin responsable configurado.
+      </div>
+      <div class="admin-form-grid mt-5">
+        <div class="admin-field">
+          <label for="cedula_profesional">Cédula profesional</label>
+          <input type="text" id="cedula_profesional" name="cedula_profesional"
+                 value="{{ empleado.cedula_profesional|default('', true) }}"
+                 placeholder="Ej. 1996290" maxlength="30" autocomplete="off">
+          <small>Se imprimirá debajo del nombre del responsable.</small>
+        </div>
+        <div class="admin-field">
+          <label for="firma_resultados">Imagen de firma</label>
+          <input type="file" id="firma_resultados" name="firma_resultados"
+                 accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
+          <small>Preferentemente PNG con fondo transparente y trazo oscuro.</small>
+        </div>
+        {% if empleado.firma_resultados_url|default('', true) %}
+        <div class="admin-field admin-field-full">
+          <span class="block text-xs font-semibold text-gray-500">Firma actual</span>
+          <div class="mt-2 inline-flex rounded-xl border border-gray-200 bg-white p-3">
+            <img src="{{ empleado.firma_resultados_url }}" alt="Firma profesional registrada" class="h-20 max-w-xs object-contain">
+          </div>
+        </div>
+        {% endif %}
+        <label class="admin-field admin-field-full flex-row items-start gap-3 rounded-xl border border-gray-200 bg-slate-50 p-4">
+          <input type="checkbox" name="puede_firmar_resultados" class="mt-1 h-4 w-4"
+                 {% if empleado.puede_firmar_resultados|default(false) %}checked{% endif %}>
+          <span><strong class="block text-sm text-gray-900">Autorizar para firmar resultados</strong><small class="mt-1 block text-gray-500">Solo debe activarse para Admin o Químico con cédula vigente y responsabilidad profesional. Un perfil personalizado utilizará la firma del responsable autorizado.</small></span>
+        </label>
       </div>
     </section>
 
@@ -325,8 +404,41 @@ document.addEventListener("DOMContentLoaded", () => {
   const photoPreview = document.getElementById("employee-avatar-preview");
   const initialAvatarMarkup = photoPreview.innerHTML;
   const avatarChoices = form.querySelectorAll('[name="avatar_choice"]');
+  const roleChoices = [...form.querySelectorAll('[name="tipo_empleado"]')];
+  const permissionsPanel = document.getElementById("employee-permissions-panel");
+  const permissionInputs = [...form.querySelectorAll('[name="permisos"]')];
+  const permissionCount = document.getElementById("employee-permission-count");
+  const permissionsError = document.getElementById("employee-permissions-error");
   const usernameSources = ["nombres", "apellidos", "fecha_nacimiento"]
     .map(id => document.getElementById(id));
+
+  const isCustomRole = () =>
+    form.querySelector('[name="tipo_empleado"]:checked')?.value === "5";
+
+  const updatePermissionCount = () => {
+    const count = permissionInputs.filter(input => input.checked).length;
+    permissionCount.textContent = `${count} ${count === 1 ? "seleccionado" : "seleccionados"}`;
+    permissionsError.classList.toggle("hidden", count > 0 || !isCustomRole());
+  };
+
+  const updatePermissionsVisibility = () => {
+    const visible = isCustomRole();
+    permissionsPanel.classList.toggle("hidden", !visible);
+    permissionInputs.forEach(input => { input.disabled = !visible; });
+    updatePermissionCount();
+  };
+
+  roleChoices.forEach(choice => choice.addEventListener("change", updatePermissionsVisibility));
+  permissionInputs.forEach(input => input.addEventListener("change", updatePermissionCount));
+  form.querySelectorAll("[data-select-permission-group]").forEach(button => {
+    button.addEventListener("click", () => {
+      button.closest("[data-permission-group]")
+        .querySelectorAll('[name="permisos"]')
+        .forEach(input => { input.checked = true; });
+      updatePermissionCount();
+    });
+  });
+  updatePermissionsVisibility();
 
   const updateUsername = () => {
     const firstName = usernameSources[0].value.trim();
@@ -403,6 +515,14 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   form.addEventListener("submit", event => {
+    if (isCustomRole() && !permissionInputs.some(input => input.checked)) {
+      event.preventDefault();
+      permissionsError.classList.remove("hidden");
+      alert.querySelector("span").textContent = "Selecciona al menos un permiso para el perfil personalizado.";
+      alert.classList.remove("hidden");
+      permissionsPanel.scrollIntoView({behavior: "smooth", block: "center"});
+      return;
+    }
     const selectedAvatar = form.querySelector('[name="avatar_choice"]:checked')?.value;
     if (selectedAvatar === "upload" && !photoInput.files.length) {
       event.preventDefault();

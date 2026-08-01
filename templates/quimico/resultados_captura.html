@@ -1,104 +1,133 @@
 {% extends "base.html" %}
-
-{% block title %}Reporte de Resultados{% endblock %}
+{% block title %}Captura de resultados | AppLab{% endblock %}
 
 {% block content %}
-  <style>
-    /* Ocultar completamente la columna de valores normales */
-    .col-valores-normales {
-      display: none;
-    }
-  </style>
-
-  <div class="w-full max-w-7xl mx-auto px-6 py-8">
-    <!-- Encabezado -->
-    <div class="flex items-center space-x-2 mb-6">
-      <button class="text-2xl" onclick="window.history.back()">
-        <i class="fas fa-arrow-left"></i>
-      </button>
-      <h1 class="text-3xl font-bold">Reporte Resultados</h1>
+<main class="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <a href="{{ url_for('app_routes.resultados') }}" class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm" aria-label="Volver">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Químico · Orden #{{ orden.id }}</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Captura de resultados</h1>
+      <p class="mt-2 text-sm text-gray-500">{{ paciente.nombres }} {{ paciente.apellidos }} · Registra y verifica cada estudio.</p>
     </div>
-    <header class="flex justify-between items-center mb-6">
-      <!-- Mostrar el nombre completo del paciente -->
-      <h1 class="text-xl font-semibold leading-tight">{{ paciente.nombres }} {{ paciente.apellidos }}</h1>
-      <div class="text-lg font-extrabold">
-        Orden <span class="text-red-600">#{{ paciente.orden }}</span>
-      </div>
-    </header>
+  </header>
 
-    <!-- Formulario para enviar resultados -->
-    <form id="resultados-form" method="POST" action="{{ url_for('app_routes.guardar_resultados') }}">
-      {% for prueba in pruebas %}
-        <section class="bg-white rounded-xl shadow-md p-6 overflow-x-auto scrollbar-thin max-h-[400px] mb-8" style="scrollbar-width: thin;">
-          <table class="w-full border-collapse min-w-[700px]">
-            <thead>
-              <tr>
-                <th colspan="6" class="text-2xl font-bold text-left py-2 border-b border-black">{{ prueba.nombre_prueba }}</th>
-              </tr>
-              <tr class="text-xs text-gray-500 border-b border-black">
-                <th class="py-2 w-1/4"></th>
-                <th class="py-2 w-1/6 text-center">Resultados</th>
-                <th class="py-2 w-1/12 text-center">Unidades</th>
-                <th class="py-2 w-1/4 text-center col-valores-normales">Valores normales</th> <!-- Se oculta esta columna -->
-                <th class="py-2 w-1/12 text-center"></th>
-                <th class="py-2 w-1/12"></th>
-              </tr>
-            </thead>
-            <tbody class="text-sm text-gray-900">
-              {% for campo in prueba.valores_normales %}
-                <tr class="border-b border-dashed border-gray-300">
-                  <td class="py-2 pl-2">{{ campo.nombre }}</td>
-                  <td class="py-2 text-center">
-                    {% if campo.estructura.valores_permitidos %}
-                      <!-- Si los valores normales son "positivo-negativo", mostramos un select -->
-                      <select name="{{ campo.key }}" class="border border-gray-400 rounded-full px-4 py-1 text-sm text-center w-28 focus:outline-none focus:ring-1 focus:ring-yellow-300" aria-label="{{ campo.nombre }} resultado">
-                        <option disabled selected>Selecciona una opción</option>
-                        {% for opcion in campo.estructura.valores_permitidos %}
-                          <option>{{ opcion }}</option>
-                        {% endfor %}
-                      </select>
-                    {% else %}
-                      <!-- Si no hay opciones, mostramos un input normal -->
-                      <input type="text" name="{{ campo.key }}" value="" class="border border-gray-300 rounded-lg px-3 py-1 w-20 text-center text-sm focus:outline-none focus:ring-1 focus:ring-yellow-300" aria-label="{{ campo.nombre }} resultado" />
-                    {% endif %}
-                  </td>
-                  <td class="py-2 text-center font-normal">
-                    {% if campo.estructura.F and campo.estructura.F.unidad %}
-                      <!-- Mostrar la unidad si está definida -->
-                      <input type="text" name="{{ campo.key }}_unidad" value="{{ campo.estructura.F.unidad }}" class="border border-transparent rounded px-1 text-center w-20 focus:outline-none focus:ring-1 focus:ring-yellow-300" aria-label="{{ campo.nombre }} unidades" readonly />
-                    {% else %}
-                      <input type="text" name="{{ campo.key }}_unidad" value="mg/dL" class="border border-transparent rounded px-1 text-center w-20 focus:outline-none focus:ring-1 focus:ring-yellow-300" aria-label="{{ campo.nombre }} unidades" readonly />
-                    {% endif %}
-                  </td>
-                  <td class="py-2 text-center font-normal col-valores-normales">
-                    {% if campo.estructura %}
-                      {% if campo.estructura.F %}
-                        <div>Feminino: {{ campo.estructura.F.min }} - {{ campo.estructura.F.max }} {{ campo.estructura.F.unidad or 'mg/dL' }}</div>
-                      {% endif %}
-                      {% if campo.estructura.M %}
-                        <div>Masculino: {{ campo.estructura.M.min }} - {{ campo.estructura.M.max }} {{ campo.estructura.M.unidad or 'mg/dL' }}</div>
-                      {% endif %}
-                    {% else %}
-                      <div>Rango: 0 - 100 mg/dL</div>
-                    {% endif %}
-                  </td>
-                  <td class="py-2 text-center">
-                    <input type="text" readonly class="border border-transparent rounded px-1 text-red-600 text-sm text-center w-36 focus:outline-none focus:ring-1 focus:ring-yellow-300 hidden" value="Fuera de valor normal" />
-                  </td>
-                  <td></td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </section>
-      {% endfor %}
-      <div class="max-w-7xl mx-auto flex justify-end mt-6 gap-4">
-        <button id="guardar-btn" type="button" class="btn-guardar" onclick="window.history.back();">
-          Guardar
-      </button>
-        <button type="button" class="btn-cancelar" onclick="window.history.back()">Cancelar</button>
+  <section class="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4 text-sm text-cyan-900">
+    <div class="flex gap-3">
+      <i class="fas fa-shield-alt mt-0.5 text-cyan-700"></i>
+      <p><strong>Consumo controlado:</strong> guardar una ejecución descuenta automáticamente los reactivos asociados por lote y caducidad. Una repetición vuelve a consumirlos.</p>
+    </div>
+  </section>
+
+  <div class="space-y-5">
+    {% for estudio in estudios %}
+    <article class="result-study overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+             data-order="{{ orden.id }}" data-detail="{{ estudio.detalle_id }}"
+             data-verification="{{ estudio.ultima_ejecucion.id if estudio.ultima_ejecucion else '' }}"
+             data-completed="{{ 'true' if estudio.ultima_ejecucion else 'false' }}">
+      <header class="flex flex-col gap-3 border-b border-gray-200 p-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><i class="fas fa-flask"></i></span>
+            <div><h2 class="font-bold text-gray-900">{{ estudio.nombre_prueba }}</h2><p class="text-xs text-gray-500">{{ estudio.tipo_prueba or 'Estudio clínico' }}</p></div>
+          </div>
+        </div>
+        {% if estudio.borrador and estudio.borrador.valores %}
+        <span class="self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+          Avance guardado
+        </span>
+        {% elif estudio.ultima_ejecucion %}
+        <span class="self-start rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+          Ejecución {{ estudio.ultima_ejecucion.numero_ejecucion }} guardada
+        </span>
+        {% else %}
+        <span class="self-start rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Pendiente</span>
+        {% endif %}
+      </header>
+
+      <div class="p-5">
+        {% if estudio.elementos %}
+        <div class="grid gap-4 md:grid-cols-2">
+          {% for elemento in estudio.elementos %}
+          {% set reference = elemento.referencia_aplicable %}
+          {% set draft_value = estudio.borrador.valores.get(elemento.id|string, '') if estudio.borrador and estudio.borrador.valores else '' %}
+          {% set previous = draft_value or (estudio.ultima_ejecucion.valores.get(elemento.id|string, '') if estudio.ultima_ejecucion else '') %}
+          {% set draft_verified = estudio.borrador.valores.get('__verificado_' ~ elemento.id|string, false) if estudio.borrador and estudio.borrador.valores else false %}
+          {% set previous_evaluation = estudio.ultima_ejecucion.evaluaciones.get(elemento.id|string, {}) if estudio.ultima_ejecucion else {} %}
+          {% set is_verified = draft_verified or previous_evaluation.get('verificado', false) %}
+          <label class="result-field block rounded-xl border border-gray-200 bg-slate-50 p-4" data-element="{{ elemento.id }}">
+            <span class="flex items-start justify-between gap-3">
+              <span><strong class="block text-sm text-gray-900">{{ elemento.nombre }}</strong><small class="mt-1 block text-gray-500">Referencia: {{ reference.descripcion }}</small></span>
+              <span class="result-state rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-500">Sin capturar</span>
+            </span>
+            {% if reference.opciones %}
+            <select class="result-input mt-3 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-cyan-500" required>
+              <option value="">Selecciona un resultado</option>
+              {% for option in reference.opciones %}<option value="{{ option }}" {% if previous == option|string %}selected{% endif %}>{{ option }}</option>{% endfor %}
+            </select>
+            {% else %}
+            <div class="mt-3 flex items-center gap-2">
+              <input class="result-input min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-cyan-500"
+                     type="number" step="any" inputmode="decimal" value="{{ previous }}" placeholder="Resultado" required>
+              {% if reference.unidad %}<span class="text-xs font-semibold text-gray-500">{{ reference.unidad }}</span>{% endif %}
+            </div>
+            {% endif %}
+            <span class="mt-3 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2">
+              <span class="text-xs font-semibold text-gray-700"><i class="fas fa-check-double mr-1 text-emerald-600"></i>Resultado verificado</span>
+              <span class="flex items-center gap-3 text-xs">
+                <span class="verification-label font-semibold {{ 'text-emerald-700' if is_verified else 'text-gray-500' }}">{{ 'Sí' if is_verified else 'No' }}</span>
+                <input type="checkbox" class="result-verified h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" {% if is_verified %}checked{% endif %}>
+              </span>
+            </span>
+            <script type="application/json" class="result-reference">{{ reference|tojson }}</script>
+          </label>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Esta prueba no tiene elementos/valores normales configurados. Agrégalos desde Administración antes de capturar.
+        </div>
+        {% endif %}
+
+        <div class="mt-5 rounded-xl border border-gray-200 p-4">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-gray-500">Reactivos por ejecución</h3>
+          {% if estudio.reactivos %}
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for reactivo in estudio.reactivos %}
+            <span class="rounded-lg bg-slate-100 px-3 py-2 text-xs text-gray-700">
+              <i class="fas fa-vial mr-1 text-cyan-700"></i>{{ reactivo.nombre }} · usa {{ reactivo.cantidad }} · disponible {{ reactivo.existencia }}
+            </span>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="mt-2 text-xs text-amber-700">Sin reactivos asociados; esta ejecución no descontará inventario.</p>
+          {% endif %}
+        </div>
+
+        <div class="result-message mt-4 hidden rounded-xl p-3 text-sm"></div>
+        <div class="mt-5 flex flex-wrap justify-end gap-2">
+          <button type="button" class="save-draft rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700" {% if not estudio.elementos %}disabled{% endif %}>
+            <i class="fas fa-bookmark mr-2"></i>Guardar avance
+          </button>
+          {% if estudio.ultima_ejecucion and not estudio.verificacion_registrada %}
+          <button type="button" class="save-result rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800">
+            <i class="fas fa-check-double mr-2"></i>Guardar verificación
+          </button>
+          {% elif estudio.ultima_ejecucion and estudio.verificacion_registrada %}
+          <span class="inline-flex items-center rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700"><i class="fas fa-shield-check mr-2"></i>Verificación registrada</span>
+          {% else %}
+          <button type="button" class="save-result rounded-xl bg-[#0b1f33] px-4 py-2.5 text-sm font-semibold text-white" {% if not estudio.elementos %}disabled{% endif %}>
+            <i class="fas fa-check mr-2"></i>Completar estudio
+          </button>
+          {% endif %}
+        </div>
       </div>
-    </form>
+    </article>
+    {% endfor %}
   </div>
 
+</main>
+<script src="{{ url_for('static', filename='js/resultados_captura.js') }}"></script>
 {% endblock %}
