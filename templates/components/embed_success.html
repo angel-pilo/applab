@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Guardado</title></head>
+<body>
+<script>
+window.parent.postMessage({
+  type: "applab:entity-saved",
+  entity: {{ entity|tojson }},
+  id: {{ entity_id|tojson }}
+}, window.location.origin);
+</script>
+</body>
+</html>

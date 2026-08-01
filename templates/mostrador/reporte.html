@@ -1,283 +1,127 @@
 {% extends "base.html" %}
-
-{% block title %}Nota{% endblock %}
-
+{% block title %}Resumen y abono | AppLab{% endblock %}
 {% block content %}
-<div class="w-full max-w-[1800px] mx-auto px-6 py-8">
-  <!-- Encabezado -->
-  <div class="flex justify-between items-center mb-6">
-    <div class="flex items-center space-x-2">
-      <button onclick="window.history.back()" class="text-2xl">
-        <i class="fas fa-arrow-left"></i>
-      </button>
-      <h1 class="text-3xl font-bold">Nota</h1>
-    </div>
-  </div>
-
-  <!-- Fecha, folio e estado -->
-  <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-2">
-    <p class="text-xl font-semibold">
-      Fecha <span class="text-red-600">{{ fecha_actual }}</span>
-    </p>
-    <div class="text-right">
-      <p class="text-xl text-right font-semibold">
-        Orden
-        <span class="text-red-600">
-          {% if orden_id %}
-            #{{ "%04d"|format(orden_id) }}
-          {% elif folio_sugerido %}
-            #{{ "%04d"|format(folio_sugerido) }}
-          {% else %}
-            #0000
-          {% endif %}
-        </span>
-      </p>
-      <p class="text-lg font-semibold mt-1">
-        Estado:
-        <span class="text-red-600">
-          {{ estado|capitalize if estado else "Borrador" }}
-        </span>
-      </p>
-    </div>
-  </div>
-
-  <!-- Información del paciente / doctor / hospital / cuarto -->
-  <div class="bg-white rounded-[1rem] shadow-md p-6 mb-6">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-base font-medium">
-      <div>
-        <p class="text-gray-500">Nombre</p>
-        <p class="font-semibold text-black">
-          {% if paciente %}
-            {{ paciente.nombres }} {{ paciente.apellidos }}
-          {% else %}
-            -
-          {% endif %}
-        </p>
-      </div>
-
-      <div>
-        <p class="text-gray-500">Doctor</p>
-        <p class="font-semibold text-black">
-          {% if doctor %}
-            {{ doctor.nombres }} {{ doctor.apellidos }}
-          {% else %}
-            -
-          {% endif %}
-        </p>
-      </div>
-
-      <div>
-        <p class="text-gray-500">Hospital</p>
-        <p class="font-semibold text-black">
-          {% if hospital %}
-            {{ hospital.nombre }}
-          {% else %}
-            -
-          {% endif %}
-        </p>
-      </div>
-
-      <div>
-        <p class="text-gray-500">Cuarto</p>
-        <p class="font-semibold text-black">
-          {{ orden.cuarto }}
-        </p>
-      </div>
-    </div>
-
-    {% if orden.observaciones %}
-    <div class="mt-4">
-      <p class="text-gray-500 font-semibold">Observaciones</p>
-      <p class="text-black">{{ orden.observaciones }}</p>
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Tablas: Pruebas (izq) y Abonos (der) -->
-  <div class="flex flex-col lg:flex-row gap-10 justify-between items-start">
-    <!-- Tabla de pruebas -->
-    <div class="bg-white p-4 rounded-[1rem] shadow-md w-full lg:w-[65%]">
-      <table class="w-full text-base text-left">
-        <thead>
-          <tr class="border-b">
-            <th class="pb-2 text-left">Prueba</th>
-            <th class="pb-2 text-center">Cantidad</th>
-            <th class="pb-2 text-right">Precio final</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if pruebas %}
-            {% for p in pruebas %}
-              <tr class="border-b">
-                <td class="py-2">{{ p["prueba"] }}</td>
-                <td class="py-2 text-center">{{ p["cantidad"] }}</td>
-                <td class="py-2 text-right">
-                  ${{ "%.2f"|format(p["precio"]|float) }}
-                </td>
-              </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="3" class="py-4 text-center text-gray-400">
-                No hay pruebas seleccionadas.
-              </td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
-
-      <!-- Total pruebas -->
-      <div class="flex justify-end mt-4 text-lg font-bold">
-        <span class="mr-2">Total pruebas:</span>
-        <span>${{ "%.2f"|format(total_pruebas) }}</span>
-      </div>
-
-      <!-- Botón Editar (regresa a orden_pruebas) -->
-      <div class="flex justify-end mt-4">
-        {% if estado|lower == 'borrador' %}
-        <button
-          type="button"
-          class="btn-cancelar px-6 py-2 rounded-[1rem]"
-          onclick="window.location.href='{{ url_for('app_routes.manage_orden_pruebas') }}'">
-          Editar
-        </button>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Panel de abonos -->
-    <div class="bg-white p-4 rounded-[1rem] shadow-md w-full lg:w-[30%]">
-      <h3 class="text-lg font-semibold mb-4">Abonos</h3>
-      <table class="w-full text-base mb-6">
-        <thead>
-          <tr class="border-b">
-            <th class="pb-2 text-left">Fecha</th>
-            <th class="pb-2 text-left">Cantidad</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if abonos and abonos|length > 0 %}
-            {% for a in abonos %}
-              <tr class="border-b">
-                <td class="py-2 text-red-600">{{ a.fecha_abono }}</td>
-                <td class="py-2 text-right">
-                  ${{ "%.2f"|format(a.cantidad|float) }}
-                </td>
-              </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="2" class="py-4 text-center text-gray-400">
-                No hay abonos registrados.
-              </td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
-      <div class="border-t pt-4 space-y-1 text-lg font-semibold">
-        <div class="flex justify-between">
-          <span>Total pagado</span>
-          <span>${{ "%.2f"|format(total_abonos) }}</span>
-        </div>
-        <div class="flex justify-between">
-          <span>Total faltante</span>
-          <span>${{ "%.2f"|format(total_restante) }}</span>
+<div class="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <a href="{{ url_for('app_routes.mostrador_dashboard') }}" class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm"><i class="fas fa-arrow-left"></i></a>
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Orden clínica · Paso 3 de 3</p>
+      <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div><h1 class="text-3xl font-bold tracking-tight text-gray-900">Resumen y abono</h1><p class="mt-2 text-sm text-gray-500">Verifica la orden y registra el pago recibido.</p></div>
+        <div class="flex gap-2">
+          <span class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600">{{ fecha_actual }}</span>
+          <span class="rounded-lg bg-[#0b1f33] px-3 py-2 text-sm font-bold text-white">Orden #{{ "%04d"|format(orden_id or folio_sugerido or 0) }}</span>
         </div>
       </div>
     </div>
+  </header>
+
+  <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"><small class="text-gray-500">Paciente</small><strong class="mt-2 block text-sm text-gray-900">{{ paciente.nombres ~ ' ' ~ paciente.apellidos if paciente else 'No disponible' }}</strong></article>
+    <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"><small class="text-gray-500">Procedencia</small><strong class="mt-2 block text-sm text-gray-900">{{ hospital.nombre if hospital else 'Paciente particular' }}</strong></article>
+    <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"><small class="text-gray-500">Médico</small><strong class="mt-2 block text-sm text-gray-900">{{ doctor.nombres ~ ' ' ~ doctor.apellidos if doctor else 'Sin médico solicitante' }}</strong></article>
+    <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"><small class="text-gray-500">Estado</small><strong class="mt-2 block text-sm {{ 'text-emerald-700' if estado == 'pagada' else 'text-amber-700' }}">{{ estado|default('pendiente')|title }}</strong></article>
+  </section>
+
+  <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <header class="border-b border-gray-200 px-4 py-4 sm:px-5"><h2 class="font-bold text-gray-900">Estudios de la orden</h2><p class="text-sm text-gray-500">{{ pruebas|length }} estudio{{ '' if pruebas|length == 1 else 's' }} seleccionado{{ '' if pruebas|length == 1 else 's' }}.</p></header>
+      <div class="divide-y divide-gray-100">
+        {% for p in pruebas %}
+        <article class="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
+          <div class="min-w-0"><strong class="block truncate text-sm text-gray-900">{{ p.prueba }}</strong><small class="text-gray-500">Cantidad: {{ p.cantidad }}</small></div>
+          <strong class="shrink-0 text-sm text-gray-900">${{ "%.2f"|format(p.precio|float) }}</strong>
+        </article>
+        {% else %}<p class="px-5 py-10 text-center text-sm text-gray-500">No hay estudios registrados.</p>{% endfor %}
+      </div>
+      {% if orden.observaciones %}<div class="border-t border-gray-200 bg-gray-50 px-4 py-4 text-sm sm:px-5"><strong class="text-gray-700">Observaciones:</strong><p class="mt-1 text-gray-600">{{ orden.observaciones }}</p></div>{% endif %}
+    </section>
+
+    <aside class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <header class="border-b border-gray-200 px-4 py-4"><h2 class="font-bold text-gray-900">Estado de cuenta</h2></header>
+      <dl class="space-y-3 px-4 py-4 text-sm">
+        <div class="flex justify-between text-gray-600"><dt>Total</dt><dd class="font-semibold text-gray-900">${{ "%.2f"|format(total_pruebas) }}</dd></div>
+        <div class="flex justify-between text-gray-600"><dt>Pagado</dt><dd class="font-semibold text-emerald-700">${{ "%.2f"|format(total_abonos) }}</dd></div>
+        <div class="flex justify-between border-t border-gray-200 pt-3"><dt class="font-bold text-gray-900">Saldo pendiente</dt><dd class="text-lg font-bold {{ 'text-emerald-700' if total_restante <= 0 else 'text-amber-700' }}">${{ "%.2f"|format(total_restante) }}</dd></div>
+      </dl>
+      {% if total_restante > 0 and orden_id %}
+      <div class="px-4 pb-4"><button type="button" onclick="openPaymentModal()" class="btn-guardar w-full"><i class="fas fa-coins mr-2"></i>Registrar abono</button></div>
+      {% elif total_restante <= 0 %}
+      <div class="mx-4 mb-4 rounded-xl bg-emerald-50 px-3 py-3 text-center text-sm font-semibold text-emerald-700"><i class="fas fa-check-circle mr-1"></i>Cuenta pagada</div>
+      {% else %}
+      <div class="mx-4 mb-4 rounded-xl bg-red-50 px-3 py-3 text-center text-sm font-semibold text-red-700"><i class="fas fa-exclamation-circle mr-1"></i>La orden no tiene un folio válido</div>
+      {% endif %}
+    </aside>
   </div>
 
-  <!-- Botones principales -->
-  <div class="flex justify-end gap-4 mt-8">
-    <button type="button"
-            class="btn-cancelar px-6 py-2 rounded-[1rem]"
-            onclick="window.history.back()">
-      Cancelar
-    </button>
+  {% if abonos %}
+  <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <header class="border-b border-gray-200 px-4 py-4 sm:px-5"><h2 class="font-bold text-gray-900">Movimientos de pago</h2></header>
+    <div class="divide-y divide-gray-100">
+      {% for a in abonos %}
+      <div class="flex items-center justify-between gap-4 px-4 py-3 text-sm sm:px-5">
+        <div>
+          <span class="block text-gray-500">{{ a.fecha_abono }}</span>
+          <span class="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+            {{ (a.metodo_pago_otro if a.metodo_pago == 'otro' else a.metodo_pago)|default('No especificado', true)|title }}
+          </span>
+          {% if a.nota %}<small class="ml-2 text-gray-500">{{ a.nota }}</small>{% endif %}
+        </div>
+        <strong class="shrink-0 text-emerald-700">+${{ "%.2f"|format(a.cantidad|float) }}</strong>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
 
-    <!-- Abonar (abre modal) -->
-    <button type="button"
-            onclick="abrirModalAbono()"
-            class="btn-cancelar px-6 py-2 rounded-[1rem]">
-      Abonar
-    </button>
-
-    <!-- Imprimir: guarda la orden en BD si aún no existe -->
-    <form method="POST" action="{{ url_for('app_routes.imprimir_orden') }}">
-      <button type="submit" class="btn-guardar px-6 py-2 rounded-[1rem]">
-        Guardar
-      </button>
+{% if orden_id and total_restante > 0 %}
+<div id="payment-modal" class="fixed inset-0 z-[9999] hidden" role="dialog" aria-modal="true" aria-labelledby="payment-title">
+  <button type="button" onclick="closePaymentModal()" class="absolute inset-0 bg-slate-950/55 backdrop-blur-[1px]" aria-label="Cerrar"></button>
+  <div class="absolute left-1/2 top-1/2 w-[calc(100%_-_2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-2xl">
+    <header class="flex items-center justify-between border-b border-gray-200 px-5 py-4"><div><p class="text-xs font-semibold uppercase tracking-wide text-cyan-700">Estado de cuenta</p><h2 id="payment-title" class="font-bold text-gray-900">Registrar abono</h2></div><button onclick="closePaymentModal()" class="grid h-9 w-9 place-items-center rounded-lg border border-gray-200 text-gray-500"><i class="fas fa-times"></i></button></header>
+    <form method="POST" action="{{ url_for('app_routes.abonar_orden', orden_id=orden_id) }}" class="space-y-4 p-5">
+      <div class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Saldo máximo: <strong>${{ "%.2f"|format(total_restante) }}</strong></div>
+      <div class="admin-field"><label for="cantidad-abono">Cantidad recibida <span>*</span></label><input type="number" id="cantidad-abono" name="cantidad" min="0.01" max="{{ total_restante }}" step="0.01" required autofocus></div>
+      <fieldset>
+        <legend class="mb-2 text-sm font-semibold text-gray-700">Método de pago <span class="text-red-500">*</span></legend>
+        <div class="grid grid-cols-2 gap-2">
+          {% for value, label, icon in [
+            ('efectivo', 'Efectivo', 'fa-money-bill-wave'),
+            ('tarjeta', 'Tarjeta', 'fa-credit-card'),
+            ('transferencia', 'Transferencia', 'fa-exchange-alt'),
+            ('otro', 'Otro', 'fa-ellipsis-h')
+          ] %}
+          <label class="cursor-pointer">
+            <input class="peer sr-only" type="radio" name="metodo_pago" value="{{ value }}" {{ 'checked' if value == 'efectivo' }} required>
+            <span class="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-medium text-gray-600 transition peer-checked:border-cyan-500 peer-checked:bg-cyan-50 peer-checked:text-cyan-800">
+              <i class="fas {{ icon }}"></i>{{ label }}
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div id="otro-metodo-field" class="admin-field hidden">
+        <label for="metodo-pago-otro">Especifica el método <span>*</span></label>
+        <input type="text" id="metodo-pago-otro" name="metodo_pago_otro" maxlength="80" placeholder="Ej. cheque, vales...">
+      </div>
+      <div class="admin-field"><label for="nota-abono">Nota <small class="font-normal text-gray-400">(opcional)</small></label><textarea id="nota-abono" name="nota" rows="2" placeholder="Referencia, últimos dígitos u observaciones..."></textarea></div>
+      <div class="flex justify-end gap-3 border-t border-gray-100 pt-4"><button type="button" onclick="closePaymentModal()" class="btn-cancelar">Cancelar</button><button type="submit" class="btn-guardar">Guardar abono</button></div>
     </form>
   </div>
 </div>
-
-<!-- Modal de abono -->
-<div id="modal-abono"
-     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-  <div class="bg-white rounded-[1rem] w-full max-w-md p-6 shadow-lg">
-    <h2 class="text-xl font-bold text-center mb-4">Agregar Abono</h2>
-
-    {% if orden_id %}
-      <form id="form-abono"
-            method="POST"
-            action="{{ url_for('app_routes.abonar_orden', orden_id=orden_id) }}">
-        <div class="mb-4">
-          <label for="cantidad-abono" class="block font-medium mb-2">
-            Cantidad a abonar
-          </label>
-          <input
-            type="number"
-            id="cantidad-abono"
-            name="cantidad"
-            min="1"
-            step="0.01"
-            required
-            class="w-full px-4 py-2 border rounded-[1rem]"
-          >
-        </div>
-
-
-        <div class="mb-4">
-          <label for="nota-abono" class="block font-medium mb-2">Nota</label>
-          <textarea id="nota-abono" name="nota"
-                    class="w-full px-4 py-2 border rounded-[1rem]"></textarea>
-        </div>
-
-
-        <div class="flex justify-center gap-4 mt-6">
-          <button type="button"
-                  onclick="cerrarModalAbono()"
-                  class="btn-cancelar px-6 py-2 rounded-[1rem]">
-            Cancelar
-          </button>
-          <button type="submit"
-                  class="btn-guardar px-6 py-2 rounded-[1rem]">
-            Guardar
-          </button>
-        </div>
-      </form>
-    {% else %}
-      <p class="text-center text-red-500 mb-4">
-        Primero guarda la orden (Imprimir) antes de registrar abonos.
-      </p>
-      <div class="flex justify-center">
-        <button type="button"
-                onclick="cerrarModalAbono()"
-                class="btn-cancelar px-6 py-2 rounded-[1rem]">
-          Cerrar
-        </button>
-      </div>
-    {% endif %}
-  </div>
-</div>
-
 <script>
-  function abrirModalAbono() {
-    document.getElementById("modal-abono").classList.remove("hidden");
-  }
-
-  function cerrarModalAbono() {
-    document.getElementById("modal-abono").classList.add("hidden");
-  }
+function openPaymentModal(){document.getElementById("payment-modal")?.classList.remove("hidden");document.body.classList.add("overflow-hidden")}
+function closePaymentModal(){document.getElementById("payment-modal")?.classList.add("hidden");document.body.classList.remove("overflow-hidden")}
+function toggleOtherPaymentMethod(){
+  const isOther=document.querySelector('input[name="metodo_pago"]:checked')?.value==="otro";
+  const field=document.getElementById("otro-metodo-field");
+  const input=document.getElementById("metodo-pago-otro");
+  field?.classList.toggle("hidden",!isOther);
+  if(input){input.required=isOther;if(!isOther)input.value=""}
+}
+document.querySelectorAll('input[name="metodo_pago"]').forEach((input)=>input.addEventListener("change",toggleOtherPaymentMethod));
+toggleOtherPaymentMethod();
 </script>
+{% endif %}
 {% endblock %}

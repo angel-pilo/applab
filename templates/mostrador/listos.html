@@ -1,86 +1,110 @@
 {% extends "base.html" %}
-
-{% block title %}Resultados Listos{% endblock %}
+{% block title %}Resultados listos | AppLab{% endblock %}
 
 {% block content %}
-
-<div class="w-full max-w-7xl mx-auto px-6 py-8">
-  <!-- Encabezado -->
-  <div class="flex items-center space-x-2 mb-6">
-    <button class="text-2xl" onclick="window.history.back()">
-      <i class="fas fa-arrow-left"></i>
-    </button>
-    <h1 class="text-3xl font-bold">Resultados Listos</h1>
-  </div>
-
-  <!-- Contenido principal -->
-  <div class="flex flex-col lg:flex-row items-start gap-6 justify-center">
-    
-    <!-- Tabla principal -->
-    <div class="bg-white rounded-[1rem] shadow-md overflow-x-auto max-w-[1200px] w-full">
-      <table class="min-w-full text-base text-left">
-        <thead>
-          <tr class="border-b">
-            <th class="px-6 py-4 text-red-600 font-bold">Folio ⬇</th>
-            <th class="px-6 py-4 font-semibold text-gray-700">Nombre del paciente</th>
-            <th class="px-6 py-4 font-semibold text-gray-700">Lugar</th>
-            <th class="px-6 py-4 text-center font-semibold text-gray-700">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% set pacientes = [
-            ("00012", "Roberto Sánchez Bautista ", "1", "red"),
-          ] %}
-          {% for folio, nombre, lugar, color in pacientes %}
-          <tr class="border-b">
-            <td class="px-6 py-4 font-bold flex items-center gap-2 text-{{ color }}-600">
-              <span class="h-3 w-3 rounded-full bg-{{ color }}-600 inline-block"></span> #{{ folio }}
-            </td>
-            <td class="px-6 py-4">{{ nombre }}</td>
-            <td class="px-6 py-4">{{ lugar }}</td>
-            <td class="px-6 py-4 flex gap-2 justify-center">
-              <button class="btn-whats px-4 py-1 rounded-[1rem]">WhatsApp</button>
-              <button class="btn-guardar px-4 py-1 rounded-[1rem]"  onclick="window.location.href='{{ url_for('app_routes.mostrador_dashboard') }}'">Imprimir</button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<div class="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <a href="{{ url_for('app_routes.mostrador_dashboard') }}"
+       class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm"
+       aria-label="Volver al mostrador"><i class="fas fa-arrow-left"></i></a>
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Mostrador</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Resultados listos</h1>
+      <p class="mt-2 text-sm text-gray-500">Entrega resultados y finaliza la atención sin eliminar el historial clínico.</p>
     </div>
+  </header>
 
-    <!-- Panel lateral de faltantes -->
-    <div class="w-full lg:w-[360px] bg-white rounded-[1rem] shadow-md p-4">
-      <h2 class="text-lg font-bold text-center mb-4">Faltantes de reportar</h2>
-      <table class="w-full text-sm text-left">
-        <thead>
-          <tr class="border-b">
-            <th class="pb-2 text-red-600 font-semibold">Folio</th>
-            <th class="pb-2">Nombre del paciente</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if ordenes_quimico and ordenes_quimico|length > 0 %}
-            {% for orden in ordenes_quimico %}
-              <tr class="border-b hover:bg-gray-50">
-                <td class="py-2 text-red-600 font-bold">
-                  #{{ "%05d"|format(orden.id) }}
-                </td>
-                <td class="py-2 px-2">
-                  {{ orden.nombre_paciente }}
-                </td>
-              </tr> 
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="2" class="text-center text-gray-500 py-2">
-                No hay órdenes para mostrar.
-              </td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
+  <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <header class="flex items-center justify-between border-b border-gray-200 px-4 py-4 sm:px-5">
+      <div>
+        <h2 class="font-bold text-gray-900">Pendientes de entrega</h2>
+        <p class="text-sm text-gray-500">{{ resultados_listos|length }} resultado{{ '' if resultados_listos|length == 1 else 's' }} disponible{{ '' if resultados_listos|length == 1 else 's' }}.</p>
+      </div>
+      <span class="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><i class="fas fa-file-medical-alt"></i></span>
+    </header>
+
+    {% if resultados_listos %}
+    <div class="divide-y divide-gray-100">
+      {% for resultado in resultados_listos %}
+      <article class="p-4 sm:p-5">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
+          <div class="flex min-w-0 flex-1 items-center gap-3">
+            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-sm font-bold text-emerald-700">#{{ resultado.orden_id }}</span>
+            <div class="min-w-0">
+              <h3 class="truncate font-bold text-gray-900">{{ resultado.nombres }} {{ resultado.apellidos }}</h3>
+              <p class="mt-1 text-xs text-gray-500">
+                Listo {{ (resultado.actualizado_en or '')[:16]|replace('T', ' ') }}
+                {% if resultado.cuarto %} · Ubicación {{ resultado.cuarto }}{% endif %}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            {% if resultado.telefono %}
+            {% set whatsapp_phone = resultado.telefono|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '')|replace('+', '') %}
+            <a href="https://wa.me/{{ whatsapp_phone }}?text={{ ('Hola ' ~ resultado.nombres ~ ', sus resultados de la orden #' ~ resultado.orden_id ~ ' están listos.')|urlencode }}"
+               target="_blank" rel="noopener"
+               class="inline-flex h-10 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700">
+              <i class="fab fa-whatsapp mr-2"></i>WhatsApp
+            </a>
+            {% endif %}
+            <a href="{{ url_for('app_routes.reporte', orden_id=resultado.orden_id) }}"
+               class="inline-flex h-10 items-center rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700">
+              <i class="fas fa-eye mr-2"></i>Ver orden
+            </a>
+            <a href="{{ url_for('app_routes.imprimir_resultados_laboratorio', orden_id=resultado.orden_id) }}"
+               target="_blank"
+               class="inline-flex h-10 items-center rounded-xl border border-cyan-200 bg-cyan-50 px-3 text-sm font-semibold text-cyan-800">
+              <i class="fas fa-print mr-2"></i>Imprimir resultados
+            </a>
+            <form method="POST" action="{{ url_for('app_routes.entregar_resultado', orden_id=resultado.orden_id) }}"
+                  class="flex items-center gap-2">
+              <label class="sr-only" for="medio-{{ resultado.orden_id }}">Medio de entrega</label>
+              <select id="medio-{{ resultado.orden_id }}" name="medio_entrega" required
+                      class="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-cyan-500">
+                <option value="">Medio de entrega</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="impreso">Impreso</option>
+                <option value="correo">Correo</option>
+                <option value="directo">Entrega directa</option>
+                <option value="otro">Otro</option>
+              </select>
+              <button type="submit" class="btn-guardar h-10 whitespace-nowrap"
+                      onclick="return confirm('¿Confirmas que el resultado ya fue entregado?')">
+                <i class="fas fa-check mr-2"></i>Finalizar
+              </button>
+            </form>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
     </div>
+    {% else %}
+    <div class="px-5 py-14 text-center">
+      <span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><i class="fas fa-check-double"></i></span>
+      <h3 class="mt-4 font-bold text-gray-900">Todo está entregado</h3>
+      <p class="mt-1 text-sm text-gray-500">Los resultados finalizados por Químico aparecerán aquí.</p>
+    </div>
+    {% endif %}
+  </section>
 
-  </div>
+  <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <header class="border-b border-gray-200 px-4 py-4 sm:px-5">
+      <h2 class="font-bold text-gray-900">En proceso de laboratorio</h2>
+      <p class="text-sm text-gray-500">Órdenes que aún no han sido finalizadas por Químico.</p>
+    </header>
+    {% if ordenes_quimico %}
+    <div class="divide-y divide-gray-100">
+      {% for orden in ordenes_quimico %}
+      <div class="flex items-center justify-between gap-4 px-4 py-3 text-sm sm:px-5">
+        <div><strong class="text-gray-900">#{{ "%04d"|format(orden.id) }}</strong><span class="ml-3 text-gray-600">{{ orden.nombre_paciente }}</span></div>
+        <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">En análisis</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="px-5 py-8 text-center text-sm text-gray-500">No hay órdenes pendientes de reporte.</p>
+    {% endif %}
+  </section>
 </div>
 {% endblock %}
