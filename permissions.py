@@ -8,6 +8,8 @@ PERMISSION_GROUPS = [
         "icon": "fa-user-shield",
         "permissions": [
             ("admin.dashboard", "Ver panel administrativo"),
+            ("admin.system_settings", "Administrar políticas del sistema"),
+            ("admin.override", "Autorizar excepciones con contraseña"),
             ("admin.employees", "Administrar empleados y permisos"),
             ("admin.tests", "Administrar pruebas clínicas"),
             ("admin.inventory", "Administrar catálogo de reactivos"),
@@ -67,9 +69,14 @@ VALID_PERMISSIONS = {
 ENDPOINT_PERMISSIONS = {
     # Paneles
     "app_routes.admin_dashboard": "admin.dashboard",
+    "app_routes.admin_operational_dashboard": "admin.dashboard",
+    "app_routes.guardar_politicas_sistema": "admin.system_settings",
+    "app_routes.guardar_configuracion_recibos_route": "admin.system_settings",
+    "app_routes.configuracion_sistema": "admin.system_settings",
     "app_routes.mostrador_dashboard": "front.dashboard",
     "app_routes.enfermero_dashboard": "nursing.dashboard",
     "app_routes.quimico_dashboard": "lab.dashboard",
+    "app_routes.cambiar_area": "admin.dashboard",
 
     # Administración
     "app_routes.backlog": "admin.backlog",
@@ -91,7 +98,8 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.activate_reactivo": "admin.inventory",
     "app_routes.get_reactivo_details": "admin.inventory",
     "app_routes.manage_proveedores": "admin.providers",
-    "app_routes.add_proveedor": "admin.providers",
+    "app_routes.add_proveedor": {"admin.providers", "admin.inventory"},
+    "app_routes.api_proveedores_activos": {"admin.providers", "admin.inventory"},
     "app_routes.edit_proveedor": "admin.providers",
     "app_routes.delete_proveedor": "admin.providers",
     "app_routes.activate_proveedor": "admin.providers",
@@ -125,6 +133,8 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.resumen_paciente_orden": "front.orders.create",
     "app_routes.reporte": "front.orders.create",
     "app_routes.imprimir_orden": "front.orders.create",
+    "app_routes.recibo_orden": {"front.orders.create", "front.orders.view"},
+    "app_routes.recibo_orden_pdf": {"front.orders.create", "front.orders.view"},
     "app_routes.abonar_orden": "front.orders.create",
     "app_routes.manage_orden_pruebas": "front.orders.create",
     "app_routes.guardar_estudios_orden": "front.orders.create",
@@ -141,8 +151,8 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.api_finalizar_muestra": "nursing.samples",
     "app_routes.api_requisitos_muestra": "nursing.samples",
     "app_routes.api_actualizar_requisito_muestra": "nursing.samples",
-    "app_routes.etiquetas_muestra": "nursing.labels",
-    "app_routes.api_registrar_impresion_etiquetas": "nursing.labels",
+    "app_routes.etiquetas_muestra": {"nursing.labels", "admin.labels"},
+    "app_routes.api_registrar_impresion_etiquetas": {"nursing.labels", "admin.labels"},
 
     # Químico y acciones compartidas
     "app_routes.resultados": "lab.results.capture",
@@ -200,6 +210,7 @@ def preferred_home(permissions):
         ("admin.patients", "app_routes.manage_patients"),
         ("admin.employees", "app_routes.manage_employees"),
         ("admin.backlog", "app_routes.backlog"),
+        ("admin.system_settings", "app_routes.configuracion_sistema"),
     )
     granted = set(permissions or [])
     return next((endpoint for code, endpoint in options if code in granted), None)

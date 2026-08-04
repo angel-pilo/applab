@@ -8,7 +8,8 @@ ROLE_MENU = {
         {"text": "Hospitales",   "icon": "fa-hospital",         "url": "app_routes.manage_hospitals"},
         {"text": "Empleados",    "icon": "fa-user-tie",         "url": "app_routes.manage_employees"},
         {"text": "Backlog",      "icon": "fa-history",          "url": "app_routes.backlog"},
-        {"text": "Configuración","icon": "fa-cog",              "url": "app_routes.configuracion"},  
+        {"text": "Configuración global", "icon": "fa-sliders-h", "url": "app_routes.configuracion_sistema"},
+        {"text": "Mi cuenta",           "icon": "fa-user-cog",  "url": "app_routes.configuracion"},
     ],
 
     "Mostrador": [
@@ -23,7 +24,7 @@ ROLE_MENU = {
             "params": {"feature": "Corte de caja"},
             "badge": "Próximamente",
         },
-        {"text": "Configuración",    "icon": "fa-cog",          "url": "app_routes.configuracion"},
+        {"text": "Mi cuenta",        "icon": "fa-user-cog",     "url": "app_routes.configuracion"},
     ],
 
     "Quimico": [
@@ -33,7 +34,7 @@ ROLE_MENU = {
         {"text": "Control de calidad","icon":"fa-vials", "url": "app_routes.proximamente", "params": {"feature": "Control de calidad"}, "badge": "Próximamente"},
         {"text": "Equipos",          "icon": "fa-tools", "url": "app_routes.proximamente", "params": {"feature": "Equipos"}, "badge": "Próximamente"},
         {"text": "Incidencias",      "icon": "fa-flag", "url": "app_routes.proximamente", "params": {"feature": "Incidencias"}, "badge": "Próximamente"},
-        {"text": "Configuración",    "icon": "fa-cog",              "url": "app_routes.configuracion"},
+        {"text": "Mi cuenta",        "icon": "fa-user-cog",         "url": "app_routes.configuracion"},
     ],
 
     "Enfermero": [
@@ -42,6 +43,6 @@ ROLE_MENU = {
         {"text": "Etiquetas / QR",      "icon":"fa-qrcode",        "url": "app_routes.etiquetas_muestra"},
         {"text": "Bioseguridad",        "icon":"fa-shield-virus", "url": "app_routes.proximamente", "params": {"feature": "Bioseguridad"}, "badge": "Próximamente"},
         {"text": "Envío / Traslado",    "icon":"fa-truck", "url": "app_routes.proximamente", "params": {"feature": "Envío / Traslado"}, "badge": "Próximamente"},
-        {"text": "Configuración",       "icon":"fa-cog",           "url": "app_routes.configuracion"},
+        {"text": "Mi cuenta",           "icon":"fa-user-cog",      "url": "app_routes.configuracion"},
     ],
 }
