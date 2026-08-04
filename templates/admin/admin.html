@@ -1,286 +1,353 @@
 {% extends "base.html" %}
-{% block title %}Dashboard Admin{% endblock %}
+{% block title %}Panel administrativo | AppLab{% endblock %}
 
 {% block content %}
-<div class="admin-dashboard max-w-7xl mx-auto w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+{% set catalog_total = dashboard_counts.pacientes + dashboard_counts.pruebas + dashboard_counts.doctores + dashboard_counts.reactivos + dashboard_counts.proveedores + dashboard_counts.hospitales + dashboard_counts.empleados %}
+{% set metrics = [
+  {'label': 'Pacientes activos', 'value': dashboard_counts.pacientes, 'icon': 'fa-user-injured', 'tone': 'sky', 'detail': 'Expedientes disponibles'},
+  {'label': 'Pruebas clínicas', 'value': dashboard_counts.pruebas, 'icon': 'fa-clipboard-check', 'tone': 'indigo', 'detail': 'Estudios habilitados'},
+  {'label': 'Doctores activos', 'value': dashboard_counts.doctores, 'icon': 'fa-stethoscope', 'tone': 'violet', 'detail': 'Médicos en catálogo'},
+  {'label': 'Reactivos activos', 'value': dashboard_counts.reactivos, 'icon': 'fa-vials', 'tone': 'amber', 'detail': 'Insumos registrados'}
+] %}
+{% set modules = [
+  {'permission': 'admin.tests', 'title': 'Pruebas clínicas', 'description': 'Estudios, elementos y valores de referencia.', 'icon': 'fa-clipboard-check', 'endpoint': 'app_routes.pruebas_clinicas', 'count': dashboard_counts.pruebas, 'tone': 'indigo'},
+  {'permission': 'admin.inventory', 'title': 'Inventario de reactivos', 'description': 'Existencias, lotes, entradas y vencimientos.', 'icon': 'fa-vials', 'endpoint': 'app_routes.manage_inventory', 'count': dashboard_counts.reactivos, 'tone': 'emerald'},
+  {'permission': 'admin.patients', 'alternate': 'front.patients', 'title': 'Pacientes', 'description': 'Expedientes e historial clínico.', 'icon': 'fa-id-card', 'endpoint': 'app_routes.manage_patients', 'count': dashboard_counts.pacientes, 'tone': 'sky'},
+  {'permission': 'admin.providers', 'title': 'Proveedores', 'description': 'Productos, servicios y datos comerciales.', 'icon': 'fa-truck', 'endpoint': 'app_routes.manage_proveedores', 'count': dashboard_counts.proveedores, 'tone': 'amber'},
+  {'permission': 'admin.doctors', 'title': 'Doctores', 'description': 'Médicos y lugares de consulta.', 'icon': 'fa-stethoscope', 'endpoint': 'app_routes.manage_doctores', 'count': dashboard_counts.doctores, 'tone': 'violet'},
+  {'permission': 'admin.hospitals', 'title': 'Hospitales', 'description': 'Instituciones y lugares de procedencia.', 'icon': 'fa-hospital', 'endpoint': 'app_routes.manage_hospitals', 'count': dashboard_counts.hospitales, 'tone': 'rose'},
+  {'permission': 'admin.employees', 'title': 'Empleados', 'description': 'Personal, roles y permisos de acceso.', 'icon': 'fa-user-tie', 'endpoint': 'app_routes.manage_employees', 'count': dashboard_counts.empleados, 'tone': 'cyan'}
+] %}
+{% set search_options = [
+  {'permission': 'admin.tests', 'title': 'Pruebas clínicas', 'group': 'Catálogo', 'description': 'Consultar y administrar estudios clínicos.', 'keywords': 'estudios analisis valores normales', 'icon': 'fa-clipboard-check', 'endpoint': 'app_routes.pruebas_clinicas'},
+  {'permission': 'admin.tests', 'title': 'Registrar prueba clínica', 'group': 'Acción', 'description': 'Crear un estudio, sus elementos y referencias.', 'keywords': 'nueva prueba estudio elemento', 'icon': 'fa-plus-circle', 'endpoint': 'app_routes.add_prueba'},
+  {'permission': 'admin.inventory', 'title': 'Inventario de reactivos', 'group': 'Catálogo', 'description': 'Consultar existencias, lotes y vencimientos.', 'keywords': 'insumos stock almacen caducidad', 'icon': 'fa-vials', 'endpoint': 'app_routes.manage_inventory'},
+  {'permission': 'admin.inventory', 'title': 'Registrar reactivo', 'group': 'Acción', 'description': 'Dar de alta un reactivo nuevo.', 'keywords': 'nuevo insumo producto', 'icon': 'fa-plus-circle', 'endpoint': 'app_routes.add_reactivo'},
+  {'permission': 'admin.inventory', 'title': 'Registrar entrada de inventario', 'group': 'Acción', 'description': 'Recibir cantidades y crear un lote independiente.', 'keywords': 'compra llegada recibir lote stock', 'icon': 'fa-dolly-flatbed', 'endpoint': 'app_routes.registrar_entrada_inventario'},
+  {'permission': 'admin.patients', 'alternate': 'front.patients', 'title': 'Pacientes', 'group': 'Catálogo', 'description': 'Consultar expedientes e historial clínico.', 'keywords': 'expediente historial persona', 'icon': 'fa-id-card', 'endpoint': 'app_routes.manage_patients'},
+  {'permission': 'admin.patients', 'alternate': 'front.patients', 'title': 'Registrar paciente', 'group': 'Acción', 'description': 'Crear un expediente clínico.', 'keywords': 'nuevo expediente persona', 'icon': 'fa-user-plus', 'endpoint': 'app_routes.add_patient'},
+  {'permission': 'admin.providers', 'title': 'Proveedores', 'group': 'Catálogo', 'description': 'Consultar proveedores de productos y servicios.', 'keywords': 'maquila empresa compra', 'icon': 'fa-truck', 'endpoint': 'app_routes.manage_proveedores'},
+  {'permission': 'admin.providers', 'title': 'Registrar proveedor', 'group': 'Acción', 'description': 'Agregar un proveedor al catálogo.', 'keywords': 'nuevo empresa producto servicio maquila', 'icon': 'fa-truck-loading', 'endpoint': 'app_routes.add_proveedor'},
+  {'permission': 'admin.doctors', 'title': 'Doctores', 'group': 'Catálogo', 'description': 'Consultar médicos solicitantes.', 'keywords': 'medicos consultorio', 'icon': 'fa-stethoscope', 'endpoint': 'app_routes.manage_doctores'},
+  {'permission': 'admin.doctors', 'title': 'Registrar doctor', 'group': 'Acción', 'description': 'Agregar un médico y su lugar de consulta.', 'keywords': 'nuevo medico consultorio', 'icon': 'fa-user-md', 'endpoint': 'app_routes.add_doctor'},
+  {'permission': 'admin.hospitals', 'title': 'Hospitales', 'group': 'Catálogo', 'description': 'Consultar instituciones registradas.', 'keywords': 'clinicas procedencia instituciones', 'icon': 'fa-hospital', 'endpoint': 'app_routes.manage_hospitals'},
+  {'permission': 'admin.hospitals', 'title': 'Registrar hospital', 'group': 'Acción', 'description': 'Agregar una institución de procedencia.', 'keywords': 'nueva clinica institucion', 'icon': 'fa-clinic-medical', 'endpoint': 'app_routes.add_hospital'},
+  {'permission': 'admin.employees', 'title': 'Empleados', 'group': 'Seguridad', 'description': 'Consultar personal, roles y accesos.', 'keywords': 'usuarios permisos personal', 'icon': 'fa-user-tie', 'endpoint': 'app_routes.manage_employees'},
+  {'permission': 'admin.employees', 'title': 'Registrar empleado', 'group': 'Acción', 'description': 'Crear un usuario y asignar permisos.', 'keywords': 'nuevo usuario personal rol', 'icon': 'fa-user-plus', 'endpoint': 'app_routes.add_employee'},
+  {'permission': 'admin.backlog', 'title': 'Backlog de actividad', 'group': 'Auditoría', 'description': 'Revisar cambios y usuarios responsables.', 'keywords': 'bitacora historial movimientos auditoria', 'icon': 'fa-history', 'endpoint': 'app_routes.backlog'},
+  {'permission': 'admin.system_settings', 'title': 'Configuración global', 'group': 'Sistema', 'description': 'Modificar las políticas generales del laboratorio.', 'keywords': 'politicas permisos sistema opciones', 'icon': 'fa-sliders-h', 'endpoint': 'app_routes.configuracion_sistema'},
+  {'title': 'Mi cuenta', 'group': 'Cuenta', 'description': 'Cambiar fotografía, contraseña y datos personales.', 'keywords': 'perfil foto password contraseña', 'icon': 'fa-user-cog', 'endpoint': 'app_routes.configuracion'}
+] %}
 
-  <!-- HEADER: título + botones -->
-  <div class="admin-dashboard-header mb-2">
-    <div class="min-w-0">
-      <h1 class="text-2xl font-bold tracking-tight text-gray-900">Panel de Administración</h1>
-      <p class="text-sm text-gray-500">Accesos rápidos a los módulos principales</p>
-    </div>
-
-    <div class="admin-dashboard-actions">
-      <!-- Botón Backlog (log de movimientos) -->
-      {% if has_permission('admin.backlog') %}
-      <a href="{{ url_for('app_routes.backlog') if 'app_routes.backlog' else '#' }}"
-         class="admin-dashboard-action inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium
-                bg-gray-100 text-gray-800 hover:bg-gray-200 transition">
-        <i class="fas fa-history"></i>
-        Backlog
-      </a>
-      {% endif %}
-
-      <!-- Botón Configuración (sin badge) -->
-      <a href="{{ url_for('app_routes.configuracion') }}"
-         class="admin-dashboard-action inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium
-                bg-gray-900 text-white hover:opacity-90 transition">
-        <i class="fas fa-cog text-base"></i>
-        Configuración
-      </a>
-    </div>
-  </div>
-
-  <!-- Indicadores conectados con Supabase -->
-  <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-sky-50 ring-1 ring-sky-200">
-          <i class="fas fa-user-injured text-sky-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Pacientes</p>
-          <p class="text-2xl font-bold text-gray-900">{{ dashboard_counts.pacientes }}</p>
+<div class="mx-auto w-full max-w-7xl space-y-7 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="border-b border-slate-200 pb-6">
+    <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div class="flex min-w-0 items-start gap-4">
+        <a href="{{ url_for('app_routes.admin_dashboard') }}"
+           class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-cyan-200 hover:text-cyan-700"
+           aria-label="Volver al selector de áreas">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i>
+        </a>
+        <div class="min-w-0">
+          <p class="text-xs font-bold uppercase tracking-[0.12em] text-red-600">Administración · Análisis operativo</p>
+          <h1 class="mt-1 text-3xl font-bold tracking-tight text-slate-950">Panel administrativo</h1>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Supervisa los catálogos activos, atiende alertas y accede a la gestión general del laboratorio.</p>
         </div>
       </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-sky-600 text-white text-[0.65rem] font-semibold h-6 px-2">Total</span>
-    </div>
 
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-indigo-50 ring-1 ring-indigo-200">
-          <i class="fas fa-clipboard-list text-indigo-600 text-xl"></i>
-        </div>
+      <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        {% if has_permission('admin.backlog') %}
+          <a href="{{ url_for('app_routes.backlog') }}"
+             class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:text-cyan-800">
+            <i class="fas fa-history" aria-hidden="true"></i><span>Backlog</span>
+          </a>
+        {% endif %}
+        {% if has_permission('admin.system_settings') %}
+          <a href="{{ url_for('app_routes.configuracion_sistema') }}"
+             class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">
+            <i class="fas fa-sliders-h" aria-hidden="true"></i><span>Configuración</span>
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <section id="admin-search" class="relative z-30" aria-labelledby="admin-search-title">
+    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div class="flex items-center justify-between gap-3">
         <div>
-          <p class="text-sm text-gray-500">Pruebas clínicas</p>
-          <p class="text-2xl font-bold text-gray-900">{{ dashboard_counts.pruebas }}</p>
+          <p class="text-[10px] font-bold uppercase tracking-wider text-cyan-700">Acceso directo</p>
+          <h2 id="admin-search-title" class="mt-0.5 text-sm font-bold text-slate-900">¿Qué necesitas administrar?</h2>
+        </div>
+        <kbd class="hidden rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500 sm:inline-flex">Ctrl K</kbd>
+      </div>
+
+      <div class="relative mt-4">
+        <i class="fas fa-search pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400" aria-hidden="true"></i>
+        <input id="admin-search-input" type="search"
+               class="h-12 w-full rounded-xl border border-slate-300 bg-slate-50 pl-11 pr-11 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-100"
+               placeholder="Busca módulos o acciones: reactivo, empleado, prueba..."
+               autocomplete="off" role="combobox" aria-autocomplete="list"
+               aria-controls="admin-search-results" aria-expanded="false">
+        <button id="admin-search-clear" type="button"
+                class="absolute right-2 top-1/2 hidden h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Limpiar búsqueda"><i class="fas fa-times" aria-hidden="true"></i></button>
+
+        <div id="admin-search-results"
+             class="absolute left-0 right-0 top-[calc(100%+0.5rem)] hidden max-h-[min(28rem,65vh)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"
+             role="listbox">
+          <div class="flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span id="admin-search-summary">Opciones disponibles</span>
+            <span>Enter para abrir</span>
+          </div>
+          <div id="admin-search-items">
+            {% for option in search_options %}
+              {% if option.permission is not defined or has_permission(option.permission) or (option.alternate is defined and has_permission(option.alternate)) %}
+                <a href="{{ url_for(option.endpoint) }}" role="option" tabindex="-1"
+                   data-admin-search-item
+                   data-search="{{ option.title }} {{ option.group }} {{ option.description }} {{ option.keywords }}"
+                   class="group flex items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-cyan-50 focus:bg-cyan-50 focus:outline-none">
+                  <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 transition group-hover:bg-white group-hover:text-cyan-700">
+                    <i class="fas {{ option.icon }}" aria-hidden="true"></i>
+                  </span>
+                  <span class="min-w-0 flex-1">
+                    <span class="flex flex-wrap items-center gap-2">
+                      <strong class="text-sm text-slate-900">{{ option.title }}</strong>
+                      <small class="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">{{ option.group }}</small>
+                    </span>
+                    <span class="mt-1 block truncate text-xs text-slate-500">{{ option.description }}</span>
+                  </span>
+                  <i class="fas fa-arrow-right shrink-0 text-xs text-slate-300 transition group-hover:text-cyan-700" aria-hidden="true"></i>
+                </a>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <div id="admin-search-empty" class="hidden px-4 py-8 text-center">
+            <span class="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-slate-100 text-slate-400"><i class="fas fa-search" aria-hidden="true"></i></span>
+            <strong class="mt-3 block text-sm text-slate-800">No encontramos esa opción</strong>
+            <span class="mt-1 block text-xs text-slate-500">Prueba con otra palabra, por ejemplo “inventario” o “empleado”.</span>
+          </div>
         </div>
       </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-[0.65rem] font-semibold h-6 px-2">Total</span>
-    </div>
-
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-violet-50 ring-1 ring-violet-200">
-          <i class="fas fa-stethoscope text-violet-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Doctores</p>
-          <p class="text-2xl font-bold text-gray-900">{{ dashboard_counts.doctores }}</p>
-        </div>
-      </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-violet-600 text-white text-[0.65rem] font-semibold h-6 px-2">Total</span>
-    </div>
-
-    <div class="relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white">
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 grid place-items-center rounded-xl bg-amber-50 ring-1 ring-amber-200">
-          <i class="fas fa-vials text-amber-600 text-xl"></i>
-        </div>
-        <div>
-          <p class="text-sm text-gray-500">Reactivos</p>
-          <p class="text-2xl font-bold text-gray-900">{{ dashboard_counts.reactivos }}</p>
-        </div>
-      </div>
-      <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-[0.65rem] font-semibold h-6 px-2">Total</span>
     </div>
   </section>
 
-  <!-- GRID de módulos (con badges), Config SIN badge -->
-  <section>
-    <h2 class="text-lg font-semibold text-gray-900 mb-3">Módulos</h2>
-    <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-
-      <!-- PRUEBAS -->
-      {% if has_permission('admin.tests') %}
-      <a href="{{ url_for('app_routes.pruebas_clinicas') }}"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white
-                transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.pruebas }}</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-clipboard-list text-8xl text-indigo-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-indigo-200 bg-indigo-50">
-            <i class="fas fa-clipboard-list text-indigo-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Pruebas</h3>
-            <p class="text-sm text-gray-500">Entrar <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span></p>
-          </div>
-        </div>
-      </a>
-      {% endif %}
-
-      <!-- INVENTARIO -->
-      {% if has_permission('admin.inventory') %}
-      <a href="{{ url_for('app_routes.manage_inventory') }}"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.reactivos }}</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-vials text-8xl text-emerald-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-emerald-200 bg-emerald-50">
-            <i class="fas fa-vials text-emerald-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Inventario de Reactivos</h3>
-            <p class="text-sm text-gray-500">Entrar <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span></p>
-          </div>
-        </div>
-      </a>
-      {% endif %}
-
-      <!-- PACIENTES -->
-      {% if has_permission('admin.patients') or has_permission('front.patients') %}
-      <a href="{{ url_for('app_routes.manage_patients') }}"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-sky-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.pacientes }}</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-id-card text-8xl text-sky-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-sky-200 bg-sky-50">
-            <i class="fas fa-id-card text-sky-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Pacientes</h3>
-            <p class="text-sm text-gray-500">Entrar <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span></p>
-          </div>
-        </div>
-      </a>
-      {% endif %}
-
-      <!-- PROVEEDORES -->
-      {% if has_permission('admin.providers') %}
-      <a href="{{ url_for('app_routes.manage_proveedores') }}"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.proveedores }}</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-truck text-8xl text-amber-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-amber-200 bg-amber-50">
-            <i class="fas fa-truck text-amber-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Proveedores</h3>
-            <p class="text-sm text-gray-500">Entrar <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span></p>
-          </div>
-        </div>
-      </a>
-      {% endif %}
-
-      <!-- DOCTORES -->
-      {% if has_permission('admin.doctors') %}
-      <a href="{{ url_for('app_routes.manage_doctores') }}"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-violet-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.doctores }}</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-stethoscope text-8xl text-violet-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-violet-200 bg-violet-50">
-            <i class="fas fa-stethoscope text-violet-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Doctores</h3>
-            <p class="text-sm text-gray-500">Entrar <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span></p>
-          </div>
-        </div>
-      </a>
-      {% endif %}
-
-      <!-- HOSPITALES -->
-      {% if has_permission('admin.hospitals') %}
-      <a href="{{ url_for('app_routes.manage_hospitals') }}"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.hospitales }}</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-hospital text-8xl text-rose-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-rose-200 bg-rose-50">
-            <i class="fas fa-hospital text-rose-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Hospitales</h3>
-            <p class="text-sm text-gray-500">Entrar <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span></p>
-          </div>
-        </div>
-      </a>
-      {% endif %}
-
-      <!-- EMPLEADOS -->
-      {% if has_permission('admin.employees') %}
-      <a href="{{ url_for('app_routes.manage_employees') }}"
-         class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500">
-        <span class="absolute top-3 right-3 inline-flex items-center justify-center rounded-full bg-cyan-600 text-white text-xs font-semibold min-w-[1.75rem] h-7 px-2">{{ dashboard_counts.empleados }}</span>
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-users text-8xl text-cyan-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-cyan-200 bg-cyan-50">
-            <i class="fas fa-users text-cyan-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Empleados</h3>
-            <p class="text-sm text-gray-500">Entrar <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span></p>
-          </div>
-        </div>
-      </a>
-      {% endif %}
-
-      <!-- CONFIGURACIÓN (SIN badge) -->
-      <a href="{{ url_for('app_routes.configuracion') }}"
-        class="group relative overflow-hidden rounded-2xl p-5 ring-1 ring-gray-200 bg-white transition-all duration-200 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,.2)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">
-        <div class="absolute -right-4 -top-4 opacity-10"><i class="fas fa-cog text-8xl text-slate-600"></i></div>
-        <div class="relative flex items-center gap-4">
-          <div class="w-12 h-12 grid place-items-center rounded-xl ring-1 ring-slate-200 bg-slate-50">
-            <i class="fas fa-cog text-slate-600 text-xl"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-gray-900">Configuración</h3>
-            <p class="text-sm text-gray-500">Entrar <span class="inline-block translate-x-0 group-hover:translate-x-0.5 transition-transform">→</span></p>
-          </div>
-        </div>
-      </a>
-
+  <section aria-labelledby="operational-summary-title">
+    <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-wider text-cyan-700">Resumen clínico-administrativo</p>
+        <h2 id="operational-summary-title" class="mt-1 text-lg font-bold text-slate-900">Estado de los catálogos</h2>
+      </div>
+      <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>{{ catalog_total }} registros activos
+      </span>
     </div>
-  </section>
 
-  <!-- Alertas basadas en existencias y vencimientos reales -->
-  {% if has_permission('admin.inventory') %}
-  <section class="rounded-2xl ring-1 ring-gray-200 bg-white p-5">
-    <h3 class="text-base font-semibold text-gray-900 mb-3">
-      <i class="fas fa-bell text-amber-500 mr-2"></i> Alertas de Inventario
-    </h3>
-    <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-      {% for alert in inventory_alerts %}
-      <li class="flex items-center justify-between gap-3 p-3 rounded-lg bg-red-50 ring-1 ring-red-200">
-        <span><strong>{{ alert.nombre }}</strong> — {{ alert.detalle }}</span>
-        <span class="inline-flex shrink-0 items-center rounded-full bg-red-600 text-white px-2 py-0.5 text-xs">{{ alert.etiqueta }}</span>
-      </li>
-      {% else %}
-      <li class="col-span-full flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-emerald-700 ring-1 ring-emerald-200">
-        <i class="fas fa-check-circle" aria-hidden="true"></i>
-        No hay reactivos vencidos ni agotados.
-      </li>
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {% for metric in metrics %}
+        <article class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="flex items-start justify-between gap-4">
+            <span class="grid h-11 w-11 place-items-center rounded-xl
+              {% if metric.tone == 'sky' %}bg-sky-50 text-sky-700 ring-1 ring-sky-100
+              {% elif metric.tone == 'indigo' %}bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100
+              {% elif metric.tone == 'violet' %}bg-violet-50 text-violet-700 ring-1 ring-violet-100
+              {% else %}bg-amber-50 text-amber-700 ring-1 ring-amber-100{% endif %}">
+              <i class="fas {{ metric.icon }}" aria-hidden="true"></i>
+            </span>
+            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Activo</span>
+          </div>
+          <p class="mt-5 text-sm font-medium text-slate-500">{{ metric.label }}</p>
+          <p class="mt-1 text-3xl font-bold tracking-tight text-slate-950">{{ metric.value }}</p>
+          <p class="mt-2 text-xs text-slate-400">{{ metric.detail }}</p>
+        </article>
       {% endfor %}
-    </ul>
+    </div>
   </section>
+
+  <section aria-labelledby="admin-modules-title">
+    <div class="mb-3">
+      <p class="text-xs font-bold uppercase tracking-wider text-cyan-700">Gestión del laboratorio</p>
+      <h2 id="admin-modules-title" class="mt-1 text-lg font-bold text-slate-900">Módulos administrativos</h2>
+      <p class="mt-1 text-sm text-slate-500">Cada módulo muestra únicamente registros activos.</p>
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {% for module in modules %}
+        {% if has_permission(module.permission) or (module.alternate is defined and has_permission(module.alternate)) %}
+          <a href="{{ url_for(module.endpoint) }}"
+             class="group flex min-h-[10rem] flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:ring-offset-2">
+            <span class="flex items-start justify-between gap-4">
+              <span class="grid h-11 w-11 place-items-center rounded-xl
+                {% if module.tone == 'indigo' %}bg-indigo-50 text-indigo-700
+                {% elif module.tone == 'emerald' %}bg-emerald-50 text-emerald-700
+                {% elif module.tone == 'sky' %}bg-sky-50 text-sky-700
+                {% elif module.tone == 'amber' %}bg-amber-50 text-amber-700
+                {% elif module.tone == 'violet' %}bg-violet-50 text-violet-700
+                {% elif module.tone == 'rose' %}bg-rose-50 text-rose-700
+                {% else %}bg-cyan-50 text-cyan-700{% endif %}">
+                <i class="fas {{ module.icon }}" aria-hidden="true"></i>
+              </span>
+              <span class="inline-flex min-w-8 items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">{{ module.count }}</span>
+            </span>
+            <strong class="mt-4 text-base font-bold text-slate-900">{{ module.title }}</strong>
+            <span class="mt-1 flex-1 text-xs leading-5 text-slate-500">{{ module.description }}</span>
+            <span class="mt-4 inline-flex items-center gap-2 text-xs font-bold text-cyan-700">Abrir módulo<i class="fas fa-arrow-right transition-transform group-hover:translate-x-1" aria-hidden="true"></i></span>
+          </a>
+        {% endif %}
+      {% endfor %}
+
+      <a href="{{ url_for('app_routes.configuracion') }}"
+         class="group flex min-h-[10rem] flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:ring-offset-2">
+        <span class="flex items-start justify-between gap-4">
+          <span class="grid h-11 w-11 place-items-center rounded-xl bg-slate-100 text-slate-700"><i class="fas fa-user-cog" aria-hidden="true"></i></span>
+          <i class="fas fa-chevron-right mt-3 text-xs text-slate-300 transition group-hover:text-cyan-700" aria-hidden="true"></i>
+        </span>
+        <strong class="mt-4 text-base font-bold text-slate-900">Mi cuenta</strong>
+        <span class="mt-1 flex-1 text-xs leading-5 text-slate-500">Fotografía, contraseña y datos de la sesión actual.</span>
+        <span class="mt-4 inline-flex items-center gap-2 text-xs font-bold text-cyan-700">Abrir configuración<i class="fas fa-arrow-right transition-transform group-hover:translate-x-1" aria-hidden="true"></i></span>
+      </a>
+    </div>
+  </section>
+
+  {% if has_permission('admin.inventory') %}
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="inventory-alerts-title">
+      <header class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div class="flex items-center gap-3">
+          <span class="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-700"><i class="fas fa-bell" aria-hidden="true"></i></span>
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-amber-700">Seguimiento prioritario</p>
+            <h2 id="inventory-alerts-title" class="mt-0.5 font-bold text-slate-900">Alertas de inventario</h2>
+          </div>
+        </div>
+        <a href="{{ url_for('app_routes.manage_inventory') }}" class="inline-flex items-center gap-2 text-xs font-bold text-cyan-700 hover:text-cyan-900">Revisar inventario<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+      </header>
+
+      <div class="p-4 sm:p-5">
+        {% if inventory_alerts %}
+          <ul class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {% for alert in inventory_alerts %}
+              <li class="flex min-w-0 items-start gap-3 rounded-xl border border-red-100 bg-red-50/70 p-4">
+                <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-red-600 ring-1 ring-red-100"><i class="fas fa-exclamation-triangle text-xs" aria-hidden="true"></i></span>
+                <span class="min-w-0 flex-1">
+                  <strong class="block truncate text-sm text-slate-900">{{ alert.nombre }}</strong>
+                  <span class="mt-1 block text-xs leading-5 text-slate-600">{{ alert.detalle }}</span>
+                </span>
+                <span class="shrink-0 rounded-full bg-red-600 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white">{{ alert.etiqueta }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-800">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white ring-1 ring-emerald-100"><i class="fas fa-check" aria-hidden="true"></i></span>
+            <span><strong class="block text-sm">Inventario sin incidencias críticas</strong><small class="mt-1 block text-xs text-emerald-700">No hay reactivos vencidos ni agotados en este momento.</small></span>
+          </div>
+        {% endif %}
+      </div>
+    </section>
   {% endif %}
-
-  <!-- FAB Acciones rápidas -->
-  <div class="admin-dashboard-fab fixed bottom-12 right-6 hidden sm:flex sm:flex-col sm:items-end sm:gap-3">
-    {% if has_permission('front.patients') or has_permission('admin.patients') %}
-    <a href="{{ url_for('app_routes.manage_patients') }}"
-       class="inline-flex items-center gap-2 rounded-full shadow-lg px-4 py-2 bg-sky-600 text-white hover:bg-sky-700 transition">
-      <i class="fas fa-user-plus"></i><span class="hidden sm:inline">Nuevo Paciente</span>
-    </a>
-    {% endif %}
-    {% if has_permission('admin.tests') %}
-    <a href="{{ url_for('app_routes.pruebas_clinicas') }}"
-       class="inline-flex items-center gap-2 rounded-full shadow-lg px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 transition">
-      <i class="fas fa-plus-circle"></i><span class="hidden sm:inline">Nueva Prueba</span>
-    </a>
-    {% endif %}
-    {% if has_permission('admin.providers') %}
-    <a href="{{ url_for('app_routes.manage_proveedores') }}"
-       class="inline-flex items-center gap-2 rounded-full shadow-lg px-4 py-2 bg-amber-600 text-white hover:bg-amber-700 transition">
-      <i class="fas fa-truck-loading"></i><span class="hidden sm:inline">Nuevo Proveedor</span>
-    </a>
-    {% endif %}
-  </div>
-
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const root = document.getElementById("admin-search");
+  const input = document.getElementById("admin-search-input");
+  const panel = document.getElementById("admin-search-results");
+  const items = [...document.querySelectorAll("[data-admin-search-item]")];
+  const empty = document.getElementById("admin-search-empty");
+  const summary = document.getElementById("admin-search-summary");
+  const clearButton = document.getElementById("admin-search-clear");
+  let activeIndex = -1;
+
+  const normalize = value => (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  const visibleItems = () => items.filter(item => !item.classList.contains("hidden"));
+
+  const setOpen = open => {
+    panel.classList.toggle("hidden", !open);
+    input.setAttribute("aria-expanded", String(open));
+    if (!open) setActive(-1);
+  };
+
+  const setActive = index => {
+    const visible = visibleItems();
+    items.forEach(item => item.classList.remove("bg-cyan-50", "ring-1", "ring-inset", "ring-cyan-100"));
+    if (!visible.length || index < 0) {
+      activeIndex = -1;
+      input.removeAttribute("aria-activedescendant");
+      return;
+    }
+    activeIndex = (index + visible.length) % visible.length;
+    const active = visible[activeIndex];
+    if (!active.id) active.id = `admin-search-option-${items.indexOf(active)}`;
+    active.classList.add("bg-cyan-50", "ring-1", "ring-inset", "ring-cyan-100");
+    active.scrollIntoView({ block: "nearest" });
+    input.setAttribute("aria-activedescendant", active.id);
+  };
+
+  const filter = () => {
+    const terms = normalize(input.value).split(/\s+/).filter(Boolean);
+    let matches = 0;
+    items.forEach(item => {
+      const haystack = normalize(item.dataset.search);
+      const visible = terms.every(term => haystack.includes(term));
+      item.classList.toggle("hidden", !visible);
+      if (visible) matches += 1;
+    });
+    empty.classList.toggle("hidden", matches !== 0);
+    summary.textContent = input.value.trim()
+      ? `${matches} ${matches === 1 ? "resultado" : "resultados"}`
+      : `${matches} opciones disponibles`;
+    clearButton.classList.toggle("hidden", !input.value);
+    clearButton.classList.toggle("grid", Boolean(input.value));
+    setOpen(true);
+    setActive(matches ? 0 : -1);
+  };
+
+  input.addEventListener("focus", filter);
+  input.addEventListener("input", filter);
+  input.addEventListener("keydown", event => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (panel.classList.contains("hidden")) filter();
+      else setActive(activeIndex + 1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (panel.classList.contains("hidden")) filter();
+      else setActive(activeIndex <= 0 ? visibleItems().length - 1 : activeIndex - 1);
+    } else if (event.key === "Enter") {
+      const active = visibleItems()[activeIndex];
+      if (active) {
+        event.preventDefault();
+        active.click();
+      }
+    } else if (event.key === "Escape") {
+      setOpen(false);
+      input.blur();
+    }
+  });
+
+  clearButton.addEventListener("click", () => {
+    input.value = "";
+    input.focus();
+    filter();
+  });
+
+  document.addEventListener("click", event => {
+    if (!root.contains(event.target)) setOpen(false);
+  });
+
+  document.addEventListener("keydown", event => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      input.focus();
+      input.select();
+      filter();
+    }
+  });
+});
+</script>
 {% endblock %}

@@ -2,7 +2,7 @@
 
 <aside id="sidebar" class="app-sidebar" aria-label="Navegación principal" aria-hidden="true">
   <div class="app-sidebar-brand">
-    <a href="{{ url_for(role_home[session.get('rol')]) if session.get('rol') in role_home else '#' }}"
+    <a href="{{ url_for(role_home[rol_navegacion]) if rol_navegacion in role_home else '#' }}"
        class="app-sidebar-logo" aria-label="Ir al inicio de AppLab">
       <span class="app-sidebar-logo-mark"><i class="fas fa-flask" aria-hidden="true"></i></span>
       <span>
@@ -16,18 +16,31 @@
   </div>
 
   <div class="app-sidebar-role">
-    <span>{{ session.get('rol', 'Personal') }}</span>
-    <small>Panel de trabajo</small>
+    <span>{{ rol_navegacion|default(session.get('rol', 'Personal')) }}</span>
+    <small>{% if session.get('rol') == 'Admin' and rol_navegacion != 'Admin' %}Administrador en esta área{% else %}Panel de trabajo{% endif %}</small>
   </div>
 
   <nav class="app-sidebar-nav">
-    {% set _rol = session.get('rol', '') %}
+    {% set _rol = rol_navegacion|default(session.get('rol', '')) %}
     {% set home_ep = role_home.get(_rol) if role_home is defined else None %}
-    {% if home_ep %}
+    {% if session.get('rol') == 'Admin' and _rol != 'Admin' %}
+      <a href="{{ url_for('app_routes.admin_dashboard') }}"
+         class="app-sidebar-link {% if request.endpoint == 'app_routes.admin_dashboard' %}is-active{% endif %}">
+        <i class="fas fa-th-large" aria-hidden="true"></i>
+        <span>Inicio de Admin</span>
+      </a>
+      {% if home_ep %}
+        <a href="{{ url_for(home_ep) }}"
+           class="app-sidebar-link {% if request.endpoint == home_ep %}is-active{% endif %}">
+          <i class="fas fa-home" aria-hidden="true"></i>
+          <span>Inicio de {{ 'Enfermería' if _rol == 'Enfermero' else 'Químico' if _rol == 'Quimico' else _rol }}</span>
+        </a>
+      {% endif %}
+    {% elif home_ep %}
       <a href="{{ url_for(home_ep) }}"
          class="app-sidebar-link {% if request.endpoint == home_ep %}is-active{% endif %}">
         <i class="fas fa-home" aria-hidden="true"></i>
-        <span>Inicio</span>
+        <span>{{ 'Inicio de Admin' if session.get('rol') == 'Admin' else 'Inicio' }}</span>
       </a>
     {% endif %}
 

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Seleccionar área de trabajo | AppLab{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+  <header class="border-b border-slate-200 pb-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administrador · Centro de trabajo</p>
+        <h1 class="mt-1 text-3xl font-bold tracking-tight text-slate-950">¿A qué área deseas ingresar?</h1>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+          Elige un panel para comenzar. Seguirás identificado como administrador y tus acciones conservarán la trazabilidad.
+        </p>
+      </div>
+      <span class="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+        <i class="fas fa-shield-alt" aria-hidden="true"></i>Sesión administrativa
+      </span>
+    </div>
+  </header>
+
+  <section class="mt-7 grid gap-5 sm:grid-cols-2" aria-label="Áreas disponibles">
+    {% set areas = [
+      {
+        'key': 'admin', 'eyebrow': 'Gestión general', 'title': 'Administración',
+        'description': 'Catálogos, empleados, inventario, configuración y bitácora.',
+        'icon': 'fa-user-shield', 'color': 'blue',
+        'items': ['Pruebas y reactivos', 'Personal y permisos', 'Configuración global']
+      },
+      {
+        'key': 'mostrador', 'eyebrow': 'Atención al paciente', 'title': 'Mostrador',
+        'description': 'Genera órdenes, recibe pagos y entrega resultados terminados.',
+        'icon': 'fa-concierge-bell', 'color': 'cyan',
+        'items': ['Órdenes clínicas', 'Abonos y pagos', 'Entrega de resultados']
+      },
+      {
+        'key': 'enfermero', 'eyebrow': 'Fase preanalítica', 'title': 'Enfermería',
+        'description': 'Controla muestras, faltantes, identificación y etiquetas.',
+        'icon': 'fa-syringe', 'color': 'emerald',
+        'items': ['Recepción de muestras', 'Etiquetas y QR', 'Seguimiento preanalítico']
+      },
+      {
+        'key': 'quimico', 'eyebrow': 'Fase analítica', 'title': 'Químico',
+        'description': 'Captura, verifica y finaliza los resultados del laboratorio.',
+        'icon': 'fa-flask', 'color': 'violet',
+        'items': ['Captura de resultados', 'Verificación clínica', 'Inventario recibido']
+      }
+    ] %}
+
+    {% for area in areas %}
+      <form method="POST" action="{{ url_for('app_routes.cambiar_area', area=area.key) }}" class="min-w-0">
+        <button type="submit"
+                class="group flex h-full min-h-[17rem] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-cyan-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:ring-offset-2"
+                aria-label="Ingresar al área de {{ area.title }}">
+          <span class="flex w-full flex-1 flex-col p-6 sm:p-7">
+            <span class="flex items-start justify-between gap-4">
+              <span class="grid h-14 w-14 place-items-center rounded-2xl
+                {% if area.color == 'blue' %}bg-blue-50 text-blue-700 ring-1 ring-blue-100
+                {% elif area.color == 'cyan' %}bg-cyan-50 text-cyan-700 ring-1 ring-cyan-100
+                {% elif area.color == 'emerald' %}bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100
+                {% else %}bg-violet-50 text-violet-700 ring-1 ring-violet-100{% endif %}">
+                <i class="fas {{ area.icon }} text-xl" aria-hidden="true"></i>
+              </span>
+              <span class="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-400 transition group-hover:border-cyan-200 group-hover:bg-cyan-50 group-hover:text-cyan-700">
+                <i class="fas fa-arrow-right" aria-hidden="true"></i>
+              </span>
+            </span>
+
+            <span class="mt-6 text-xs font-bold uppercase tracking-wider text-slate-400">{{ area.eyebrow }}</span>
+            <strong class="mt-1 text-2xl font-bold tracking-tight text-slate-950">{{ area.title }}</strong>
+            <span class="mt-2 text-sm leading-6 text-slate-500">{{ area.description }}</span>
+
+            <span class="mt-5 flex flex-wrap gap-2">
+              {% for item in area['items'] %}
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{{ item }}</span>
+              {% endfor %}
+            </span>
+          </span>
+          <span class="flex w-full items-center justify-between border-t border-slate-100 bg-slate-50/80 px-6 py-3.5 text-sm font-semibold text-slate-700 transition group-hover:bg-cyan-50 group-hover:text-cyan-800 sm:px-7">
+            Entrar a {{ area.title }}
+            <i class="fas fa-chevron-right text-xs" aria-hidden="true"></i>
+          </span>
+        </button>
+      </form>
+    {% endfor %}
+  </section>
+
+  <p class="mt-7 text-center text-xs leading-5 text-slate-500">
+    También podrás cambiar de área posteriormente desde el menú de tu fotografía de perfil.
+  </p>
+</div>
+{% endblock %}

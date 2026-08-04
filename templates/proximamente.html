@@ -4,11 +4,11 @@
 {% block content %}
 <div class="mx-auto flex w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
   <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
-    <a href="{{ url_for(role_home[session.get('rol')]) }}"
+    <a href="{{ url_for(role_home[rol_navegacion]) }}"
        class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-cyan-200 hover:text-cyan-700"
        aria-label="Volver al panel principal"><i class="fas fa-arrow-left"></i></a>
     <div>
-      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">{{ session.get('rol', 'AppLab') }}</p>
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">{{ rol_navegacion|default(session.get('rol', 'AppLab')) }}</p>
       <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">{{ feature }}</h1>
       <p class="mt-2 text-sm text-gray-500">Módulo de AppLab</p>
     </div>
@@ -23,7 +23,7 @@
         <p class="mt-3 max-w-2xl text-sm leading-6 text-gray-600">{{ description }}</p>
         <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-500">La sección se integrará conservando el mismo diseño clínico, permisos por rol y conexión segura con Supabase.</p>
         <div class="mt-7 flex flex-col gap-3 sm:flex-row">
-          <a href="{{ url_for(role_home[session.get('rol')]) }}" class="btn-guardar inline-flex justify-center"><i class="fas fa-home mr-2"></i>Volver al panel</a>
+          <a href="{{ url_for(role_home[rol_navegacion]) }}" class="btn-guardar inline-flex justify-center"><i class="fas fa-home mr-2"></i>Volver al panel</a>
           <button type="button" onclick="window.history.back()" class="btn-cancelar">Regresar</button>
         </div>
       </div>

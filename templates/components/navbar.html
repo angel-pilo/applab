@@ -6,7 +6,7 @@
         <i class="fas fa-bars" aria-hidden="true"></i>
       </button>
       <div class="app-navbar-title">
-        <strong>{{ session.get('rol', 'AppLab') }}</strong>
+        <strong>{{ rol_navegacion|default(session.get('rol', 'AppLab')) }}</strong>
         <span>Gestión de laboratorio</span>
       </div>
     </div>
@@ -24,9 +24,9 @@
             <div>
               <strong>Notificaciones de hoy</strong>
               <span id="navNotifSubtitle">
-                {% if session.get('rol') in ['Admin', 'Quimico'] %}
+                {% if rol_navegacion|default(session.get('rol')) in ['Admin', 'Quimico'] %}
                   Alertas diarias de inventario
-                {% elif session.get('rol') == 'Mostrador' %}
+                {% elif rol_navegacion|default(session.get('rol')) == 'Mostrador' %}
                   Resultados listos para entregar
                 {% else %}
                   Avisos relacionados con tus funciones
@@ -56,7 +56,7 @@
           {% endif %}
           <span class="app-profile-copy">
             <strong>{{ session.get('nombres', 'Usuario') }}</strong>
-            <small>{{ session.get('rol', '') }}</small>
+            <small>{% if session.get('rol') == 'Admin' and rol_navegacion != 'Admin' %}Admin · {{ rol_navegacion }}{% else %}{{ session.get('rol', '') }}{% endif %}</small>
           </span>
           <i class="fas fa-chevron-down app-profile-chevron" aria-hidden="true"></i>
         </button>
@@ -69,10 +69,31 @@
             {% else %}
               <span class="app-avatar app-avatar-large app-avatar-fallback" aria-hidden="true">{{ (session.get('nombres') or 'U')[0]|upper }}</span>
             {% endif %}
-            <span><strong>{{ session.get('nombres', 'Usuario') }}</strong><small>{{ session.get('rol', '') }}</small></span>
+            <span><strong>{{ session.get('nombres', 'Usuario') }}</strong><small>{% if session.get('rol') == 'Admin' %}Administrador · Área {{ rol_navegacion }}{% else %}{{ session.get('rol', '') }}{% endif %}</small></span>
           </div>
+          {% if session.get('rol') == 'Admin' %}
+            <div class="app-workspace-switcher">
+              <p><i class="fas fa-th-large" aria-hidden="true"></i>Cambiar de área</p>
+              <div class="app-workspace-grid">
+                {% for area_key, area_label, area_icon, area_role in [
+                  ('admin', 'Administración', 'fa-user-shield', 'Admin'),
+                  ('mostrador', 'Mostrador', 'fa-concierge-bell', 'Mostrador'),
+                  ('enfermero', 'Enfermería', 'fa-syringe', 'Enfermero'),
+                  ('quimico', 'Químico', 'fa-flask', 'Quimico')
+                ] %}
+                  <form method="POST" action="{{ url_for('app_routes.cambiar_area', area=area_key) }}">
+                    <button type="submit" class="{% if rol_navegacion == area_role %}is-active{% endif %}">
+                      <i class="fas {{ area_icon }}" aria-hidden="true"></i>
+                      <span>{{ area_label }}</span>
+                      {% if rol_navegacion == area_role %}<i class="fas fa-check app-workspace-check" aria-hidden="true"></i>{% endif %}
+                    </button>
+                  </form>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
           {% if session.get('rol') in ['Admin', 'Mostrador', 'Quimico', 'Enfermero', 'Personalizado'] and 'app_routes.configuracion' in available_endpoints %}
-            <a href="{{ url_for('app_routes.configuracion') }}"><i class="fas fa-cog"></i><span>Configuración</span></a>
+            <a href="{{ url_for('app_routes.configuracion') }}"><i class="fas fa-user-cog"></i><span>Mi cuenta</span></a>
           {% endif %}
           <a href="{{ url_for('app_routes.logout') }}" class="is-danger"><i class="fas fa-sign-out-alt"></i><span>Cerrar sesión</span></a>
         </div>
