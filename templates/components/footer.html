@@ -5,8 +5,8 @@
     
     <!-- Lado izquierdo: marca -->
     <div class="flex items-center gap-2">
-      <i class="fas fa-flask text-gray-400"></i>
-      <span>Copyright © 2025 AppLab. Todos los derechos reservados.</span>
+      <img src="{{ laboratorio_config.logo_url or url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" class="h-5 w-5 rounded-md object-contain" alt="">
+      <span>Copyright © 2025 {{ laboratorio_config.nombre_corto|default('AppLab') }}. Todos los derechos reservados.</span>
     </div>
 
     <!-- Lado derecho: info extra -->

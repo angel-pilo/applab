@@ -70,13 +70,15 @@ input {
 .auth-brand-mark {
     position: relative;
     display: inline-block;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
     flex: 0 0 auto;
     border-radius: 0.7rem;
     color: #b9f1f4;
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.17);
+    object-fit: contain;
+    padding: 0.08rem;
 }
 
 .auth-flask-neck {
@@ -220,6 +222,25 @@ input {
 
 .auth-card {
     width: min(27rem, 100%);
+}
+
+.auth-client-brand {
+    display: flex;
+    width: 100%;
+    margin-bottom: 1.85rem;
+    align-items: center;
+    justify-content: center;
+    color: var(--auth-ink);
+}
+
+.auth-client-brand img {
+    display: block;
+    width: auto;
+    max-width: min(23rem, 96%);
+    height: auto;
+    max-height: 10rem;
+    object-fit: contain;
+    object-position: center;
 }
 
 .auth-mobile-brand {
@@ -473,6 +494,15 @@ input {
 
     .auth-card-heading h2 {
         font-size: 2rem;
+    }
+
+    .auth-client-brand {
+        margin-bottom: 1.35rem;
+    }
+
+    .auth-client-brand img {
+        max-width: min(18rem, 92%);
+        max-height: 8rem;
     }
 }
 

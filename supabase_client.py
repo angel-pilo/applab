@@ -24,6 +24,8 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("Faltan SUPABASE_URL y/o SUPABASE_KEY en el archivo .env")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-supabase_storage: Client = create_client(
+supabase_admin: Client = create_client(
     SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY
 )
+# Compatibilidad con el nombre utilizado por las funciones de archivos.
+supabase_storage: Client = supabase_admin

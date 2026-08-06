@@ -4,9 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0b1f33">
-    <title>Iniciar sesión | AppLab</title>
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/applab-favicon.svg') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Iniciar sesión | {{ laboratorio_config.nombre_corto|default('AppLab') }}</title>
+    <link rel="icon" href="{{ laboratorio_config.favicon_url or url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='tenant-brand-large') }}">
     <script src="{{ url_for('static', filename='js/login.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/form_validation.js') }}" defer></script>
 </head>
@@ -19,10 +19,7 @@
     <main class="auth-shell">
         <section class="auth-identity" aria-labelledby="brand-title">
             <div class="auth-brand">
-                <span class="auth-brand-mark" aria-hidden="true">
-                    <span class="auth-flask-neck"></span>
-                    <span class="auth-flask-liquid"></span>
-                </span>
+                <img src="{{ url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" class="auth-brand-mark" alt="Logo de AppLab">
                 <span>AppLab</span>
             </div>
 
@@ -48,14 +45,16 @@
 
         <section class="auth-access" aria-labelledby="login-title">
             <div class="auth-mobile-brand" aria-hidden="true">
-                <span class="auth-brand-mark">
-                    <span class="auth-flask-neck"></span>
-                    <span class="auth-flask-liquid"></span>
-                </span>
+                <img src="{{ url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" class="auth-brand-mark" alt="Logo de AppLab">
                 <span>AppLab</span>
             </div>
 
             <div class="auth-card">
+                {% if laboratorio_config.logo_url %}
+                    <div class="auth-client-brand" aria-label="Identidad de {{ laboratorio_config.nombre_corto }}">
+                        <img src="{{ laboratorio_config.logo_url }}" alt="Logo de {{ laboratorio_config.nombre_corto }}">
+                    </div>
+                {% endif %}
                 <div class="auth-card-heading">
                     <p class="auth-eyebrow">Bienvenido</p>
                     <h2 id="login-title">Iniciar sesión</h2>

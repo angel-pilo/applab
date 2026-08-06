@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b1f33" />
 
   <title>{% block title %}Dashboard{% endblock %}</title>
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/applab-favicon.svg') }}" />
+  <link rel="icon" href="{{ laboratorio_config.favicon_url or url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" />
 
   <!-- Config Tailwind CDN (breakpoints personalizados y sin dark mode) -->
   <script>
@@ -95,7 +95,7 @@
   />
 
   <!-- Tu CSS (después de Tailwind) -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v='brand-background-tool') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
 {% set embedded_form = request.args.get('embed') == '1' or request.form.get('embed') == '1' %}
@@ -103,7 +103,7 @@
   <div id="app-loading-overlay" class="app-loading-overlay is-visible" role="status" aria-live="polite" aria-label="Cargando contenido">
     <div class="app-loading-card">
       <span class="app-loading-mark" aria-hidden="true">
-        <i class="fas fa-flask"></i>
+        <img src="{{ laboratorio_config.logo_url or url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" class="h-full w-full rounded-xl object-contain" alt="">
         <span class="app-loading-pulse"></span>
       </span>
       <div>
