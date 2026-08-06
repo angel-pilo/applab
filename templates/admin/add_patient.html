@@ -12,7 +12,7 @@
     </button>
     <div>
       <p class="text-sm font-semibold uppercase tracking-wider text-red-600">
-        {{ 'Administración' if session.get('rol') == 'Admin' else 'Mostrador' }}
+        {{ 'Administración' if rol_navegacion == 'Admin' else 'Mostrador' }}
       </p>
       <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">
         {{ 'Editar paciente' if is_edit else 'Registrar paciente' }}

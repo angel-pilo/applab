@@ -24,6 +24,9 @@
   <form method="POST"
         action="{{ url_for('app_routes.edit_proveedor', proveedor_id=proveedor.id) if is_edit else url_for('app_routes.add_proveedor') }}"
         id="form-proveedor" class="mt-6 space-y-5" novalidate>
+    {% if request.args.get('embed') == '1' or request.form.get('embed') == '1' %}
+      <input type="hidden" name="embed" value="1">
+    {% endif %}
 
     <div id="provider-form-alert" class="admin-form-alert hidden" role="alert" aria-live="polite">
       <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
@@ -66,24 +69,35 @@
     </section>
 
     <section class="admin-form-card">
-      <div class="admin-form-section-heading">
-        <span class="admin-form-section-icon is-cyan"><i class="fas fa-address-book"></i></span>
-        <div>
-          <h2>Contacto</h2>
-          <p>Datos para pedidos, cotizaciones y seguimiento.</p>
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div class="admin-form-section-heading !mb-0">
+          <span class="admin-form-section-icon is-cyan"><i class="fas fa-address-book"></i></span>
+          <div>
+            <h2>Contacto</h2>
+            <p>Datos para pedidos, cotizaciones y seguimiento.</p>
+          </div>
         </div>
+        <label id="omit-contact-control" class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <input id="sin_contacto" name="sin_contacto" type="checkbox" value="1"
+                 class="h-4 w-4 rounded border-slate-300 text-cyan-700 focus:ring-cyan-600"
+                 {% if proveedor.sin_contacto|default('') == '1' or (is_edit and not proveedor.contacto|default('') and not proveedor.telefono|default('') and not proveedor.correo|default('')) %}checked{% endif %}>
+          <span><strong class="block text-slate-900">Sin datos de contacto</strong>Solo puede omitirse para proveedores de productos.</span>
+        </label>
+      </div>
+      <div id="service-contact-notice" class="mt-4 hidden rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <i class="fas fa-phone-alt mr-2" aria-hidden="true"></i>Los datos de contacto son obligatorios para coordinar servicios o maquilas.
       </div>
 
-      <div class="admin-form-grid">
+      <div id="contact-fields" class="admin-form-grid mt-6">
         <div class="admin-field">
-          <label for="contacto">Persona de contacto</label>
+          <label for="contacto">Persona de contacto <span>*</span></label>
           <input type="text" id="contacto" name="contacto"
                  value="{{ proveedor.contacto|default('', true) }}"
                  placeholder="Nombre de la persona responsable"
                  autocomplete="name" maxlength="120">
         </div>
         <div class="admin-field">
-          <label for="telefono">Teléfono</label>
+          <label for="telefono">Teléfono <span>*</span></label>
           <input type="tel" id="telefono" name="telefono"
                  value="{{ proveedor.telefono|default('', true) }}"
                  placeholder="10 a 15 dígitos" autocomplete="tel"
@@ -91,7 +105,7 @@
           <small>Ingresa únicamente números.</small>
         </div>
         <div class="admin-field admin-field-full">
-          <label for="correo">Correo electrónico</label>
+          <label for="correo">Correo electrónico <span>*</span></label>
           <input type="email" id="correo" name="correo"
                  value="{{ proveedor.correo|default('', true) }}"
                  placeholder="ventas@proveedor.com"
@@ -101,50 +115,61 @@
     </section>
 
     <section class="admin-form-card">
-      <div class="admin-form-section-heading">
-        <span class="admin-form-section-icon"><i class="fas fa-map-marker-alt"></i></span>
-        <div>
-          <h2>Domicilio</h2>
-          <p>Ubicación comercial o fiscal del proveedor.</p>
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div class="admin-form-section-heading !mb-0">
+          <span class="admin-form-section-icon"><i class="fas fa-map-marker-alt"></i></span>
+          <div>
+            <h2>Domicilio</h2>
+            <p>Ubicación comercial o fiscal del proveedor.</p>
+          </div>
         </div>
+        <label id="omit-address-control" class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <input id="sin_domicilio" name="sin_domicilio" type="checkbox" value="1"
+                 class="h-4 w-4 rounded border-slate-300 text-cyan-700 focus:ring-cyan-600"
+                 {% if proveedor.sin_domicilio|default('') == '1' or (is_edit and proveedor.tipo|default('') != 'servicio' and not proveedor.calle|default('') and not proveedor.numero_ext|default('') and not proveedor.codigo_postal|default('') and not proveedor.municipio|default('') and not proveedor.estado|default('')) %}checked{% endif %}>
+          <span><strong class="block text-slate-900">Sin domicilio disponible</strong>Solo puede omitirse para proveedores de productos.</span>
+        </label>
+      </div>
+      <div id="service-address-notice" class="mt-4 hidden rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <i class="fas fa-truck mr-2" aria-hidden="true"></i>El domicilio es obligatorio para coordinar envíos y traslados de servicios o maquilas.
       </div>
 
-      <div class="admin-form-grid admin-form-grid-three">
+      <div id="address-fields" class="admin-form-grid admin-form-grid-three mt-6">
         <div class="admin-field admin-field-span-two">
-          <label for="calle">Calle</label>
+          <label for="calle">Calle <span>*</span></label>
           <input type="text" id="calle" name="calle"
                  value="{{ proveedor.calle|default('', true) }}"
                  placeholder="Nombre de la calle"
                  autocomplete="address-line1" maxlength="120">
         </div>
         <div class="admin-field">
-          <label for="numero_ext">Número exterior</label>
+          <label for="numero_ext">Número exterior <span>*</span></label>
           <input type="text" id="numero_ext" name="numero_ext"
                  value="{{ proveedor.numero_ext|default('', true) }}"
                  placeholder="Ej. 125" maxlength="20">
         </div>
         <div class="admin-field">
-          <label for="numero_int">Número interior</label>
+          <label for="numero_int">Número interior <span>*</span></label>
           <input type="text" id="numero_int" name="numero_int"
                  value="{{ proveedor.numero_int|default('', true) }}"
-                 placeholder="Opcional" autocomplete="address-line2" maxlength="20">
+                 placeholder="Escribe S/N si no aplica" autocomplete="address-line2" maxlength="20">
         </div>
         <div class="admin-field">
-          <label for="codigo_postal">Código postal</label>
+          <label for="codigo_postal">Código postal <span>*</span></label>
           <input type="text" id="codigo_postal" name="codigo_postal"
                  value="{{ proveedor.codigo_postal|default('', true) }}"
                  placeholder="5 dígitos" autocomplete="postal-code"
                  inputmode="numeric" pattern="[0-9]{5}" maxlength="5">
         </div>
         <div class="admin-field">
-          <label for="municipio">Municipio</label>
+          <label for="municipio">Municipio <span>*</span></label>
           <input type="text" id="municipio" name="municipio"
                  value="{{ proveedor.municipio|default('', true) }}"
                  placeholder="Municipio o alcaldía"
                  autocomplete="address-level2" maxlength="100">
         </div>
         <div class="admin-field">
-          <label for="estado">Estado</label>
+          <label for="estado">Estado <span>*</span></label>
           <select id="estado" name="estado" autocomplete="address-level1">
             <option value="">Selecciona un estado</option>
             {% for estado in estados %}
@@ -184,8 +209,49 @@
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("form-proveedor");
   const alert = document.getElementById("provider-form-alert");
+  const contactToggle = document.getElementById("sin_contacto");
+  const contactControl = document.getElementById("omit-contact-control");
+  const addressToggle = document.getElementById("sin_domicilio");
+  const addressControl = document.getElementById("omit-address-control");
+  const serviceContactNotice = document.getElementById("service-contact-notice");
+  const serviceNotice = document.getElementById("service-address-notice");
+  const contactFields = [...document.querySelectorAll("#contact-fields input, #contact-fields select, #contact-fields textarea")];
+  const addressFields = [...document.querySelectorAll("#address-fields input, #address-fields select, #address-fields textarea")];
+  const typeFields = [...form.querySelectorAll('input[name="tipo"]')];
+
+  const setSectionState = (fields, omitted) => {
+    fields.forEach(field => {
+      field.disabled = omitted;
+      field.required = !omitted;
+      if (omitted) field.classList.remove("is-invalid");
+    });
+  };
+
+  const updateConditionalRequirements = () => {
+    const isService = form.querySelector('input[name="tipo"]:checked')?.value === "servicio";
+    if (isService) {
+      contactToggle.checked = false;
+      addressToggle.checked = false;
+    }
+    contactToggle.disabled = isService;
+    addressToggle.disabled = isService;
+    contactControl.classList.toggle("opacity-60", isService);
+    contactControl.classList.toggle("cursor-not-allowed", isService);
+    addressControl.classList.toggle("opacity-60", isService);
+    addressControl.classList.toggle("cursor-not-allowed", isService);
+    serviceContactNotice.classList.toggle("hidden", !isService);
+    serviceNotice.classList.toggle("hidden", !isService);
+    setSectionState(contactFields, contactToggle.checked);
+    setSectionState(addressFields, addressToggle.checked);
+  };
+
+  contactToggle.addEventListener("change", updateConditionalRequirements);
+  addressToggle.addEventListener("change", updateConditionalRequirements);
+  typeFields.forEach(field => field.addEventListener("change", updateConditionalRequirements));
+  updateConditionalRequirements();
 
   form.addEventListener("submit", event => {
+    updateConditionalRequirements();
     form.querySelectorAll(".is-invalid").forEach(field => field.classList.remove("is-invalid"));
 
     if (!form.checkValidity()) {

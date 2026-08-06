@@ -30,7 +30,7 @@ def build_custom_menu(permissions):
     """Combina módulos de varios roles y elimina accesos repetidos."""
     permissions = set(permissions or [])
     dashboard_items = [
-        ("admin.dashboard", "Panel administrativo", "fa-user-shield", "app_routes.admin_dashboard"),
+        ("admin.dashboard", "Panel administrativo", "fa-user-shield", "app_routes.admin_operational_dashboard"),
         ("front.dashboard", "Panel de mostrador", "fa-concierge-bell", "app_routes.mostrador_dashboard"),
         ("nursing.dashboard", "Panel de enfermería", "fa-syringe", "app_routes.enfermero_dashboard"),
         ("lab.dashboard", "Panel de químico", "fa-flask", "app_routes.quimico_dashboard"),
@@ -53,8 +53,8 @@ def build_custom_menu(permissions):
             items.append(item)
             seen.add(endpoint)
     items.append({
-        "text": "Configuración",
-        "icon": "fa-cog",
+        "text": "Mi cuenta",
+        "icon": "fa-user-cog",
         "url": "app_routes.configuracion",
     })
     return items
@@ -76,6 +76,7 @@ def create_app() -> Flask:
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.config["SUPABASE_URL"] = os.getenv("SUPABASE_URL", "")
     app.config["SUPABASE_KEY"] = os.getenv("SUPABASE_KEY", "")
+    app.config["SUPABASE_AVATAR_BUCKET"] = os.getenv("SUPABASE_AVATAR_BUCKET", "")
     if supabase is not None:
         app.config["SUPABASE"] = supabase
 
@@ -97,14 +98,22 @@ def create_app() -> Flask:
     # --- Variables globales para Jinja ---
     @app.context_processor
     def inject_role_menu():
+        from services import obtener_identidad_laboratorio
         # Endpoints disponibles para validar antes de url_for en plantillas
         available_endpoints = set(app.view_functions.keys())
         menus = dict(ROLE_MENU)
-        if session.get("rol") == "Personalizado":
+        actual_role = session.get("rol", "")
+        navigation_role = actual_role
+        if actual_role == "Admin":
+            requested_area = session.get("area_activa", "Admin")
+            if requested_area in {"Admin", "Mostrador", "Enfermero", "Quimico"}:
+                navigation_role = requested_area
+        if actual_role == "Personalizado":
             menus["Personalizado"] = build_custom_menu(session.get("permisos", []))
         return {
             "role_sidebar_items": menus,
-            "rol_actual": session.get("rol", ""),
+            "rol_actual": actual_role,
+            "rol_navegacion": navigation_role,
             "role_home": ROLE_HOME,
             "available_endpoints": available_endpoints,
             "permission_groups": PERMISSION_GROUPS,
@@ -112,6 +121,7 @@ def create_app() -> Flask:
                 session.get("rol") != "Personalizado"
                 or code in session.get("permisos", [])
             ),
+            "laboratorio_config": obtener_identidad_laboratorio(),
         }
     
         # --- Páginas de error personalizadas ---

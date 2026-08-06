@@ -3,7 +3,7 @@
 {% block content %}
 <div class="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
   <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
-    <a href="{{ url_for('app_routes.etiquetas_muestra') if session.get('rol') in ['Admin','Enfermero'] else url_for('app_routes.resultados') }}"
+    <a href="{{ url_for('app_routes.etiquetas_muestra') if rol_navegacion in ['Admin','Enfermero'] else url_for('app_routes.resultados') }}"
        class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600"><i class="fas fa-arrow-left"></i></a>
     <div>
       <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Etiqueta verificada</p>

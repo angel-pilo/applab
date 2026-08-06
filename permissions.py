@@ -72,6 +72,7 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.admin_operational_dashboard": "admin.dashboard",
     "app_routes.guardar_politicas_sistema": "admin.system_settings",
     "app_routes.guardar_configuracion_recibos_route": "admin.system_settings",
+    "app_routes.guardar_identidad_laboratorio_route": "admin.system_settings",
     "app_routes.configuracion_sistema": "admin.system_settings",
     "app_routes.mostrador_dashboard": "front.dashboard",
     "app_routes.enfermero_dashboard": "nursing.dashboard",
@@ -135,6 +136,7 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.imprimir_orden": "front.orders.create",
     "app_routes.recibo_orden": {"front.orders.create", "front.orders.view"},
     "app_routes.recibo_orden_pdf": {"front.orders.create", "front.orders.view"},
+    "app_routes.ticket_orden": {"front.orders.create", "front.orders.view"},
     "app_routes.abonar_orden": "front.orders.create",
     "app_routes.manage_orden_pruebas": "front.orders.create",
     "app_routes.guardar_estudios_orden": "front.orders.create",
@@ -151,8 +153,8 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.api_finalizar_muestra": "nursing.samples",
     "app_routes.api_requisitos_muestra": "nursing.samples",
     "app_routes.api_actualizar_requisito_muestra": "nursing.samples",
-    "app_routes.etiquetas_muestra": {"nursing.labels", "admin.labels"},
-    "app_routes.api_registrar_impresion_etiquetas": {"nursing.labels", "admin.labels"},
+    "app_routes.etiquetas_muestra": {"nursing.labels", "admin.labels", "lab.results.capture"},
+    "app_routes.api_registrar_impresion_etiquetas": {"nursing.labels", "admin.labels", "lab.results.capture"},
 
     # Químico y acciones compartidas
     "app_routes.resultados": "lab.results.capture",

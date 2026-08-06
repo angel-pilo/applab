@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Configuración | AppLab{% endblock %}
+{% block title %}Mi cuenta | AppLab{% endblock %}
 
 {% block content %}
 {% set foto = user.foto_perfil if user.foto_perfil else None %}
@@ -12,9 +12,9 @@
       <i class="fas fa-arrow-left" aria-hidden="true"></i>
     </button>
     <div>
-      <p class="text-sm font-semibold uppercase tracking-wider {{ 'text-red-600' if session.get('rol') == 'Admin' else 'text-cyan-700' }}">{{ 'Administración' if session.get('rol') == 'Admin' else 'Cuenta personal' }}</p>
-      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Configuración</h1>
-      <p class="mt-2 text-sm text-gray-500">{{ 'Administra tu identidad y consulta los datos asociados a tu cuenta.' if session.get('rol') == 'Admin' else 'Actualiza únicamente tu imagen de perfil dentro de AppLab.' }}</p>
+      <p class="text-sm font-semibold uppercase tracking-wider text-cyan-700">Cuenta personal</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Mi cuenta</h1>
+      <p class="mt-2 text-sm text-gray-500">Administra tu imagen y contraseña según las políticas del laboratorio.</p>
     </div>
   </header>
 
@@ -85,25 +85,56 @@
         <span><i class="fas fa-lock" aria-hidden="true"></i></span>
         <div>
           <h2 id="security-heading">Cuenta protegida</h2>
-          <p>Tu imagen solo se utiliza dentro de AppLab. Si necesitas cambiar tus datos de acceso, solicítalo al administrador responsable.</p>
+          <p>Tu imagen solo se utiliza dentro de AppLab. Las acciones restringidas pueden realizarse únicamente con autorización administrativa registrada.</p>
         </div>
       </section>
 
-      {% if session.get('rol') == 'Admin' %}
-      <section class="admin-form-card" aria-labelledby="labels-heading">
+      <section class="admin-form-card" aria-labelledby="password-heading">
         <div class="admin-form-section-heading">
-          <span class="admin-form-section-icon"><i class="fas fa-print" aria-hidden="true"></i></span>
+          <span class="admin-form-section-icon"><i class="fas fa-key" aria-hidden="true"></i></span>
           <div>
-            <h2 id="labels-heading">Etiquetas de muestras</h2>
-            <p>Configura el tamaño predeterminado, las copias y el código QR.</p>
+            <h2 id="password-heading">Cambiar contraseña</h2>
+            <p>Actualiza tus credenciales personales de acceso.</p>
           </div>
         </div>
-        <a href="{{ url_for('app_routes.etiquetas_muestra') }}" class="btn-guardar inline-flex">
-          <i class="fas fa-qrcode" aria-hidden="true"></i>
-          Configurar etiquetas
-        </a>
+        {% set password_restricted = session.get('rol') != 'Admin' and not system_settings.empleados_cambian_password %}
+        {% if password_restricted %}
+        <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">
+          <i class="fas fa-lock mr-2"></i>Esta acción está restringida por la política del laboratorio y requiere autorización administrativa.
+        </div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('app_routes.cambiar_password_personal') }}" class="space-y-4">
+          <div class="admin-form-grid">
+            <div class="admin-field admin-field-full">
+              <label for="current-password">Contraseña actual <span>*</span></label>
+              <input id="current-password" type="password" name="current_password" autocomplete="current-password" required>
+            </div>
+            <div class="admin-field">
+              <label for="new-password">Nueva contraseña <span>*</span></label>
+              <input id="new-password" type="password" name="new_password" autocomplete="new-password" minlength="8" required>
+              <small>Mínimo 8 caracteres.</small>
+            </div>
+            <div class="admin-field">
+              <label for="confirm-password">Confirmar contraseña <span>*</span></label>
+              <input id="confirm-password" type="password" name="confirm_password" autocomplete="new-password" minlength="8" required>
+            </div>
+            {% if password_restricted %}
+            <div class="admin-field">
+              <label for="password-admin-username">Usuario autorizador <span>*</span></label>
+              <input id="password-admin-username" name="admin_username" autocomplete="username" required>
+            </div>
+            <div class="admin-field">
+              <label for="password-admin-password">Contraseña del autorizador <span>*</span></label>
+              <input id="password-admin-password" type="password" name="admin_password" autocomplete="current-password" required>
+            </div>
+            {% endif %}
+          </div>
+          <div class="flex justify-end">
+            <button type="submit" class="btn-guardar"><i class="fas fa-save"></i>Actualizar contraseña</button>
+          </div>
+        </form>
       </section>
-      {% endif %}
+
     </div>
   </div>
 </div>
@@ -181,6 +212,24 @@
                accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
         <small>JPG, PNG, GIF o WEBP. Máximo 3 MB.</small>
       </div>
+
+      {% set photo_restricted = session.get('rol') != 'Admin' and not system_settings.empleados_cambian_foto %}
+      {% if photo_restricted %}
+      <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <strong class="block text-sm text-amber-900"><i class="fas fa-user-shield mr-2"></i>Autorización requerida</strong>
+        <p class="mt-1 text-xs leading-relaxed text-amber-800">Un administrador o usuario con permiso para autorizar excepciones debe ingresar sus credenciales.</p>
+        <div class="admin-form-grid mt-3">
+          <div class="admin-field">
+            <label for="photo-admin-username">Usuario autorizador</label>
+            <input id="photo-admin-username" name="admin_username" autocomplete="username" required>
+          </div>
+          <div class="admin-field">
+            <label for="photo-admin-password">Contraseña</label>
+            <input id="photo-admin-password" type="password" name="admin_password" autocomplete="current-password" required>
+          </div>
+        </div>
+      </div>
+      {% endif %}
 
       <footer class="settings-modal-actions">
         <button type="button" class="btn-cancelar" data-close-avatar-modal>Cancelar</button>

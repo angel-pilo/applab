@@ -31,6 +31,7 @@ ROLE_MENU = {
         {"text": "Resultados",       "icon": "fa-clipboard-check", "url": "app_routes.resultados"},
         {"text": "Resultados finalizados", "icon": "fa-file-medical-alt", "url": "app_routes.historial_resultados"},
         {"text": "Ingresar inventario", "icon": "fa-dolly-flatbed", "url": "app_routes.registrar_entrada_inventario"},
+        {"text": "Imprimir etiquetas", "icon": "fa-qrcode", "url": "app_routes.etiquetas_muestra"},
         {"text": "Control de calidad","icon":"fa-vials", "url": "app_routes.proximamente", "params": {"feature": "Control de calidad"}, "badge": "Próximamente"},
         {"text": "Equipos",          "icon": "fa-tools", "url": "app_routes.proximamente", "params": {"feature": "Equipos"}, "badge": "Próximamente"},
         {"text": "Incidencias",      "icon": "fa-flag", "url": "app_routes.proximamente", "params": {"feature": "Incidencias"}, "badge": "Próximamente"},

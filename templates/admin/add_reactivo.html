@@ -42,7 +42,14 @@
                  placeholder="Ej. Química seca" required>
         </div>
         <div class="admin-field">
-          <label for="proveedor">Proveedor <span>*</span></label>
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <label for="proveedor" class="!mb-0">Proveedor <span>*</span></label>
+            <button type="button" id="open-provider-modal"
+                    class="inline-flex items-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition hover:border-cyan-300 hover:bg-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
+              <i class="fas fa-plus" aria-hidden="true"></i>
+              Registrar proveedor
+            </button>
+          </div>
           <select id="proveedor" name="proveedor" required>
             <option value="" disabled {% if not reactivo %}selected{% endif %}>Selecciona un proveedor</option>
             {% for proveedor in proveedores %}
@@ -143,4 +150,96 @@
     </div>
   </form>
 </div>
+
+<div id="provider-modal" class="fixed inset-0 z-[1600] hidden" role="dialog" aria-modal="true" aria-labelledby="provider-modal-title">
+  <div class="absolute inset-0 bg-slate-950/55 backdrop-blur-[1px]" data-provider-modal-close></div>
+  <div class="absolute inset-3 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-2xl sm:inset-6 lg:inset-x-[8%] lg:inset-y-8">
+    <header class="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-5 py-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-cyan-700">Catálogo de proveedores</p>
+        <h2 id="provider-modal-title" class="mt-1 text-lg font-bold text-slate-900">Registrar nuevo proveedor</h2>
+      </div>
+      <button type="button" data-provider-modal-close
+              class="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Cerrar ventana">
+        <i class="fas fa-times" aria-hidden="true"></i>
+      </button>
+    </header>
+    <iframe id="provider-modal-frame" class="min-h-0 flex-1 w-full border-0 bg-slate-50"
+            title="Formulario para registrar proveedor"></iframe>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("provider-modal");
+  const frame = document.getElementById("provider-modal-frame");
+  const openButton = document.getElementById("open-provider-modal");
+  const providerSelect = document.getElementById("proveedor");
+  const closeButtons = modal.querySelectorAll("[data-provider-modal-close]");
+  const providerFormUrl = {{ url_for('app_routes.add_proveedor', embed=1)|tojson }};
+  const providerCatalogUrl = {{ url_for('app_routes.api_proveedores_activos')|tojson }};
+
+  // Al llevarlo al body, el modal no queda limitado por el contenedor de la barra lateral.
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
+
+  const closeModal = () => {
+    modal.classList.add("hidden");
+    document.body.classList.remove("overflow-hidden");
+    frame.removeAttribute("src");
+    openButton.focus();
+  };
+
+  const openModal = () => {
+    frame.src = providerFormUrl;
+    modal.classList.remove("hidden");
+    document.body.classList.add("overflow-hidden");
+    modal.querySelector("[data-provider-modal-close]:not(div)")?.focus();
+  };
+
+  const refreshProviders = async selectedId => {
+    const response = await fetch(providerCatalogUrl, {
+      headers: { "Accept": "application/json" },
+      credentials: "same-origin"
+    });
+    if (!response.ok) throw new Error("No fue posible actualizar el catálogo de proveedores.");
+
+    const payload = await response.json();
+    providerSelect.replaceChildren(new Option("Selecciona un proveedor", "", false, false));
+    providerSelect.options[0].disabled = true;
+
+    payload.proveedores.forEach(proveedor => {
+      const isSelected = String(proveedor.id) === String(selectedId);
+      providerSelect.add(new Option(proveedor.nombre, proveedor.id, isSelected, isSelected));
+    });
+    providerSelect.value = String(selectedId);
+    providerSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  openButton.addEventListener("click", openModal);
+  closeButtons.forEach(button => button.addEventListener("click", closeModal));
+
+  window.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
+  });
+
+  window.addEventListener("message", async event => {
+    if (event.origin !== window.location.origin || event.source !== frame.contentWindow) return;
+    if (event.data?.type !== "applab:entity-saved" || event.data?.entity !== "provider") return;
+
+    try {
+      await refreshProviders(event.data.id);
+      closeModal();
+      if (typeof window.openFlashModal === "function") {
+        window.openFlashModal("Proveedor registrado y seleccionado correctamente.", "success");
+      }
+    } catch (error) {
+      closeModal();
+      if (typeof window.openFlashModal === "function") {
+        window.openFlashModal(error.message, "error");
+      }
+    }
+  });
+});
+</script>
 {% endblock %}

@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración global | {{ laboratorio_config.nombre_corto|default('AppLab') }}{% endblock %}
+
+{% macro accordion_heading(icon, title, description, color='') %}
+  <summary class="flex cursor-pointer list-none items-center gap-3 p-5 sm:p-6">
+    <span class="admin-form-section-icon {{ color }}"><i class="fas {{ icon }}"></i></span>
+    <span class="min-w-0 flex-1"><strong class="block text-base text-slate-900">{{ title }}</strong><small class="mt-1 block text-xs text-slate-500">{{ description }}</small></span>
+    <i class="fas fa-chevron-down text-slate-400 transition-transform duration-200 group-open:rotate-180"></i>
+  </summary>
+{% endmacro %}
+
+{% block content %}
+<div class="admin-form-shell py-6 sm:py-8">
+  <header class="flex items-start gap-4 border-b border-gray-200 pb-6">
+    <a href="{{ url_for('app_routes.admin_operational_dashboard') }}" class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm" aria-label="Volver"><i class="fas fa-arrow-left"></i></a>
+    <div class="min-w-0 flex-1"><p class="text-sm font-semibold uppercase tracking-wider text-red-600">Administración</p><h1 class="mt-1 text-3xl font-bold tracking-tight text-gray-900">Configuración global</h1><p class="mt-2 text-sm text-gray-500">Identidad, políticas y documentos de todo el laboratorio.</p></div>
+    <a href="{{ url_for('app_routes.configuracion') }}" class="btn-cancelar hidden sm:inline-flex"><i class="fas fa-user-cog"></i>Mi cuenta</a>
+  </header>
+
+  {% set receipt = system_settings.recibo_configuracion %}
+  {% set lab = system_settings.laboratorio_configuracion %}
+  <div class="mt-6 space-y-4">
+    <section class="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4 text-sm text-cyan-900"><div class="flex items-start gap-3"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-cyan-700"><i class="fas fa-shield-alt"></i></span><div><strong class="block">Configuración protegida</strong><p class="mt-1 text-xs leading-relaxed">Los cambios se aplican a todos los usuarios y quedan registrados en la bitácora.</p></div></div></section>
+
+    <details class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" open>
+      {{ accordion_heading('fa-hospital', 'Identidad del laboratorio', 'Logo, icono del navegador y datos institucionales.', 'is-cyan') }}
+      <form method="POST" enctype="multipart/form-data" action="{{ url_for('app_routes.guardar_identidad_laboratorio_route') }}" class="space-y-5 border-t border-slate-100 p-5 sm:p-6">
+        <div class="admin-form-grid">
+          <div class="admin-field admin-field-full"><label for="lab-name">Nombre completo <span>*</span></label><input id="lab-name" name="nombre" maxlength="160" value="{{ lab.nombre }}" required></div>
+          <div class="admin-field"><label for="lab-short-name">Nombre corto <span>*</span></label><input id="lab-short-name" name="nombre_corto" maxlength="40" value="{{ lab.nombre_corto }}" required><small>Se muestra en el login y la barra lateral.</small></div>
+          <div class="admin-field"><label for="lab-rfc">RFC</label><input id="lab-rfc" name="rfc" maxlength="30" value="{{ lab.rfc }}"></div>
+          <div class="admin-field"><label for="lab-phone">Teléfono</label><input id="lab-phone" name="telefono" type="tel" maxlength="20" value="{{ lab.telefono }}"></div>
+          <div class="admin-field"><label for="lab-whatsapp">WhatsApp</label><input id="lab-whatsapp" name="whatsapp" type="tel" maxlength="20" value="{{ lab.whatsapp }}"></div>
+          <div class="admin-field"><label for="lab-email">Correo</label><input id="lab-email" name="correo" type="email" maxlength="160" value="{{ lab.correo }}"></div>
+          <div class="admin-field admin-field-full"><label for="lab-address">Domicilio</label><input id="lab-address" name="direccion" maxlength="240" value="{{ lab.direccion }}"></div>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="brand-image-control rounded-xl border border-slate-200 bg-slate-50 p-4" data-current-url="{{ lab.logo_url }}" data-default-url="{{ url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}">
+            <div class="brand-logo-preview-grid grid min-h-36 place-items-center rounded-xl border border-slate-200 p-4">
+              <img id="logo-preview" src="{{ lab.logo_url or url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" class="max-h-28 max-w-full object-contain" alt="Vista previa del logo">
+            </div>
+            <div class="mt-3"><strong class="block text-sm">Logo principal</strong><small id="logo-preview-status" class="text-slate-500">{{ 'Imagen personalizada' if lab.logo_url else 'Logo predeterminado de AppLab' }}</small></div>
+            <div class="mt-3 rounded-lg border border-cyan-100 bg-cyan-50 p-2 text-[10px] leading-4 text-cyan-900"><strong>Recomendado:</strong> PNG o WEBP, fondo transparente, 512 × 512 px o 1200 × 400 px y máximo 1 MB.</div>
+            <p data-background-note="logo" class="mt-2 hidden text-[10px] leading-4 text-slate-500">El patrón cuadriculado permite verificar las áreas transparentes antes de guardar.</p>
+            <input id="logo-input" class="sr-only" type="file" name="logo" accept="image/png,image/jpeg,image/webp"><input id="logo-remove" type="checkbox" name="eliminar_logo" class="hidden">
+            <div class="mt-3 flex flex-wrap gap-2">
+              <label for="logo-input" class="btn-cancelar cursor-pointer"><i class="fas fa-upload"></i>Elegir imagen</label>
+              <button type="button" class="btn-cancelar hidden" data-remove-background="logo"><i class="fas fa-magic"></i>Quitar fondo</button>
+              <button type="button" class="btn-cancelar hidden" data-keep-background="logo"><i class="fas fa-image"></i>Conservar fondo</button>
+              <button type="button" class="btn-cancelar" data-use-default="logo"><i class="fas fa-undo"></i>Usar AppLab</button>
+              <button type="button" class="btn-cancelar {{ 'hidden' if not lab.logo_url }}" data-restore-image="logo"><i class="fas fa-history"></i>Conservar actual</button>
+            </div>
+          </div>
+          <div class="brand-image-control rounded-xl border border-slate-200 bg-slate-50 p-4" data-current-url="{{ lab.favicon_url }}" data-default-url="{{ url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}"><div class="flex items-center gap-3"><img id="favicon-preview" src="{{ lab.favicon_url or url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" class="h-12 w-12 rounded-xl border border-slate-200 bg-white object-contain p-1" alt="Vista previa del icono"><div><strong class="block text-sm">Icono de pestaña</strong><small id="favicon-preview-status" class="text-slate-500">{{ 'Imagen personalizada' if lab.favicon_url else 'Icono predeterminado de AppLab' }}</small></div></div><div class="mt-3 rounded-lg border border-cyan-100 bg-cyan-50 p-2 text-[10px] leading-4 text-cyan-900"><strong>Recomendado:</strong> PNG o WEBP cuadrado, 64 × 64 o 128 × 128 px y máximo 512 KB.</div><input id="favicon-input" class="sr-only" type="file" name="favicon" accept="image/png,image/jpeg,image/webp"><input id="favicon-remove" type="checkbox" name="eliminar_favicon" class="hidden"><div class="mt-3 flex flex-wrap gap-2"><label for="favicon-input" class="btn-cancelar cursor-pointer"><i class="fas fa-upload"></i>Elegir imagen</label><button type="button" class="btn-cancelar" data-use-default="favicon"><i class="fas fa-undo"></i>Usar AppLab</button><button type="button" class="btn-cancelar {{ 'hidden' if not lab.favicon_url }}" data-restore-image="favicon"><i class="fas fa-history"></i>Conservar actual</button></div></div>
+        </div>
+        <div class="flex justify-end border-t border-slate-100 pt-5"><button class="btn-guardar" type="submit"><i class="fas fa-save"></i>Guardar identidad</button></div>
+      </form>
+    </details>
+
+    <details class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {{ accordion_heading('fa-sliders-h', 'Políticas de usuarios y operación', 'Permisos generales y autorizaciones administrativas.', 'is-cyan') }}
+      <form method="POST" action="{{ url_for('app_routes.guardar_politicas_sistema') }}" class="space-y-3 border-t border-slate-100 p-5 sm:p-6">
+        {% for name, title, description, icon in [('empleados_cambian_password','Permitir cambio de contraseña','Los empleados podrán actualizar su propia contraseña.','fa-key'),('empleados_cambian_foto','Permitir cambio de foto de perfil','Los empleados podrán cambiar su avatar o fotografía.','fa-camera'),('mostrador_entrega_saldo_pendiente','Permitir entrega con saldo pendiente','Mostrador podrá entregar resultados sin liquidar.','fa-file-invoice-dollar')] %}
+        <label class="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-gray-200 bg-slate-50 p-4"><span class="flex gap-3"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-cyan-700"><i class="fas {{ icon }}"></i></span><span><strong class="block text-sm text-gray-900">{{ title }}</strong><small class="mt-1 block text-gray-500">{{ description }}</small></span></span><input type="checkbox" name="{{ name }}" class="mt-2 h-5 w-5" {% if system_settings[name] %}checked{% endif %}></label>
+        {% endfor %}
+        <div class="flex justify-end border-t border-slate-100 pt-5"><button class="btn-guardar" type="submit"><i class="fas fa-shield-alt"></i>Guardar políticas</button></div>
+      </form>
+    </details>
+
+    <details class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {{ accordion_heading('fa-receipt', 'Tickets y PDF de órdenes y abonos', 'Elige formato, información visible y mensaje al pie.') }}
+      <form id="receipt-settings-form" method="POST" action="{{ url_for('app_routes.guardar_configuracion_recibos_route') }}" class="space-y-5 border-t border-slate-100 p-5 sm:p-6">
+        <div class="admin-field max-w-xs"><label for="ticket-width">Ancho de impresora térmica</label><select id="ticket-width" name="ticket_ancho_mm"><option value="80" {% if receipt.ticket_ancho_mm == '80' %}selected{% endif %}>80 mm (recomendado)</option><option value="58" {% if receipt.ticket_ancho_mm == '58' %}selected{% endif %}>58 mm (compacto)</option></select></div>
+        <div><p class="mb-3 text-xs font-bold uppercase tracking-wider text-cyan-700">Datos del laboratorio visibles</p><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {% for name, title, icon in [('mostrar_laboratorio_nombre','Nombre del laboratorio','fa-hospital'),('mostrar_laboratorio_logo','Logo','fa-image'),('mostrar_laboratorio_rfc','RFC','fa-id-card'),('mostrar_laboratorio_telefono','Teléfono','fa-phone'),('mostrar_laboratorio_whatsapp','WhatsApp','fa-comment'),('mostrar_laboratorio_correo','Correo','fa-envelope'),('mostrar_laboratorio_direccion','Domicilio','fa-map-marker-alt')] %}
+          <label class="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><span class="flex items-center gap-2 text-xs font-semibold"><i class="fas {{ icon }} text-cyan-700"></i>{{ title }}</span><input type="checkbox" name="{{ name }}" {% if receipt[name] %}checked{% endif %}></label>{% endfor %}
+        </div></div>
+        <div><p class="mb-3 text-xs font-bold uppercase tracking-wider text-cyan-700">Contenido de la orden</p><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {% for name, title, icon in [('mostrar_paciente_telefono','Teléfono del paciente','fa-phone'),('mostrar_paciente_direccion','Domicilio del paciente','fa-map-marker-alt'),('mostrar_procedencia','Procedencia','fa-hospital'),('mostrar_medico','Médico','fa-user-md'),('mostrar_estudios','Estudios y precios','fa-vials'),('mostrar_observaciones','Observaciones','fa-sticky-note'),('mostrar_cajero','Usuario que recibió','fa-user-check'),('mostrar_historial_pagos','Historial de abonos','fa-history'),('mostrar_saldo','Saldo pendiente','fa-file-invoice-dollar')] %}
+          <label class="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><span class="flex items-center gap-2 text-xs font-semibold"><i class="fas {{ icon }} text-cyan-700"></i>{{ title }}</span><input type="checkbox" name="{{ name }}" {% if receipt[name] %}checked{% endif %}></label>{% endfor %}
+        </div></div>
+        <div class="admin-field"><label for="receipt-footer">Mensaje al pie</label><textarea id="receipt-footer" name="recibo_mensaje_pie" rows="2" maxlength="300">{{ receipt.recibo_mensaje_pie }}</textarea></div>
+        <div class="flex flex-col gap-2 rounded-xl border border-cyan-100 bg-cyan-50/60 p-4 sm:flex-row sm:items-center sm:justify-between"><div><strong class="block text-sm text-cyan-950">Impresión de prueba</strong><small class="text-cyan-800">Usa los valores que están actualmente en el formulario, aunque todavía no los hayas guardado.</small></div><div class="flex gap-2"><button id="test-ticket-button" type="button" class="btn-cancelar"><i class="fas fa-receipt"></i>Probar ticket</button><button id="test-pdf-button" type="button" class="btn-cancelar"><i class="fas fa-file-pdf"></i>Probar PDF</button></div></div>
+        <div class="flex justify-end border-t border-slate-100 pt-5"><button class="btn-guardar" type="submit"><i class="fas fa-save"></i>Guardar documentos</button></div>
+      </form>
+    </details>
+
+    {% if has_permission('admin.labels') %}<details class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">{{ accordion_heading('fa-qrcode', 'Etiquetas de muestras', 'El administrador define el formato; el personal solo selecciona e imprime.') }}<form method="POST" action="{{ url_for('app_routes.guardar_configuracion_etiquetas') }}" class="space-y-5 border-t border-slate-100 p-5 sm:p-6"><div class="admin-form-grid"><div class="admin-field"><label for="admin-label-format">Formato predeterminado</label><select id="admin-label-format" name="formato">{% for width, height, label in [(50,30,'50 × 30 mm · compacta'),(60,40,'60 × 40 mm · recomendada'),(100,50,'100 × 50 mm · amplia')] %}<option value="{{ width }}x{{ height }}" {% if label_settings.ancho_mm == width and label_settings.alto_mm == height %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><div class="admin-field"><label for="admin-label-copies">Copias por muestra</label><input id="admin-label-copies" name="copias" type="number" min="1" max="10" value="{{ label_settings.copias_predeterminadas }}" required></div></div><label class="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4"><span><strong class="block text-sm text-slate-900">Incluir código QR</strong><small class="mt-1 block text-xs text-slate-500">Permite consultar la identificación de la muestra al escanearla.</small></span><input type="checkbox" name="mostrar_qr" {% if label_settings.mostrar_qr %}checked{% endif %}></label><div class="flex flex-col gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between"><a href="{{ url_for('app_routes.etiquetas_muestra') }}" class="btn-cancelar inline-flex"><i class="fas fa-eye"></i>Ir a impresión</a><button type="submit" class="btn-guardar"><i class="fas fa-save"></i>Guardar etiquetas</button></div></form></details>{% endif %}
+  </div>
+</div>
+
+<script>
+(() => {
+  const objectUrls = new Map();
+  const originalFiles = new Map();
+
+  function replaceInputFile(input, file) {
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+  }
+
+  async function removeConnectedLightBackground(file) {
+    const bitmap = await createImageBitmap(file);
+    const maximumDimension = 2048;
+    const scale = Math.min(1, maximumDimension / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", {willReadFrequently: true});
+    context.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const image = context.getImageData(0, 0, width, height);
+    const pixels = image.data;
+    const visited = new Uint8Array(width * height);
+    const queue = new Int32Array(width * height);
+    let head = 0;
+    let tail = 0;
+
+    const isLightBackground = index => {
+      const offset = index * 4;
+      const red = pixels[offset];
+      const green = pixels[offset + 1];
+      const blue = pixels[offset + 2];
+      const maximum = Math.max(red, green, blue);
+      const minimum = Math.min(red, green, blue);
+      return pixels[offset + 3] > 0 && minimum >= 220 && maximum - minimum <= 35;
+    };
+    const enqueue = index => {
+      if (index < 0 || index >= visited.length || visited[index] || !isLightBackground(index)) return;
+      visited[index] = 1;
+      queue[tail++] = index;
+    };
+
+    for (let x = 0; x < width; x += 1) {
+      enqueue(x);
+      enqueue((height - 1) * width + x);
+    }
+    for (let y = 1; y < height - 1; y += 1) {
+      enqueue(y * width);
+      enqueue(y * width + width - 1);
+    }
+
+    while (head < tail) {
+      const index = queue[head++];
+      const offset = index * 4;
+      const luminance = (pixels[offset] + pixels[offset + 1] + pixels[offset + 2]) / 3;
+      const featheredAlpha = Math.max(0, Math.min(255, Math.round((255 - luminance) / 35 * 255)));
+      pixels[offset + 3] = Math.min(pixels[offset + 3], featheredAlpha);
+      const x = index % width;
+      if (x > 0) enqueue(index - 1);
+      if (x < width - 1) enqueue(index + 1);
+      if (index >= width) enqueue(index - width);
+      if (index < width * (height - 1)) enqueue(index + width);
+    }
+
+    if (!tail) throw new Error("No se detectó un fondo claro conectado a los bordes.");
+    context.putImageData(image, 0, 0);
+
+    // Recorta el espacio que se vuelve transparente para que el logo utilice
+    // realmente el área disponible en login, documentos y navegación.
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        if (pixels[(y * width + x) * 4 + 3] > 12) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+    if (maxX < minX || maxY < minY) throw new Error("No se detectó contenido visible en el logo.");
+    const visibleWidth = maxX - minX + 1;
+    const visibleHeight = maxY - minY + 1;
+    const padding = Math.max(4, Math.round(Math.max(visibleWidth, visibleHeight) * 0.035));
+    const sourceX = Math.max(0, minX - padding);
+    const sourceY = Math.max(0, minY - padding);
+    const sourceWidth = Math.min(width - sourceX, visibleWidth + padding * 2);
+    const sourceHeight = Math.min(height - sourceY, visibleHeight + padding * 2);
+    const output = document.createElement("canvas");
+    output.width = sourceWidth;
+    output.height = sourceHeight;
+    output.getContext("2d").drawImage(
+      canvas,
+      sourceX, sourceY, sourceWidth, sourceHeight,
+      0, 0, sourceWidth, sourceHeight,
+    );
+    const blob = await new Promise(resolve => output.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("No se pudo generar el PNG transparente.");
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "")}-sin-fondo.png`, {
+      type: "image/png",
+      lastModified: Date.now(),
+    });
+  }
+
+  function setupImageControl(type, maximumBytes) {
+    const input = document.getElementById(`${type}-input`);
+    const remove = document.getElementById(`${type}-remove`);
+    const preview = document.getElementById(`${type}-preview`);
+    const status = document.getElementById(`${type}-preview-status`);
+    const container = input?.closest(".brand-image-control");
+    if (!input || !remove || !preview || !container) return;
+    const currentUrl = container.dataset.currentUrl || "";
+    const defaultUrl = container.dataset.defaultUrl;
+    const removeBackground = document.querySelector(`[data-remove-background="${type}"]`);
+    const keepBackground = document.querySelector(`[data-keep-background="${type}"]`);
+    const backgroundNote = document.querySelector(`[data-background-note="${type}"]`);
+
+    function toggleBackgroundTools(visible) {
+      removeBackground?.classList.toggle("hidden", !visible);
+      keepBackground?.classList.toggle("hidden", !visible);
+      backgroundNote?.classList.toggle("hidden", !visible);
+    }
+
+    function show(url, message) {
+      if (objectUrls.has(type) && objectUrls.get(type) !== url) {
+        URL.revokeObjectURL(objectUrls.get(type));
+        objectUrls.delete(type);
+      }
+      preview.src = url;
+      status.textContent = message;
+    }
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!/^image\/(png|jpeg|webp)$/.test(file.type) || file.size > maximumBytes) {
+        input.value = "";
+        status.textContent = `Archivo no válido. Revisa el formato y el peso recomendado.`;
+        status.className = "text-red-600";
+        return;
+      }
+      originalFiles.set(type, file);
+      const url = URL.createObjectURL(file);
+      if (objectUrls.has(type)) URL.revokeObjectURL(objectUrls.get(type));
+      objectUrls.set(type, url);
+      remove.checked = false;
+      status.className = "text-emerald-700";
+      preview.src = url;
+      status.textContent = `Nueva imagen: ${file.name}`;
+      toggleBackgroundTools(type === "logo");
+    });
+    removeBackground?.addEventListener("click", async () => {
+      const original = originalFiles.get(type);
+      if (!original) return;
+      removeBackground.disabled = true;
+      status.className = "text-cyan-700";
+      status.textContent = "Procesando imagen y preparando fondo transparente...";
+      try {
+        const processed = await removeConnectedLightBackground(original);
+        if (processed.size > maximumBytes) {
+          throw new Error("El PNG resultante supera 1 MB. Usa una imagen de menor resolución.");
+        }
+        replaceInputFile(input, processed);
+        const url = URL.createObjectURL(processed);
+        if (objectUrls.has(type)) URL.revokeObjectURL(objectUrls.get(type));
+        objectUrls.set(type, url);
+        preview.src = url;
+        remove.checked = false;
+        status.className = "text-emerald-700";
+        status.textContent = "Vista previa sin fondo. Guarda solo si el recorte se ve correcto.";
+      } catch (error) {
+        status.className = "text-red-600";
+        status.textContent = error.message || "No se pudo quitar el fondo automáticamente.";
+      } finally {
+        removeBackground.disabled = false;
+      }
+    });
+    keepBackground?.addEventListener("click", () => {
+      const original = originalFiles.get(type);
+      if (!original) return;
+      replaceInputFile(input, original);
+      const url = URL.createObjectURL(original);
+      if (objectUrls.has(type)) URL.revokeObjectURL(objectUrls.get(type));
+      objectUrls.set(type, url);
+      preview.src = url;
+      remove.checked = false;
+      status.className = "text-slate-600";
+      status.textContent = "Se conservará el fondo original de la imagen.";
+    });
+    document.querySelector(`[data-use-default="${type}"]`)?.addEventListener("click", () => {
+      input.value = "";
+      originalFiles.delete(type);
+      remove.checked = true;
+      status.className = "text-slate-500";
+      toggleBackgroundTools(false);
+      show(defaultUrl, "Logo predeterminado de AppLab");
+    });
+    document.querySelector(`[data-restore-image="${type}"]`)?.addEventListener("click", () => {
+      input.value = "";
+      originalFiles.delete(type);
+      remove.checked = false;
+      status.className = "text-slate-500";
+      toggleBackgroundTools(false);
+      show(currentUrl || defaultUrl, currentUrl ? "Imagen personalizada actual" : "Logo predeterminado de AppLab");
+    });
+  }
+  setupImageControl("logo", 1024 * 1024);
+  setupImageControl("favicon", 512 * 1024);
+})();
+</script>
+
+<div id="document-test-modal" class="fixed inset-0 z-[10000] hidden" role="dialog" aria-modal="true" aria-labelledby="document-test-title">
+  <button type="button" class="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" data-close-document-test aria-label="Cerrar"></button>
+  <section class="absolute left-1/2 top-1/2 flex h-[min(90dvh,52rem)] w-[calc(100%_-_1.25rem)] max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <header class="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><p class="text-[10px] font-bold uppercase tracking-wider text-cyan-700">Configuración de documentos</p><h2 id="document-test-title" class="font-bold text-slate-900">Impresión de prueba</h2></div><button type="button" data-close-document-test class="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-500"><i class="fas fa-times"></i></button></header>
+    <div class="min-h-0 flex-1 bg-slate-100 p-3"><iframe id="document-test-frame" class="h-full w-full rounded-xl border border-slate-200 bg-white" title="Vista previa de impresión"></iframe></div>
+    <footer class="flex items-center justify-between gap-3 border-t border-slate-200 px-5 py-3"><p class="text-xs text-slate-500">No se guarda ni consume ningún folio.</p><button id="print-document-test" type="button" class="btn-guardar"><i class="fas fa-print"></i>Imprimir prueba</button></footer>
+  </section>
+</div>
+
+<script>
+(() => {
+  const form = document.getElementById("receipt-settings-form");
+  const modal = document.getElementById("document-test-modal");
+  const frame = document.getElementById("document-test-frame");
+  const title = document.getElementById("document-test-title");
+  const lab = {{ lab|tojson }};
+  const defaultLogo = {{ url_for('static', filename='icons/applab-favicon.svg', v='clinical')|tojson }};
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"})[char]);
+  const checked = name => Boolean(form?.elements[name]?.checked);
+
+  function line(label, value) {
+    return `<div class="row"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
+  }
+
+  function documentHtml(type) {
+    const data = new FormData(form);
+    const ticket = type === "ticket";
+    const width = data.get("ticket_ancho_mm") || "80";
+    const selectedLogo = document.getElementById("logo-preview")?.src || lab.logo_url || defaultLogo;
+    const header = `${checked("mostrar_laboratorio_logo") ? `<img class="logo" src="${esc(selectedLogo)}">` : ""}${checked("mostrar_laboratorio_nombre") ? `<h1>${esc(lab.nombre)}</h1>` : ""}${checked("mostrar_laboratorio_rfc") && lab.rfc ? `<p>RFC: ${esc(lab.rfc)}</p>` : ""}${checked("mostrar_laboratorio_direccion") && lab.direccion ? `<p>${esc(lab.direccion)}</p>` : ""}${checked("mostrar_laboratorio_telefono") && lab.telefono ? `<p>Tel. ${esc(lab.telefono)}</p>` : ""}${checked("mostrar_laboratorio_correo") && lab.correo ? `<p>${esc(lab.correo)}</p>` : ""}`;
+    const studies = checked("mostrar_estudios") ? `<section><h2>ESTUDIOS</h2>${line("Química sanguínea", "$500.00")}${line("Biometría hemática", "$350.00")}</section>` : "";
+    const details = `${line("Paciente", "Paciente de prueba")}${checked("mostrar_paciente_telefono") ? line("Teléfono", "33 1234 5678") : ""}${checked("mostrar_paciente_direccion") ? line("Domicilio", "Domicilio de ejemplo") : ""}${checked("mostrar_procedencia") ? line("Procedencia", "Paciente particular") : ""}${checked("mostrar_medico") ? line("Médico", "Dra. Ejemplo") : ""}`;
+    const totals = checked("mostrar_saldo") ? `<section class="totals">${line("Total", "$850.00")}${line("Pagado", "$300.00")}${line("Saldo", "$550.00")}</section>` : "";
+    const footer = `${checked("mostrar_cajero") ? `<p>Atendió: Usuario de prueba</p>` : ""}${checked("mostrar_laboratorio_whatsapp") && lab.whatsapp ? `<p>WhatsApp: ${esc(lab.whatsapp)}</p>` : ""}<strong>${esc(data.get("recibo_mensaje_pie") || "")}</strong>`;
+    const pageSize = ticket ? `${width}mm auto` : "A4";
+    const pageWidth = ticket ? `${width}mm` : "210mm";
+    return `<!doctype html><html><head><meta charset="utf-8"><style>@page{size:${pageSize};margin:${ticket ? "0" : "12mm"}}*{box-sizing:border-box}body{margin:0;background:#eef2f6;color:#0b1f33;font:12px/1.4 Arial,sans-serif}.paper{width:${pageWidth};min-height:${ticket ? "0" : "270mm"};max-width:100%;margin:16px auto;padding:${ticket ? "5mm 4mm" : "15mm"};background:white}.head{text-align:center;border-bottom:2px solid #0b1f33;padding-bottom:10px}.head h1{font-size:${ticket ? "15px" : "22px"};margin:4px}.head p{font-size:9px;margin:2px}.logo{max-width:${ticket ? "25mm" : "30mm"};max-height:20mm;object-fit:contain}.folio{text-align:center;font-weight:bold;margin:12px 0}.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px ${ticket ? "dotted" : "solid"} #d7e0e8}.row span{text-align:left}.row strong{text-align:right}section{margin-top:14px}h2{font-size:11px}.totals{margin-left:auto;max-width:${ticket ? "100%" : "280px"}}footer{text-align:center;border-top:1px dashed #64748b;margin-top:18px;padding-top:10px;font-size:9px}@media print{body{background:white}.paper{width:100%;margin:0;padding:${ticket ? "4mm 3mm" : "0"}}}</style></head><body><main class="paper"><header class="head">${header}</header><div class="folio">${ticket ? "TICKET" : "COMPROBANTE PDF"} · ORDEN #0000<br>IMPRESIÓN DE PRUEBA</div>${details}${studies}${checked("mostrar_observaciones") ? `<section><h2>OBSERVACIONES</h2><p>Documento generado únicamente para comprobar el formato.</p></section>` : ""}${checked("mostrar_historial_pagos") ? `<section><h2>ABONOS</h2>${line("Efectivo", "$300.00")}</section>` : ""}${totals}<footer>${footer}</footer></main></body></html>`;
+  }
+
+  function openTest(type) {
+    title.textContent = type === "ticket" ? "Ticket térmico de prueba" : "Documento PDF de prueba";
+    frame.srcdoc = documentHtml(type);
+    modal.classList.remove("hidden");
+    document.body.classList.add("overflow-hidden");
+  }
+  function closeTest() { modal.classList.add("hidden"); frame.srcdoc = ""; document.body.classList.remove("overflow-hidden"); }
+  document.getElementById("test-ticket-button")?.addEventListener("click", () => openTest("ticket"));
+  document.getElementById("test-pdf-button")?.addEventListener("click", () => openTest("pdf"));
+  document.getElementById("print-document-test")?.addEventListener("click", () => frame.contentWindow?.print());
+  document.querySelectorAll("[data-close-document-test]").forEach(button => button.addEventListener("click", closeTest));
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.classList.contains("hidden")) closeTest(); });
+})();
+</script>
+{% endblock %}

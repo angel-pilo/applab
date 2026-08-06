@@ -27,6 +27,8 @@ create table if not exists public.empleado_permisos (
 
 insert into public.permisos (codigo, modulo, nombre) values
     ('admin.dashboard', 'admin', 'Ver panel administrativo'),
+    ('admin.system_settings', 'admin', 'Administrar políticas del sistema'),
+    ('admin.override', 'admin', 'Autorizar excepciones con contraseña'),
     ('admin.employees', 'admin', 'Administrar empleados y permisos'),
     ('admin.tests', 'admin', 'Administrar pruebas clínicas'),
     ('admin.inventory', 'admin', 'Administrar catálogo de reactivos'),

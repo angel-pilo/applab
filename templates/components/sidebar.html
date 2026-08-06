@@ -4,9 +4,9 @@
   <div class="app-sidebar-brand">
     <a href="{{ url_for(role_home[rol_navegacion]) if rol_navegacion in role_home else '#' }}"
        class="app-sidebar-logo" aria-label="Ir al inicio de AppLab">
-      <span class="app-sidebar-logo-mark"><i class="fas fa-flask" aria-hidden="true"></i></span>
+      <img src="{{ laboratorio_config.logo_url or url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" class="app-sidebar-logo-mark object-contain" alt="Logo de {{ laboratorio_config.nombre_corto }}">
       <span>
-        <strong>AppLab</strong>
+        <strong>{{ laboratorio_config.nombre_corto|default('AppLab') }}</strong>
         <small>Laboratorio clínico</small>
       </span>
     </a>
