@@ -16,6 +16,24 @@
     </div>
   </header>
 
+  {% if orden_id %}
+  <section class="flex flex-col gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex items-start gap-3">
+      <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-cyan-700 shadow-sm"><i class="fas fa-receipt" aria-hidden="true"></i></span>
+      <div><strong class="block text-sm text-slate-900">Comprobante de la orden</strong><p class="mt-1 text-xs leading-5 text-slate-600">Imprime un ticket térmico o envía el comprobante en PDF.</p></div>
+    </div>
+    <button type="button" class="btn-guardar receipt-action" data-title="Comprobante de la orden #{{ '%04d'|format(orden_id) }}" data-ticket-url="{{ url_for('app_routes.ticket_orden', orden_id=orden_id, embedded=1) }}" data-pdf-url="{{ url_for('app_routes.recibo_orden_pdf', orden_id=orden_id) }}" data-pdf-download-url="{{ url_for('app_routes.recibo_orden_pdf', orden_id=orden_id, download=1) }}"><i class="fas fa-receipt"></i>Imprimir o enviar</button>
+  </section>
+  {% endif %}
+
+  {% set saved_payment_id = request.args.get('abono_guardado') %}
+  {% if orden_id and saved_payment_id %}
+  <section class="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex items-start gap-3"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-emerald-700"><i class="fas fa-check" aria-hidden="true"></i></span><div><strong class="block text-sm text-emerald-900">Abono guardado correctamente</strong><p class="mt-1 text-xs text-emerald-700">El recibo individual ya está listo para imprimir o enviar.</p></div></div>
+    <button type="button" class="btn-guardar receipt-action" data-auto-open="true" data-title="Recibo del abono · Orden #{{ '%04d'|format(orden_id) }}" data-ticket-url="{{ url_for('app_routes.ticket_orden', orden_id=orden_id, abono_id=saved_payment_id, embedded=1) }}" data-pdf-url="{{ url_for('app_routes.recibo_orden_pdf', orden_id=orden_id, abono_id=saved_payment_id) }}" data-pdf-download-url="{{ url_for('app_routes.recibo_orden_pdf', orden_id=orden_id, abono_id=saved_payment_id, download=1) }}"><i class="fas fa-receipt"></i>Imprimir o enviar</button>
+  </section>
+  {% endif %}
+
   <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"><small class="text-gray-500">Paciente</small><strong class="mt-2 block text-sm text-gray-900">{{ paciente.nombres ~ ' ' ~ paciente.apellidos if paciente else 'No disponible' }}</strong></article>
     <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"><small class="text-gray-500">Procedencia</small><strong class="mt-2 block text-sm text-gray-900">{{ hospital.nombre if hospital else 'Paciente particular' }}</strong></article>
@@ -67,7 +85,10 @@
           </span>
           {% if a.nota %}<small class="ml-2 text-gray-500">{{ a.nota }}</small>{% endif %}
         </div>
-        <strong class="shrink-0 text-emerald-700">+${{ "%.2f"|format(a.cantidad|float) }}</strong>
+        <div class="flex shrink-0 items-center gap-3">
+          <strong class="text-emerald-700">+${{ "%.2f"|format(a.cantidad|float) }}</strong>
+          {% if a.id %}<button type="button" class="receipt-action inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 hover:border-cyan-200 hover:text-cyan-700" data-title="Recibo del abono · Orden #{{ '%04d'|format(orden_id) }}" data-ticket-url="{{ url_for('app_routes.ticket_orden', orden_id=orden_id, abono_id=a.id, embedded=1) }}" data-pdf-url="{{ url_for('app_routes.recibo_orden_pdf', orden_id=orden_id, abono_id=a.id) }}" data-pdf-download-url="{{ url_for('app_routes.recibo_orden_pdf', orden_id=orden_id, abono_id=a.id, download=1) }}"><i class="fas fa-receipt"></i>Comprobante</button>{% endif %}
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -122,6 +143,171 @@ function toggleOtherPaymentMethod(){
 }
 document.querySelectorAll('input[name="metodo_pago"]').forEach((input)=>input.addEventListener("change",toggleOtherPaymentMethod));
 toggleOtherPaymentMethod();
+</script>
+{% endif %}
+
+{% if orden_id %}
+<div id="receipt-modal" class="fixed inset-0 z-[10000] hidden" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
+  <button type="button" class="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" data-close-receipt aria-label="Cerrar"></button>
+  <section class="absolute left-1/2 top-1/2 flex h-[min(90dvh,52rem)] w-[calc(100%_-_1.25rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+    <header class="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:px-5">
+      <div class="min-w-0"><p class="text-[10px] font-bold uppercase tracking-wider text-cyan-700">Comprobante clínico</p><h2 id="receipt-modal-title" class="truncate text-base font-bold text-slate-900">Imprimir o enviar</h2></div>
+      <button type="button" data-close-receipt class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+    </header>
+
+    <div class="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div class="grid grid-cols-2 gap-2">
+        <button id="receipt-ticket-tab" type="button" class="rounded-xl border border-[#0b1f33] bg-[#0b1f33] px-4 py-2 text-xs font-bold text-white"><i class="fas fa-receipt mr-1.5"></i>Ticket térmico</button>
+        <button id="receipt-pdf-tab" type="button" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600"><i class="fas fa-file-pdf mr-1.5"></i>Documento PDF</button>
+      </div>
+      <p id="receipt-modal-help" class="text-xs text-slate-500">Vista preparada para impresora térmica.</p>
+    </div>
+
+    <div class="min-h-0 flex-1 bg-slate-100 p-2 sm:p-3">
+      <iframe id="receipt-preview-frame" title="Vista previa del comprobante" class="h-full w-full rounded-xl border border-slate-200 bg-white"></iframe>
+    </div>
+
+    <footer class="flex flex-col gap-3 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <p id="receipt-action-status" class="min-h-4 text-xs text-slate-500" aria-live="polite"></p>
+      <div class="flex flex-wrap justify-end gap-2">
+        <button id="receipt-print-button" type="button" class="btn-guardar"><i class="fas fa-print"></i>Imprimir ticket</button>
+        <a id="receipt-download-button" class="btn-cancelar hidden" href="#"><i class="fas fa-download"></i>Descargar PDF</a>
+        <button id="receipt-whatsapp-button" type="button" class="hidden rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700"><i class="fab fa-whatsapp mr-1.5"></i>WhatsApp</button>
+        <button id="receipt-email-button" type="button" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700"><i class="fas fa-envelope mr-1.5"></i>Correo</button>
+      </div>
+    </footer>
+  </section>
+</div>
+
+<script>
+(() => {
+  const modal = document.getElementById("receipt-modal");
+  const frame = document.getElementById("receipt-preview-frame");
+  const title = document.getElementById("receipt-modal-title");
+  const help = document.getElementById("receipt-modal-help");
+  const status = document.getElementById("receipt-action-status");
+  const ticketTab = document.getElementById("receipt-ticket-tab");
+  const pdfTab = document.getElementById("receipt-pdf-tab");
+  const printButton = document.getElementById("receipt-print-button");
+  const downloadButton = document.getElementById("receipt-download-button");
+  const whatsappButton = document.getElementById("receipt-whatsapp-button");
+  const emailButton = document.getElementById("receipt-email-button");
+  const patientPhone = {{ (paciente.telefono if paciente else '')|tojson }};
+  const patientEmail = {{ (paciente.correo if paciente else '')|tojson }};
+  let current = { ticketUrl: "", pdfUrl: "", downloadUrl: "", title: "" };
+
+  function setStatus(message, error = false) {
+    status.textContent = message || "";
+    status.className = `min-h-4 text-xs ${error ? "text-red-600" : "text-slate-500"}`;
+  }
+
+  function selectView(type) {
+    const ticket = type === "ticket";
+    frame.src = ticket ? current.ticketUrl : current.pdfUrl;
+    ticketTab.className = ticket ? "rounded-xl border border-[#0b1f33] bg-[#0b1f33] px-4 py-2 text-xs font-bold text-white" : "rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600";
+    pdfTab.className = !ticket ? "rounded-xl border border-[#0b1f33] bg-[#0b1f33] px-4 py-2 text-xs font-bold text-white" : "rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600";
+    printButton.classList.toggle("hidden", !ticket);
+    downloadButton.classList.toggle("hidden", ticket);
+    whatsappButton.classList.toggle("hidden", ticket);
+    emailButton.classList.toggle("hidden", ticket);
+    help.textContent = ticket ? "Vista preparada para impresora térmica." : "Descarga o comparte el PDF sin salir de la orden.";
+    setStatus("");
+  }
+
+  function openReceipt(button) {
+    current = {
+      ticketUrl: button.dataset.ticketUrl,
+      pdfUrl: button.dataset.pdfUrl,
+      downloadUrl: button.dataset.pdfDownloadUrl,
+      title: button.dataset.title || "Comprobante"
+    };
+    title.textContent = current.title;
+    downloadButton.href = current.downloadUrl;
+    modal.classList.remove("hidden");
+    document.body.classList.add("overflow-hidden");
+    selectView("ticket");
+  }
+
+  function closeReceipt() {
+    modal.classList.add("hidden");
+    frame.src = "about:blank";
+    document.body.classList.remove("overflow-hidden");
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("abono_guardado")) {
+      url.searchParams.delete("abono_guardado");
+      history.replaceState({}, "", url);
+    }
+  }
+
+  function filenameFrom(response) {
+    const disposition = response.headers.get("content-disposition") || "";
+    const utf8 = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    const plain = disposition.match(/filename="?([^";]+)"?/i);
+    return decodeURIComponent((utf8?.[1] || plain?.[1] || `recibo-orden-{{ '%04d'|format(orden_id) }}.pdf`).trim());
+  }
+
+  async function preparePdf() {
+    const response = await fetch(current.pdfUrl, { credentials: "same-origin" });
+    if (!response.ok) throw new Error("No se pudo generar el PDF.");
+    return { blob: await response.blob(), name: filenameFrom(response) };
+  }
+
+  function downloadBlob(blob, name) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+  }
+
+  async function shareWhatsapp() {
+    whatsappButton.disabled = true;
+    setStatus("Preparando el PDF para WhatsApp...");
+    try {
+      const { blob, name } = await preparePdf();
+      const file = new File([blob], name, { type: "application/pdf" });
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({ title: current.title, text: current.title, files: [file] });
+        setStatus("PDF compartido correctamente.");
+      } else {
+        downloadBlob(blob, name);
+        const phone = String(patientPhone || "").replace(/\D/g, "");
+        const message = `${current.title}. Adjunta el archivo PDF que acaba de descargarse.`;
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+        setStatus("PDF descargado. Adjúntalo en la conversación de WhatsApp.");
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") setStatus(error.message || "No se pudo preparar el envío.", true);
+    } finally { whatsappButton.disabled = false; }
+  }
+
+  async function shareEmail() {
+    emailButton.disabled = true;
+    setStatus("Preparando el PDF para correo...");
+    try {
+      const { blob, name } = await preparePdf();
+      downloadBlob(blob, name);
+      const subject = encodeURIComponent(current.title);
+      const body = encodeURIComponent(`Se adjunta ${current.title}. El PDF se descargó en este equipo; agrégalo al correo antes de enviarlo.`);
+      window.location.href = `mailto:${encodeURIComponent(patientEmail || "")}?subject=${subject}&body=${body}`;
+      setStatus("PDF descargado. Adjúntalo al correo que se abrió.");
+    } catch (error) {
+      setStatus(error.message || "No se pudo preparar el correo.", true);
+    } finally { emailButton.disabled = false; }
+  }
+
+  document.querySelectorAll(".receipt-action").forEach(button => button.addEventListener("click", () => openReceipt(button)));
+  document.querySelectorAll("[data-close-receipt]").forEach(button => button.addEventListener("click", closeReceipt));
+  ticketTab.addEventListener("click", () => selectView("ticket"));
+  pdfTab.addEventListener("click", () => selectView("pdf"));
+  printButton.addEventListener("click", () => frame.contentWindow?.print());
+  whatsappButton.addEventListener("click", shareWhatsapp);
+  emailButton.addEventListener("click", shareEmail);
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.classList.contains("hidden")) closeReceipt(); });
+
+  const automatic = document.querySelector('.receipt-action[data-auto-open="true"]');
+  if (automatic) window.setTimeout(() => openReceipt(automatic), 250);
+})();
 </script>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ticket #{{ "%04d"|format(orden_id) }} | {{ laboratorio.nombre_corto }}</title>
+  <style>
+    :root{--ticket-width:{{ config.ticket_ancho_mm|default('80') }}mm;--ink:#0b1f33;--muted:#526273;--line:#ccd7e1}
+    *{box-sizing:border-box}body{margin:0;background:#eef3f7;color:var(--ink);font:12px/1.35 "Courier New",monospace}.toolbar{position:sticky;top:0;z-index:2;display:flex;justify-content:center;gap:8px;padding:12px;background:#fff;border-bottom:1px solid var(--line)}button,a{border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:var(--ink);padding:9px 12px;text-decoration:none;font:700 12px Segoe UI,Arial;cursor:pointer}.primary{background:var(--ink);color:#fff}.ticket{width:var(--ticket-width);max-width:100%;margin:18px auto;padding:5mm 4mm;background:#fff;box-shadow:0 12px 35px #0b1f3320}.center{text-align:center}.logo{display:block;max-width:30mm;max-height:18mm;margin:0 auto 2mm;object-fit:contain}.brand{margin:0;font:bold 15px Segoe UI,Arial}.meta{margin:1mm 0;font-size:9px}.rule{margin:3mm 0;border:0;border-top:1px dashed #000}.row{display:flex;justify-content:space-between;gap:3mm;margin:1.5mm 0}.row span:first-child{text-align:left}.row span:last-child{text-align:right}.study{padding:1.5mm 0;border-bottom:1px dotted var(--line)}.study strong{display:block}.total{font-weight:bold;font-size:13px}.footer{margin-top:4mm;text-align:center;font-size:9px}.no-print{font-family:Segoe UI,Arial}
+    @media print{@page{size:{{ config.ticket_ancho_mm|default('80') }}mm auto;margin:0}body{background:#fff}.toolbar{display:none}.ticket{width:100%;margin:0;padding:4mm 3mm;box-shadow:none}}
+  </style>
+</head>
+<body>
+  {% if request.args.get('embedded') != '1' %}<nav class="toolbar no-print"><a href="{{ url_for('app_routes.reporte', orden_id=orden_id) }}">← Volver</a><button class="primary" onclick="window.print()">Imprimir ticket</button></nav>{% endif %}
+  <main class="ticket">
+    <header class="center">
+      {% if config.mostrar_laboratorio_logo %}<img class="logo" src="{{ laboratorio.logo_url or url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" alt="Logo">{% endif %}
+      {% if config.mostrar_laboratorio_nombre %}<h1 class="brand">{{ laboratorio.nombre }}</h1>{% endif %}
+      {% if config.mostrar_laboratorio_rfc and laboratorio.rfc %}<p class="meta">RFC: {{ laboratorio.rfc }}</p>{% endif %}
+      {% if config.mostrar_laboratorio_direccion and laboratorio.direccion %}<p class="meta">{{ laboratorio.direccion }}</p>{% endif %}
+      {% if config.mostrar_laboratorio_telefono and laboratorio.telefono %}<p class="meta">Tel. {{ laboratorio.telefono }}</p>{% endif %}
+      {% if config.mostrar_laboratorio_correo and laboratorio.correo %}<p class="meta">{{ laboratorio.correo }}</p>{% endif %}
+    </header>
+    <hr class="rule"><div class="center"><strong>{{ tipo_recibo|upper }}</strong><br>ORDEN #{{ "%04d"|format(orden_id) }}<br>{{ fecha_emision }}</div><hr class="rule">
+    <div><strong>PACIENTE</strong><br>{{ paciente.nombres ~ ' ' ~ paciente.apellidos if paciente else 'No disponible' }}</div>
+    {% if config.mostrar_paciente_telefono %}<div class="row"><span>Teléfono</span><span>{{ paciente.telefono if paciente else '—' }}</span></div>{% endif %}
+    {% if config.mostrar_procedencia %}<div class="row"><span>Procedencia</span><span>{{ hospital.nombre if hospital else 'Particular' }}</span></div>{% endif %}
+    {% if config.mostrar_medico %}<div class="row"><span>Médico</span><span>{{ doctor.nombres ~ ' ' ~ doctor.apellidos if doctor else 'Sin médico' }}</span></div>{% endif %}
+    {% if config.mostrar_estudios %}<hr class="rule">{% for estudio in estudios %}<div class="study"><strong>{{ estudio.nombre }}</strong><div class="row"><span>{{ estudio.cantidad }} × ${{ "%.2f"|format(estudio.precio_unitario) }}</span><span>${{ "%.2f"|format(estudio.total) }}</span></div></div>{% endfor %}{% endif %}
+    {% if abono %}<hr class="rule"><div class="row"><strong>ABONO {{ abono.metodo_descripcion|upper }}</strong><strong>${{ "%.2f"|format(abono.cantidad|float) }}</strong></div>{% endif %}
+    {% if config.mostrar_saldo %}<hr class="rule"><div class="row"><span>Total</span><span>${{ "%.2f"|format(total) }}</span></div><div class="row"><span>Pagado</span><span>${{ "%.2f"|format(pagado) }}</span></div><div class="row total"><span>SALDO</span><span>${{ "%.2f"|format(saldo) }}</span></div>{% endif %}
+    <footer class="footer"><hr class="rule">{% if config.mostrar_cajero %}<p>Atendió: {{ cajero }}</p>{% endif %}{% if config.mostrar_laboratorio_whatsapp and laboratorio.whatsapp %}<p>WhatsApp: {{ laboratorio.whatsapp }}</p>{% endif %}{% if config.recibo_mensaje_pie %}<p><strong>{{ config.recibo_mensaje_pie }}</strong></p>{% endif %}</footer>
+  </main>
+</body>
+</html>

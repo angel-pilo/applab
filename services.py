@@ -1,10 +1,297 @@
 import bcrypt
 import logging
+import time
 from datetime import datetime
-from supabase_client import supabase, supabase_storage
+from supabase_client import supabase, supabase_admin, supabase_storage
 
 
 logger = logging.getLogger(__name__)
+_LAB_IDENTITY_CACHE = {"value": None, "expires_at": 0.0}
+
+DEFAULT_SYSTEM_SETTINGS = {
+    "empleados_cambian_password": True,
+    "empleados_cambian_foto": True,
+    "mostrador_entrega_saldo_pendiente": False,
+}
+
+DEFAULT_LAB_SETTINGS = {
+    "nombre": "AppLab Laboratorio clínico",
+    "nombre_corto": "AppLab",
+    "rfc": "",
+    "telefono": "",
+    "whatsapp": "",
+    "correo": "",
+    "direccion": "",
+    "logo_url": "",
+    "favicon_url": "",
+}
+
+DEFAULT_RECEIPT_SETTINGS = {
+    "recibo_mensaje_pie": "Gracias por confiar en nuestro laboratorio.",
+    "ticket_ancho_mm": "80",
+    "mostrar_laboratorio_nombre": True,
+    "mostrar_laboratorio_logo": True,
+    "mostrar_laboratorio_rfc": True,
+    "mostrar_laboratorio_telefono": True,
+    "mostrar_laboratorio_whatsapp": True,
+    "mostrar_laboratorio_correo": True,
+    "mostrar_laboratorio_direccion": True,
+    "mostrar_paciente_telefono": True,
+    "mostrar_paciente_direccion": False,
+    "mostrar_procedencia": True,
+    "mostrar_medico": True,
+    "mostrar_estudios": True,
+    "mostrar_observaciones": True,
+    "mostrar_cajero": True,
+    "mostrar_historial_pagos": True,
+    "mostrar_saldo": True,
+}
+
+
+def obtener_configuracion_sistema():
+    """Carga las políticas globales conservando valores seguros de respaldo."""
+    settings = dict(DEFAULT_SYSTEM_SETTINGS)
+    try:
+        response = (
+            supabase_admin.table("configuracion_sistema")
+            .select("*")
+            .eq("id", 1).limit(1).execute()
+        )
+        if response.data:
+            row = response.data[0]
+            settings.update({
+                key: row.get(key, default)
+                for key, default in DEFAULT_SYSTEM_SETTINGS.items()
+            })
+            settings["actualizado_en"] = row.get("actualizado_en")
+            receipt_settings = row.get("recibo_configuracion") or {}
+            settings["recibo_configuracion"] = {
+                **DEFAULT_RECEIPT_SETTINGS,
+                **receipt_settings,
+            }
+            # Compatibilidad con la configuración anterior, donde la identidad
+            # estaba guardada dentro del recibo.
+            legacy_identity = {
+                "nombre": receipt_settings.get("laboratorio_nombre"),
+                "rfc": receipt_settings.get("laboratorio_rfc"),
+                "telefono": receipt_settings.get("laboratorio_telefono"),
+                "whatsapp": receipt_settings.get("laboratorio_whatsapp"),
+                "correo": receipt_settings.get("laboratorio_correo"),
+                "direccion": receipt_settings.get("laboratorio_direccion"),
+            }
+            laboratory_settings = (
+                row.get("laboratorio_configuracion")
+                or receipt_settings.get("identidad_laboratorio")
+                or {}
+            )
+            settings["laboratorio_configuracion"] = {
+                **DEFAULT_LAB_SETTINGS,
+                **{key: value for key, value in legacy_identity.items() if value},
+                **laboratory_settings,
+            }
+    except Exception:
+        logger.warning("La configuración global todavía no está disponible", exc_info=True)
+    settings.setdefault("recibo_configuracion", dict(DEFAULT_RECEIPT_SETTINGS))
+    settings.setdefault("laboratorio_configuracion", dict(DEFAULT_LAB_SETTINGS))
+    return settings
+
+
+def guardar_configuracion_sistema(settings, usuario_id):
+    payload = {
+        key: bool(settings.get(key))
+        for key in DEFAULT_SYSTEM_SETTINGS
+    }
+    payload.update({
+        "id": 1,
+        "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
+        "actualizado_en": datetime.now().isoformat(),
+    })
+    response = supabase_admin.table("configuracion_sistema").upsert(
+        payload, on_conflict="id"
+    ).execute()
+    return bool(response.data)
+
+
+def guardar_configuracion_recibos(settings, usuario_id):
+    """Guarda el contenido y visibilidad de los comprobantes de mostrador."""
+    normalized = dict(DEFAULT_RECEIPT_SETTINGS)
+    for key, default in DEFAULT_RECEIPT_SETTINGS.items():
+        value = settings.get(key, default)
+        normalized[key] = bool(value) if isinstance(default, bool) else str(value or "").strip()
+    # Conserva la identidad cuando una instalación anterior todavía la guarda
+    # dentro del JSON de recibos y no en una columna independiente.
+    current_receipt = obtener_configuracion_sistema().get("recibo_configuracion", {})
+    if current_receipt.get("identidad_laboratorio"):
+        normalized["identidad_laboratorio"] = current_receipt["identidad_laboratorio"]
+    payload = {
+        "id": 1,
+        "recibo_configuracion": normalized,
+        "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
+        "actualizado_en": datetime.now().isoformat(),
+    }
+    response = supabase_admin.table("configuracion_sistema").upsert(
+        payload, on_conflict="id"
+    ).execute()
+    return bool(response.data)
+
+
+def guardar_configuracion_laboratorio(settings, usuario_id):
+    """Guarda una única identidad para toda la aplicación y sus documentos."""
+    normalized = {
+        key: str(settings.get(key, default) or "").strip()
+        for key, default in DEFAULT_LAB_SETTINGS.items()
+    }
+    payload = {
+        "id": 1,
+        "laboratorio_configuracion": normalized,
+        "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
+        "actualizado_en": datetime.now().isoformat(),
+    }
+    try:
+        response = supabase_admin.table("configuracion_sistema").upsert(
+            payload, on_conflict="id"
+        ).execute()
+    except Exception as error:
+        # Compatibilidad inmediata para proyectos donde aún no se ha aplicado
+        # la columna laboratorio_configuracion. La identidad se conserva en el
+        # JSON ya existente de recibos, sin almacenar archivos binarios.
+        error_text = str(error)
+        missing_identity_column = (
+            getattr(error, "code", None) in {"PGRST204", "42703"}
+            or "laboratorio_configuracion" in error_text
+        )
+        if not missing_identity_column:
+            raise
+        current_receipt = obtener_configuracion_sistema().get(
+            "recibo_configuracion", dict(DEFAULT_RECEIPT_SETTINGS)
+        )
+        current_receipt["identidad_laboratorio"] = normalized
+        fallback_payload = {
+            "id": 1,
+            "recibo_configuracion": current_receipt,
+            "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
+            "actualizado_en": datetime.now().isoformat(),
+        }
+        response = supabase_admin.table("configuracion_sistema").upsert(
+            fallback_payload, on_conflict="id"
+        ).execute()
+    _LAB_IDENTITY_CACHE["value"] = dict(normalized)
+    _LAB_IDENTITY_CACHE["expires_at"] = time.monotonic() + 60
+    return bool(response.data)
+
+
+def obtener_identidad_laboratorio():
+    if _LAB_IDENTITY_CACHE["value"] and time.monotonic() < _LAB_IDENTITY_CACHE["expires_at"]:
+        return dict(_LAB_IDENTITY_CACHE["value"])
+    identity = obtener_configuracion_sistema().get(
+        "laboratorio_configuracion", dict(DEFAULT_LAB_SETTINGS)
+    )
+    _LAB_IDENTITY_CACHE["value"] = dict(identity)
+    _LAB_IDENTITY_CACHE["expires_at"] = time.monotonic() + 60
+    return identity
+
+
+def verificar_autorizador_admin(username, password):
+    """Valida un Admin o un perfil con permiso explícito de excepción."""
+    username = str(username or "").strip()
+    password = str(password or "")
+    if not username or not password:
+        return None
+    try:
+        user_response = (
+            supabase.table("usuarios")
+            .select("id,username,password,estado_usuario")
+            .eq("username", username).limit(1).execute()
+        )
+        if not user_response.data:
+            return None
+        user = user_response.data[0]
+        if not user.get("estado_usuario") or not bcrypt.checkpw(
+            password.encode("utf-8"), str(user.get("password") or "").encode("utf-8")
+        ):
+            return None
+        employee_response = (
+            supabase.table("empleados")
+            .select("id,nombres,apellidos")
+            .eq("usuario_id", user["id"]).limit(1).execute()
+        )
+        if not employee_response.data:
+            return None
+        employee = employee_response.data[0]
+        role_response = (
+            supabase.table("empleado_roles").select("rol_id")
+            .eq("empleado_id", employee["id"]).limit(1).execute()
+        )
+        role_id = role_response.data[0].get("rol_id") if role_response.data else None
+        authorized = role_id == 1
+        if role_id == 5:
+            permission_response = (
+                supabase.table("empleado_permisos").select("permiso_codigo")
+                .eq("empleado_id", employee["id"])
+                .eq("permiso_codigo", "admin.override").limit(1).execute()
+            )
+            authorized = bool(permission_response.data)
+        if not authorized:
+            return None
+        return {
+            "usuario_id": user["id"],
+            "empleado_id": employee["id"],
+            "username": user.get("username"),
+            "nombre": f"{employee.get('nombres', '')} {employee.get('apellidos', '')}".strip(),
+        }
+    except Exception:
+        logger.exception("No se pudo validar al autorizador administrativo")
+        return None
+
+
+def registrar_excepcion_sistema(accion, detalle, autorizador, solicitante=None):
+    """Registra quién autorizó una excepción sin almacenar contraseñas."""
+    try:
+        supabase_storage.table("bitacora_eventos").insert({
+            "modulo": "Sistema",
+            "accion": "autorizar_excepcion",
+            "severidad": "warning",
+            "titulo": "Excepción administrativa autorizada",
+            "detalle": str(detalle),
+            "entidad_tipo": "configuracion_sistema",
+            "entidad_id": str(accion),
+            "actor_usuario_id": autorizador.get("usuario_id"),
+            "actor_empleado_id": autorizador.get("empleado_id"),
+            "actor_username": autorizador.get("username"),
+            "actor_nombre": autorizador.get("nombre"),
+            "metadata": {"solicitante": solicitante or {}, "accion": accion},
+        }).execute()
+        return True
+    except Exception:
+        logger.exception("No se pudo registrar la excepción administrativa")
+        return False
+
+
+def registrar_cambio_politicas(settings, actor):
+    try:
+        supabase_storage.table("bitacora_eventos").insert({
+            "modulo": "Sistema",
+            "accion": "actualizar_politicas",
+            "severidad": "info",
+            "titulo": "Políticas del sistema actualizadas",
+            "detalle": "Se modificaron las reglas globales de operación y seguridad.",
+            "entidad_tipo": "configuracion_sistema",
+            "entidad_id": "1",
+            "actor_usuario_id": actor.get("usuario_id"),
+            "actor_empleado_id": actor.get("empleado_id"),
+            "actor_username": actor.get("username"),
+            "actor_nombre": actor.get("nombre"),
+            "metadata": {
+                "cambios": [
+                    {"campo": key, "anterior": "—", "nuevo": value}
+                    for key, value in settings.items()
+                ]
+            },
+        }).execute()
+        return True
+    except Exception:
+        logger.exception("No se pudo registrar el cambio de políticas")
+        return False
 
 
 def obtener_resumen_admin():
@@ -762,11 +1049,21 @@ def actualizar_proveedor(proveedor_id, data):
 # Actualizar proveedor (con validación)
 def actualizar_proveedor_seguro(proveedor_id, data):
     try:
-        respuesta = supabase.table("proveedores").select("id").or_(
-            f"nombre.ilike.%{data['nombre']}%,telefono.eq.{data['telefono']},correo.eq.{data['correo']}"
-        ).neq("id", proveedor_id).execute()
+        same_name = supabase.table("proveedores").select("id").ilike(
+            "nombre", data["nombre"]
+        ).neq("id", proveedor_id).limit(1).execute()
+        same_phone = None
+        same_email = None
+        if data.get("telefono"):
+            same_phone = supabase.table("proveedores").select("id").eq(
+                "telefono", data["telefono"]
+            ).neq("id", proveedor_id).limit(1).execute()
+        if data.get("correo"):
+            same_email = supabase.table("proveedores").select("id").eq(
+                "correo", data["correo"]
+            ).neq("id", proveedor_id).limit(1).execute()
 
-        if respuesta.data:
+        if same_name.data or (same_phone and same_phone.data) or (same_email and same_email.data):
             return False, "Otro proveedor ya tiene estos datos."
 
         proveedor = actualizar_proveedor(proveedor_id, data)
@@ -795,10 +1092,13 @@ def activar_proveedor(proveedor_id):
     
 def proveedor_duplicado(nombre, telefono, correo):
     try:
-        response = supabase.table("proveedores").select("id").or_(
-            f"nombre.ilike.%{nombre}%,telefono.eq.{telefono},correo.eq.{correo}"
-        ).execute()
-        return len(response.data) > 0
+        if supabase.table("proveedores").select("id").ilike("nombre", nombre).limit(1).execute().data:
+            return True
+        if telefono and supabase.table("proveedores").select("id").eq("telefono", telefono).limit(1).execute().data:
+            return True
+        if correo and supabase.table("proveedores").select("id").eq("correo", correo).limit(1).execute().data:
+            return True
+        return False
     except Exception as e:
         print(f"Error en verificación de duplicado: {e}")
         return False
@@ -1509,7 +1809,7 @@ def obtener_historial_ordenes_paciente(paciente_id):
     """Órdenes, estudios, resultados y saldo de un expediente."""
     try:
         response = (
-            supabase.table("ordenes")
+            supabase_admin.table("ordenes")
             .select("id,creado_en,total_pruebas,total_abonos,estado,flujo,hospital_id,doctor_id")
             .eq("paciente_id", int(paciente_id))
             .order("creado_en", desc=True)
@@ -1520,13 +1820,13 @@ def obtener_historial_ordenes_paciente(paciente_id):
             return []
         order_ids = [item["id"] for item in orders]
         detail_response = (
-            supabase.table("orden_pruebas_detalle")
+            supabase_admin.table("orden_pruebas_detalle")
             .select("orden_id,nombre_prueba,cantidad")
             .in_("orden_id", order_ids)
             .execute()
         )
         result_response = (
-            supabase.table("resultados_paciente")
+            supabase_admin.table("resultados_paciente")
             .select("orden_id,estado,semaforo")
             .in_("orden_id", order_ids)
             .execute()
@@ -1661,10 +1961,67 @@ def obtener_resultados_listos():
     """Resultados finalizados que todavía no han sido entregados."""
     try:
         response = supabase.rpc("listar_resultados_listos_app").execute()
-        return response.data if isinstance(response.data, list) else []
+        results = response.data if isinstance(response.data, list) else []
+        order_ids = sorted({
+            item.get("orden_id") for item in results if item.get("orden_id") is not None
+        })
+        balances = {}
+        if order_ids:
+            order_response = (
+                supabase.table("ordenes")
+                .select("id,total_pruebas,total_abonos,estado")
+                .in_("id", order_ids).execute()
+            )
+            for order in order_response.data or []:
+                total = float(order.get("total_pruebas") or 0)
+                paid = float(order.get("total_abonos") or 0)
+                balances[order["id"]] = {
+                    "total": total,
+                    "pagado": paid,
+                    "saldo": max(total - paid, 0),
+                    "estado_pago": order.get("estado") or "pendiente",
+                }
+        for item in results:
+            item.update(balances.get(item.get("orden_id"), {
+                "total": 0.0, "pagado": 0.0, "saldo": 0.0,
+                "estado_pago": "pendiente",
+            }))
+        return results
     except Exception:
         logger.exception("No se pudieron obtener los resultados listos")
         return []
+
+
+def obtener_empleado_basico(empleado_id):
+    if not empleado_id:
+        return None
+    try:
+        response = supabase.table("empleados").select(
+            "id,nombres,apellidos"
+        ).eq("id", int(empleado_id)).limit(1).execute()
+        return response.data[0] if response.data else None
+    except Exception:
+        logger.exception("No se pudo consultar al empleado %s", empleado_id)
+        return None
+
+
+def obtener_saldo_orden(orden_id):
+    response = (
+        supabase.table("ordenes")
+        .select("id,total_pruebas,total_abonos,estado")
+        .eq("id", int(orden_id)).limit(1).execute()
+    )
+    if not response.data:
+        return None
+    order = response.data[0]
+    total = float(order.get("total_pruebas") or 0)
+    paid = float(order.get("total_abonos") or 0)
+    return {
+        "total": total,
+        "pagado": paid,
+        "saldo": max(total - paid, 0),
+        "estado": order.get("estado") or "pendiente",
+    }
 
 
 def obtener_historial_resultados():

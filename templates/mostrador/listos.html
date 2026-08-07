@@ -36,6 +36,15 @@
                 Listo {{ (resultado.actualizado_en or '')[:16]|replace('T', ' ') }}
                 {% if resultado.cuarto %} · Ubicación {{ resultado.cuarto }}{% endif %}
               </p>
+              {% if resultado.saldo > 0 %}
+              <span class="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                <i class="fas fa-exclamation-circle mr-1.5"></i>Saldo pendiente ${{ '%.2f'|format(resultado.saldo) }}
+              </span>
+              {% else %}
+              <span class="mt-2 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                <i class="fas fa-check-circle mr-1.5"></i>Cuenta pagada
+              </span>
+              {% endif %}
             </div>
           </div>
 
@@ -58,7 +67,12 @@
               <i class="fas fa-print mr-2"></i>Imprimir resultados
             </a>
             <form method="POST" action="{{ url_for('app_routes.entregar_resultado', orden_id=resultado.orden_id) }}"
-                  class="flex items-center gap-2">
+                  class="delivery-form flex items-center gap-2"
+                  data-order="{{ resultado.orden_id }}"
+                  data-balance="{{ '%.2f'|format(resultado.saldo) }}"
+                  data-requires-override="{{ 'true' if resultado.saldo > 0 and not system_settings.mostrador_entrega_saldo_pendiente else 'false' }}">
+              <input type="hidden" name="admin_username">
+              <input type="hidden" name="admin_password">
               <label class="sr-only" for="medio-{{ resultado.orden_id }}">Medio de entrega</label>
               <select id="medio-{{ resultado.orden_id }}" name="medio_entrega" required
                       class="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-cyan-500">
@@ -69,8 +83,7 @@
                 <option value="directo">Entrega directa</option>
                 <option value="otro">Otro</option>
               </select>
-              <button type="submit" class="btn-guardar h-10 whitespace-nowrap"
-                      onclick="return confirm('¿Confirmas que el resultado ya fue entregado?')">
+              <button type="submit" class="btn-guardar h-10 whitespace-nowrap">
                 <i class="fas fa-check mr-2"></i>Finalizar
               </button>
             </form>
@@ -107,4 +120,82 @@
     {% endif %}
   </section>
 </div>
+
+<div id="delivery-override-modal" class="app-flash-modal hidden" role="dialog" aria-modal="true" aria-labelledby="delivery-override-title">
+  <button type="button" class="app-flash-backdrop" data-close-delivery-override aria-label="Cerrar"></button>
+  <div class="app-flash-dialog">
+    <header class="app-flash-header">
+      <span class="app-flash-icon is-info"><i class="fas fa-user-shield"></i></span>
+      <div><p>Autorización administrativa</p><h2 id="delivery-override-title">Entregar con saldo pendiente</h2></div>
+      <button type="button" class="app-flash-close" data-close-delivery-override><i class="fas fa-times"></i></button>
+    </header>
+    <div class="app-flash-body space-y-4">
+      <p id="delivery-override-text">Esta orden requiere autorización para continuar.</p>
+      <div class="admin-field">
+        <label for="delivery-admin-username">Usuario autorizador</label>
+        <input id="delivery-admin-username" autocomplete="username" placeholder="Usuario Admin">
+      </div>
+      <div class="admin-field">
+        <label for="delivery-admin-password">Contraseña</label>
+        <input id="delivery-admin-password" type="password" autocomplete="current-password" placeholder="Contraseña del autorizador">
+      </div>
+      <p id="delivery-override-error" class="hidden text-xs font-semibold text-red-700">Completa las credenciales para continuar.</p>
+    </div>
+    <footer class="app-flash-actions app-confirm-actions">
+      <button type="button" class="app-confirm-secondary" data-close-delivery-override>Cancelar</button>
+      <button type="button" class="app-flash-primary" id="authorize-delivery">Autorizar y entregar</button>
+    </footer>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("delivery-override-modal");
+  const username = document.getElementById("delivery-admin-username");
+  const password = document.getElementById("delivery-admin-password");
+  const error = document.getElementById("delivery-override-error");
+  let pendingForm = null;
+
+  const close = () => {
+    modal.classList.add("hidden");
+    document.body.classList.remove("app-flash-open");
+    pendingForm = null;
+    username.value = "";
+    password.value = "";
+    error.classList.add("hidden");
+  };
+  const open = form => {
+    pendingForm = form;
+    document.getElementById("delivery-override-text").textContent =
+      `La orden #${form.dataset.order} tiene un saldo de $${form.dataset.balance}. Ingresa las credenciales de un autorizador administrativo.`;
+    modal.classList.remove("hidden");
+    document.body.classList.add("app-flash-open");
+    username.focus();
+  };
+
+  document.querySelectorAll(".delivery-form").forEach(form => {
+    form.addEventListener("submit", event => {
+      if (!form.querySelector('[name="medio_entrega"]').value) return;
+      if (form.dataset.requiresOverride === "true" && !form.dataset.authorized) {
+        event.preventDefault();
+        open(form);
+      }
+    });
+  });
+  document.querySelectorAll("[data-close-delivery-override]").forEach(button => button.addEventListener("click", close));
+  document.getElementById("authorize-delivery").addEventListener("click", () => {
+    if (!pendingForm || !username.value.trim() || !password.value) {
+      error.classList.remove("hidden");
+      return;
+    }
+    pendingForm.querySelector('[name="admin_username"]').value = username.value.trim();
+    pendingForm.querySelector('[name="admin_password"]').value = password.value;
+    pendingForm.dataset.authorized = "true";
+    pendingForm.submit();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !modal.classList.contains("hidden")) close();
+  });
+});
+</script>
 {% endblock %}

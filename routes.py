@@ -2,13 +2,23 @@ import os
 import bcrypt
 import re
 import uuid
+import unicodedata
+from io import BytesIO
+from xml.sax.saxutils import escape
 from urllib.parse import unquote, urlparse
-from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for, jsonify
+from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for, jsonify, send_file
 from functools import wraps
 from services import *
 from datetime import datetime
 import json
 import logging
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
+from reportlab.graphics.shapes import Drawing, Rect, Path
 from supabase_client import supabase, supabase_storage, SUPABASE_AVATAR_BUCKET
 from permissions import (
     endpoint_is_allowed,
@@ -73,56 +83,78 @@ def validate_employee_avatar(file):
     return extension, None
 
 
-def save_employee_avatar(file, extension):
-    """Guarda una foto validada en Supabase Storage o usa respaldo local."""
-    filename = f"employee-{uuid.uuid4().hex}.{extension}"
-    if SUPABASE_AVATAR_BUCKET:
-        file.seek(0)
-        content = file.read()
-        supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).upload(
-            f"profiles/{filename}",
-            content,
-            {
-                "content-type": file.mimetype or f"image/{extension}",
-                "cache-control": "3600",
-            },
-        )
-        return supabase_storage.storage.from_(
-            SUPABASE_AVATAR_BUCKET
-        ).get_public_url(f"profiles/{filename}")
-
-    os.makedirs(AVATAR_UPLOAD_FOLDER, exist_ok=True)
+def validate_brand_asset(file, asset_type):
+    extension, error = validate_employee_avatar(file)
+    if error or not extension:
+        return extension, error
+    if extension == "gif":
+        return None, "Usa PNG, JPG o WEBP; los recursos de identidad no deben ser animados."
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
     file.seek(0)
-    file.save(os.path.join(AVATAR_UPLOAD_FOLDER, filename))
-    return url_for("static", filename=f"uploads/avatars/{filename}")
+    maximum = 1024 * 1024 if asset_type == "logo" else 512 * 1024
+    if size > maximum:
+        label = "1 MB" if asset_type == "logo" else "512 KB"
+        return None, f"El archivo no puede superar {label}."
+    return extension, None
+
+
+def save_employee_avatar(file, extension):
+    """Guarda una foto validada exclusivamente en Supabase Storage."""
+    filename = f"employee-{uuid.uuid4().hex}.{extension}"
+    if not SUPABASE_AVATAR_BUCKET:
+        raise RuntimeError("Configura SUPABASE_AVATAR_BUCKET antes de subir imágenes.")
+    file.seek(0)
+    content = file.read()
+    supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).upload(
+        f"profiles/{filename}", content,
+        {"content-type": file.mimetype or f"image/{extension}", "cache-control": "3600"},
+    )
+    return supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).get_public_url(
+        f"profiles/{filename}"
+    )
+
+
+def save_brand_asset(file, extension, asset_type):
+    """Guarda logos y favicons exclusivamente en Supabase Storage."""
+    if not SUPABASE_AVATAR_BUCKET:
+        raise RuntimeError("Configura SUPABASE_AVATAR_BUCKET antes de subir la identidad.")
+    filename = f"{asset_type}-{uuid.uuid4().hex}.{extension}"
+    path = f"branding/{filename}"
+    file.seek(0)
+    supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).upload(
+        path, file.read(),
+        {"content-type": file.mimetype or f"image/{extension}", "cache-control": "3600"},
+    )
+    return supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).get_public_url(path)
+
+
+def delete_brand_asset(asset_url):
+    """Elimina únicamente recursos administrados dentro de branding/."""
+    if not asset_url or not SUPABASE_AVATAR_BUCKET:
+        return
+    marker = f"/storage/v1/object/public/{SUPABASE_AVATAR_BUCKET}/"
+    parsed_path = unquote(urlparse(asset_url).path)
+    if marker not in parsed_path:
+        return
+    storage_path = parsed_path.split(marker, 1)[1]
+    if storage_path.startswith("branding/"):
+        supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).remove([storage_path])
 
 
 def save_employee_signature(file, extension):
     """Guarda la imagen de firma del responsable sin exponer archivos locales."""
     filename = f"signature-{uuid.uuid4().hex}.{extension}"
-    if SUPABASE_AVATAR_BUCKET:
-        file.seek(0)
-        content = file.read()
-        path = f"profiles/signatures/{filename}"
-        supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).upload(
-            path,
-            content,
-            {
-                "content-type": file.mimetype or f"image/{extension}",
-                "cache-control": "3600",
-            },
-        )
-        return supabase_storage.storage.from_(
-            SUPABASE_AVATAR_BUCKET
-        ).get_public_url(path)
-
-    signature_folder = os.path.join(
-        os.path.dirname(__file__), "static", "uploads", "signatures"
-    )
-    os.makedirs(signature_folder, exist_ok=True)
+    if not SUPABASE_AVATAR_BUCKET:
+        raise RuntimeError("Configura SUPABASE_AVATAR_BUCKET antes de subir imágenes.")
     file.seek(0)
-    file.save(os.path.join(signature_folder, filename))
-    return url_for("static", filename=f"uploads/signatures/{filename}")
+    content = file.read()
+    path = f"profiles/signatures/{filename}"
+    supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).upload(
+        path, content,
+        {"content-type": file.mimetype or f"image/{extension}", "cache-control": "3600"},
+    )
+    return supabase_storage.storage.from_(SUPABASE_AVATAR_BUCKET).get_public_url(path)
 
 
 def delete_local_employee_avatar(avatar_url):
@@ -191,6 +223,10 @@ def require_role(roles):
         def wrapper(*args, **kwargs):
             if "usuario" not in session:
                 return redirect(url_for("app_routes.login"))
+            # El administrador puede operar cualquier área sin dejar de ser el
+            # actor real que quedará registrado en la bitácora.
+            if session.get("rol") == "Admin":
+                return f(*args, **kwargs)
             if session.get("rol") in roles:
                 return f(*args, **kwargs)
             if (
@@ -210,9 +246,44 @@ def current_home_endpoint():
     if session.get("rol") == "Personalizado":
         return preferred_home(session.get("permisos", []))
     role = session.get("rol", "")
+    if role == "Admin":
+        role = session.get("area_activa", "Admin")
     if role in role_map.values() and role != "Personalizado":
         return f"app_routes.{role.lower()}_dashboard"
     return None
+
+
+def current_workspace_role():
+    """Área visible sin alterar el rol ni la identidad autenticada."""
+    role = session.get("rol", "")
+    if role != "Admin":
+        return role
+    workspace = session.get("area_activa", "Admin")
+    return workspace if workspace in {"Admin", "Mostrador", "Enfermero", "Quimico"} else "Admin"
+
+
+def current_user_can(permission):
+    return (
+        session.get("rol") == "Admin"
+        or permission in set(session.get("permisos", []))
+    )
+
+
+def admin_override_from_request():
+    """Obtiene y valida las credenciales usadas para una excepción puntual."""
+    return verificar_autorizador_admin(
+        request.form.get("admin_username"),
+        request.form.get("admin_password"),
+    )
+
+
+def override_requester():
+    return {
+        "usuario_id": session.get("user_id"),
+        "empleado_id": session.get("empleado_id"),
+        "username": session.get("usuario"),
+        "nombre": session.get("nombres"),
+    }
 
 
 def as_int_or_none(value):
@@ -520,6 +591,7 @@ def login():
         session["nombres"] = user.get("nombres")
         session["foto_perfil"] = user.get("foto_perfil")
         session["permisos"] = normalize_permissions(user.get("permisos"))
+        session["area_activa"] = "Admin" if rol == "Admin" else rol
 
         session['user_id'] = user['id']  # Establecer user_id en la sesión correctamente
         session['empleado_id'] = user.get('empleado_id')
@@ -536,9 +608,38 @@ def logout():
     flash("Sesión cerrada correctamente.", "success")
     return redirect(url_for('app_routes.home'))
 
+
+@app_routes.route("/cambiar-area/<area>", methods=["POST"])
+@require_role("Admin")
+def cambiar_area(area):
+    """Cambia el espacio de trabajo del administrador, no su identidad."""
+    if session.get("rol") != "Admin":
+        abort(403)
+    areas = {
+        "admin": ("Admin", "app_routes.admin_operational_dashboard"),
+        "mostrador": ("Mostrador", "app_routes.mostrador_dashboard"),
+        "enfermero": ("Enfermero", "app_routes.enfermero_dashboard"),
+        "quimico": ("Quimico", "app_routes.quimico_dashboard"),
+    }
+    selection = areas.get((area or "").lower())
+    if not selection:
+        abort(404)
+    workspace, endpoint = selection
+    session["area_activa"] = workspace
+    return redirect(url_for(endpoint))
+
 @app_routes.route("/admin")
 @require_role("Admin")
 def admin_dashboard():
+    if session.get("rol") != "Admin":
+        return redirect(url_for("app_routes.admin_operational_dashboard"))
+    session["area_activa"] = "Admin"
+    return render_template("admin/area_selector.html")
+
+
+@app_routes.route("/admin/panel")
+@require_role("Admin")
+def admin_operational_dashboard():
     dashboard = obtener_resumen_admin()
     return render_template(
         "admin/admin.html",
@@ -550,7 +651,7 @@ def admin_dashboard():
 @app_routes.route("/api/notifications/today")
 @require_role(role_map.values())
 def notifications_today():
-    rol = session.get("rol")
+    rol = current_workspace_role()
     permisos = set(session.get("permisos", []))
     if rol == "Personalizado":
         notifications = []
@@ -604,7 +705,7 @@ def notifications_today():
 @require_role(role_map.values())
 def notifications_read():
     payload = request.get_json(silent=True) or {}
-    rol = session.get("rol")
+    rol = current_workspace_role()
     permisos = set(session.get("permisos", []))
     current = []
     if rol in {"Mostrador", "Personalizado"} and (
@@ -1312,7 +1413,7 @@ def add_hospital():
                 entity_id=creado[0].get("id"),
             )
         flash("Hospital registrado exitosamente", "success")
-        if session.get("rol") == "Mostrador":
+        if current_workspace_role() == "Mostrador":
             return redirect(url_for("app_routes.manage_orden"))
         return redirect(url_for('app_routes.manage_hospitals'))
     
@@ -1427,11 +1528,24 @@ def configuracion():
     if "usuario" not in session:
         return redirect(url_for("app_routes.login"))
 
+    system_settings = obtener_configuracion_sistema()
+    is_admin = session.get("rol") == "Admin"
+
     if request.method == "POST":
         empleado_id = session.get("empleado_id")
         if not empleado_id:
             flash("No se encontró el perfil del empleado.", "error")
             return redirect(url_for("app_routes.configuracion"))
+
+        override_authorizer = None
+        if not is_admin and not system_settings["empleados_cambian_foto"]:
+            override_authorizer = admin_override_from_request()
+            if not override_authorizer:
+                flash(
+                    "El cambio de foto está restringido. Ingresa credenciales válidas de un autorizador administrativo.",
+                    "error",
+                )
+                return redirect(url_for("app_routes.configuracion"))
 
         avatar_file = request.files.get("foto_perfil")
         avatar_choice = normalize_avatar_choice(request.form.get("avatar_choice"))
@@ -1456,10 +1570,18 @@ def configuracion():
         supabase.table("empleados").update(
             {"foto_perfil": foto_perfil}
         ).eq("id", empleado_id).execute()
+        attribute_audit_event("empleados", empleado_id)
 
         if foto_perfil != foto_actual and foto_actual:
             delete_local_employee_avatar(foto_actual)
         session["foto_perfil"] = foto_perfil
+        if override_authorizer:
+            registrar_excepcion_sistema(
+                "cambiar_foto_perfil",
+                f"Se autorizó el cambio de foto de @{session.get('usuario')}.",
+                override_authorizer,
+                override_requester(),
+            )
         flash("Foto de perfil actualizada.", "success")
         return redirect(url_for("app_routes.configuracion"))
 
@@ -1470,7 +1592,196 @@ def configuracion():
         "foto_perfil": session.get("foto_perfil"),  # puede ser None
     }
 
-    return render_template("admin/configuracion.html", user=user)
+    return render_template(
+        "admin/configuracion.html",
+        user=user,
+        system_settings=system_settings,
+    )
+
+
+@app_routes.route("/configuracion/password", methods=["POST"])
+@require_role(role_map.values())
+def cambiar_password_personal():
+    current_password = request.form.get("current_password") or ""
+    new_password = request.form.get("new_password") or ""
+    confirmation = request.form.get("confirm_password") or ""
+    if len(new_password) < 8 or new_password != confirmation:
+        flash("La contraseña nueva debe tener al menos 8 caracteres y coincidir.", "error")
+        return redirect(url_for("app_routes.configuracion"))
+
+    user_response = (
+        supabase.table("usuarios").select("id,password")
+        .eq("id", session.get("user_id")).limit(1).execute()
+    )
+    if not user_response.data or not bcrypt.checkpw(
+        current_password.encode("utf-8"),
+        str(user_response.data[0].get("password") or "").encode("utf-8"),
+    ):
+        flash("Tu contraseña actual no es correcta.", "error")
+        return redirect(url_for("app_routes.configuracion"))
+
+    settings = obtener_configuracion_sistema()
+    override_authorizer = None
+    if session.get("rol") != "Admin" and not settings["empleados_cambian_password"]:
+        override_authorizer = admin_override_from_request()
+        if not override_authorizer:
+            flash(
+                "El cambio de contraseña está restringido. Se requiere autorización administrativa.",
+                "error",
+            )
+            return redirect(url_for("app_routes.configuracion"))
+
+    hashed = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    supabase.table("usuarios").update({"password": hashed}).eq(
+        "id", session.get("user_id")
+    ).execute()
+    attribute_audit_event(
+        "usuarios", session.get("user_id"),
+        [{"campo": "password", "anterior": "Protegida", "nuevo": "Actualizada"}],
+    )
+    if override_authorizer:
+        registrar_excepcion_sistema(
+            "cambiar_password",
+            f"Se autorizó el cambio de contraseña de @{session.get('usuario')}.",
+            override_authorizer,
+            override_requester(),
+        )
+    flash("Contraseña actualizada correctamente.", "success")
+    return redirect(url_for("app_routes.configuracion"))
+
+
+@app_routes.route("/configuracion/sistema", methods=["POST"])
+@require_role("Admin")
+def guardar_politicas_sistema():
+    settings = {
+        "empleados_cambian_password": request.form.get("empleados_cambian_password") == "on",
+        "empleados_cambian_foto": request.form.get("empleados_cambian_foto") == "on",
+        "mostrador_entrega_saldo_pendiente": request.form.get(
+            "mostrador_entrega_saldo_pendiente"
+        ) == "on",
+    }
+    guardar_configuracion_sistema(settings, session.get("user_id"))
+    registrar_cambio_politicas(settings, override_requester())
+    flash("Políticas del sistema actualizadas.", "success")
+    return redirect(url_for("app_routes.configuracion_sistema"))
+
+
+@app_routes.route("/configuracion/sistema/recibos", methods=["POST"])
+@require_role("Admin")
+def guardar_configuracion_recibos_route():
+    boolean_fields = {
+        "mostrar_laboratorio_nombre", "mostrar_laboratorio_logo",
+        "mostrar_laboratorio_rfc", "mostrar_laboratorio_telefono",
+        "mostrar_laboratorio_whatsapp", "mostrar_laboratorio_correo",
+        "mostrar_laboratorio_direccion",
+        "mostrar_paciente_telefono", "mostrar_paciente_direccion",
+        "mostrar_procedencia", "mostrar_medico", "mostrar_estudios",
+        "mostrar_observaciones", "mostrar_cajero",
+        "mostrar_historial_pagos", "mostrar_saldo",
+    }
+    receipt_settings = {
+        key: request.form.get(key) == "on"
+        for key in boolean_fields
+    }
+    receipt_settings["recibo_mensaje_pie"] = (
+        request.form.get("recibo_mensaje_pie") or ""
+    ).strip()
+    receipt_settings["ticket_ancho_mm"] = (
+        request.form.get("ticket_ancho_mm")
+        if request.form.get("ticket_ancho_mm") in {"58", "80"}
+        else "80"
+    )
+
+    try:
+        guardar_configuracion_recibos(receipt_settings, session.get("user_id"))
+    except Exception:
+        logger.exception("No se pudo guardar la configuración de recibos")
+        flash(
+            "No se pudo guardar. Verifica que la migración de configuración de recibos esté aplicada.",
+            "error",
+        )
+        return redirect(url_for("app_routes.configuracion_sistema"))
+
+    registrar_cambio_politicas(
+        {"recibos_mostrador": "Configuración actualizada"}, override_requester()
+    )
+    flash("Configuración de recibos actualizada.", "success")
+    return redirect(url_for("app_routes.configuracion_sistema"))
+
+
+@app_routes.route("/configuracion/sistema/identidad", methods=["POST"])
+@require_role("Admin")
+def guardar_identidad_laboratorio_route():
+    current = obtener_identidad_laboratorio()
+    name = (request.form.get("nombre") or "").strip()
+    short_name = (request.form.get("nombre_corto") or "").strip()
+    if not name or not short_name:
+        flash("El nombre del laboratorio y el nombre corto son obligatorios.", "error")
+        return redirect(url_for("app_routes.configuracion_sistema"))
+
+    settings = {
+        key: (request.form.get(key) or "").strip()
+        for key in {"nombre", "nombre_corto", "rfc", "telefono", "whatsapp", "correo", "direccion"}
+    }
+    settings["logo_url"] = "" if request.form.get("eliminar_logo") == "on" else current.get("logo_url", "")
+    settings["favicon_url"] = "" if request.form.get("eliminar_favicon") == "on" else current.get("favicon_url", "")
+
+    for field_name, asset_type, target_key in (
+        ("logo", "logo", "logo_url"),
+        ("favicon", "favicon", "favicon_url"),
+    ):
+        image = request.files.get(field_name)
+        extension, error = validate_brand_asset(image, asset_type)
+        if error:
+            flash(f"{field_name.title()}: {error}", "error")
+            return redirect(url_for("app_routes.configuracion_sistema"))
+        if extension:
+            try:
+                settings[target_key] = save_brand_asset(image, extension, asset_type)
+            except Exception:
+                logger.exception("No se pudo guardar el recurso de identidad")
+                flash("No se pudo subir la imagen. Revisa la configuración de Storage.", "error")
+                return redirect(url_for("app_routes.configuracion_sistema"))
+
+    try:
+        guardar_configuracion_laboratorio(settings, session.get("user_id"))
+        for key in ("logo_url", "favicon_url"):
+            if current.get(key) and current.get(key) != settings.get(key):
+                try:
+                    delete_brand_asset(current[key])
+                except Exception:
+                    logger.warning("No se pudo retirar el recurso anterior %s", key, exc_info=True)
+    except Exception:
+        logger.exception("No se pudo guardar la identidad del laboratorio")
+        flash(
+            "No se pudo guardar la identidad. Verifica la conexión y la configuración de recibos en Supabase.",
+            "error",
+        )
+        return redirect(url_for("app_routes.configuracion_sistema"))
+
+    registrar_cambio_politicas(
+        {"identidad_laboratorio": "Configuración actualizada"}, override_requester()
+    )
+    flash("Identidad del laboratorio actualizada.", "success")
+    return redirect(url_for("app_routes.configuracion_sistema"))
+
+
+@app_routes.route("/admin/configuracion-sistema")
+@require_role("Admin")
+def configuracion_sistema():
+    try:
+        label_settings = obtener_configuracion_etiquetas()
+    except Exception:
+        logger.exception("No se pudo cargar la configuración de etiquetas")
+        label_settings = {
+            "ancho_mm": 60, "alto_mm": 40,
+            "copias_predeterminadas": 1, "mostrar_qr": True,
+        }
+    return render_template(
+        "admin/configuracion_sistema.html",
+        system_settings=obtener_configuracion_sistema(),
+        label_settings=label_settings,
+    )
 
 
 @app_routes.route("/faltantes")
@@ -1596,7 +1907,7 @@ def add_doctor():
                 entity_id=creado.get("id"),
             )
         flash("Doctor registrado correctamente.", "success")
-        if session.get("rol") == "Mostrador":
+        if current_workspace_role() == "Mostrador":
             return redirect(url_for("app_routes.manage_orden"))
         return redirect(url_for("app_routes.manage_doctores"))
 
@@ -1804,7 +2115,7 @@ def check_doctor():
 @require_role(['Admin', 'Mostrador'])
 def manage_patients():
     pacientes = obtener_pacientes()
-    return render_template('admin/patients.html', pacientes=pacientes, rol=session.get("rol"))
+    return render_template('admin/patients.html', pacientes=pacientes, rol=current_workspace_role())
 
 
 @app_routes.route("/pacientes/<int:patient_id>/historial")
@@ -1941,27 +2252,105 @@ def check_patient():
     return jsonify({"exists": False})
 
 # PROVEEDORES
+PROVIDER_CONTACT_FIELDS = ("contacto", "telefono", "correo")
+PROVIDER_ADDRESS_FIELDS = (
+    "calle", "numero_ext", "numero_int", "codigo_postal", "municipio", "estado"
+)
+
+
+def validar_formulario_proveedor(form_data):
+    """Normaliza omisiones autorizadas y valida los datos operativos del proveedor."""
+    data = {key: str(value).strip() for key, value in form_data.items()}
+    sin_contacto = data.pop("sin_contacto", "") == "1"
+    sin_domicilio = data.pop("sin_domicilio", "") == "1"
+
+    if data.get("tipo") not in {"producto", "servicio"} or not data.get("nombre"):
+        return data, sin_contacto, sin_domicilio, "Selecciona el tipo y escribe el nombre del proveedor."
+
+    if data["tipo"] == "servicio" and sin_contacto:
+        return data, False, sin_domicilio, "Los proveedores de servicios deben tener datos de contacto para coordinar la maquila."
+
+    if sin_contacto:
+        for field in PROVIDER_CONTACT_FIELDS:
+            data[field] = ""
+    elif any(not data.get(field) for field in PROVIDER_CONTACT_FIELDS):
+        return data, sin_contacto, sin_domicilio, "Completa todos los datos de contacto o indica que no están disponibles."
+
+    if data["tipo"] == "servicio" and sin_domicilio:
+        return data, sin_contacto, False, "Los proveedores de servicios deben tener un domicilio para envíos y traslados."
+
+    if sin_domicilio:
+        for field in PROVIDER_ADDRESS_FIELDS:
+            data[field] = ""
+    elif any(not data.get(field) for field in PROVIDER_ADDRESS_FIELDS):
+        return data, sin_contacto, sin_domicilio, "Completa todo el domicilio o indica que no está disponible."
+
+    return data, sin_contacto, sin_domicilio, None
+
+
+def proveedor_form_state(data, sin_contacto=False, sin_domicilio=False):
+    state = dict(data)
+    if sin_contacto:
+        state["sin_contacto"] = "1"
+    if sin_domicilio:
+        state["sin_domicilio"] = "1"
+    return state
+
 @app_routes.route("/admin/proveedores")
 @require_role("Admin")
 def manage_proveedores():
     proveedores = obtener_proveedores()
     return render_template("admin/proveedores.html", proveedores=proveedores, rol=session.get("rol"))
 
+@app_routes.route("/api/proveedores/activos")
+@require_role("Admin")
+def api_proveedores_activos():
+    """Catálogo ligero para actualizar selectores sin abandonar el formulario."""
+    proveedores = [
+        {"id": proveedor.get("id"), "nombre": proveedor.get("nombre", "")}
+        for proveedor in obtener_proveedores()
+        if proveedor.get("activo", True)
+    ]
+    proveedores.sort(key=lambda proveedor: proveedor["nombre"].casefold())
+    return jsonify({"proveedores": proveedores})
+
 @app_routes.route("/admin/add_proveedor", methods=["GET", "POST"])
 @require_role("Admin")
 def add_proveedor():
     if request.method == "POST":
-        data = {key: value.strip() for key, value in request.form.to_dict().items()}
+        raw_data = request.form.to_dict()
+        is_embedded = raw_data.pop("embed", "") == "1"
+        data, sin_contacto, sin_domicilio, validation_error = validar_formulario_proveedor(raw_data)
         data["activo"] = True
 
-        if data.get("tipo") not in {"producto", "servicio"} or not data.get("nombre"):
-            flash("Selecciona el tipo y escribe el nombre del proveedor.", "error")
-            return render_template("admin/add_proveedor.html", proveedor=data, is_edit=False, estados=estados)
+        if validation_error:
+            flash(validation_error, "error")
+            return render_template(
+                "admin/add_proveedor.html",
+                proveedor=proveedor_form_state(data, sin_contacto, sin_domicilio),
+                is_edit=False,
+                estados=estados,
+            )
 
         ok, result = crear_proveedor_seguro(data)
         if not ok:
             flash(result, "error")
-            return render_template("admin/add_proveedor.html", proveedor=data, is_edit=False, estados=estados)
+            return render_template(
+                "admin/add_proveedor.html",
+                proveedor=proveedor_form_state(data, sin_contacto, sin_domicilio),
+                is_edit=False,
+                estados=estados,
+            )
+
+        proveedor_id = result.get("id") if isinstance(result, dict) else None
+        if proveedor_id:
+            attribute_audit_event("proveedores", proveedor_id)
+        if is_embedded:
+            return render_template(
+                "components/embed_success.html",
+                entity="provider",
+                entity_id=proveedor_id,
+            )
 
         flash("Proveedor registrado correctamente.", "success")
         return redirect(url_for("app_routes.manage_proveedores"))
@@ -1977,7 +2366,17 @@ def edit_proveedor(proveedor_id):
         return redirect(url_for("app_routes.manage_proveedores"))
 
     if request.method == "POST":
-        data = request.form.to_dict()
+        data, sin_contacto, sin_domicilio, validation_error = validar_formulario_proveedor(
+            request.form.to_dict()
+        )
+
+        if validation_error:
+            flash(validation_error, "error")
+            state = proveedor_form_state(data, sin_contacto, sin_domicilio)
+            state["id"] = proveedor_id
+            return render_template(
+                "admin/add_proveedor.html", proveedor=state, is_edit=True, estados=estados
+            )
 
         ok, result = actualizar_proveedor_seguro(proveedor_id, data)
         if not ok:
@@ -2753,6 +3152,276 @@ def resumen_paciente_orden(patient_id):
     })
 
 
+def _receipt_datetime(value):
+    if not value:
+        return "—"
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.strftime("%d/%m/%Y %H:%M")
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def construir_contexto_recibo(orden_id, abono_id=None):
+    orden = obtener_orden_por_id(int(orden_id))
+    if not orden:
+        return None
+    paciente = obtener_paciente_por_id(orden.get("paciente_id")) if orden.get("paciente_id") else None
+    hospital = obtener_hospital_por_id(orden.get("hospital_id")) if orden.get("hospital_id") else None
+    doctor = obtener_doctor_por_id(orden.get("doctor_id")) if orden.get("doctor_id") else None
+    detalles = obtener_detalle_pruebas_por_orden(int(orden_id))
+    estudios = []
+    calculated_total = 0.0
+    for detail in detalles:
+        quantity = int(detail.get("cantidad") or 1)
+        unit_price = float(detail.get("precio_unitario") or detail.get("precio") or 0)
+        line_total = float(detail.get("precio_total") or (unit_price * quantity))
+        calculated_total += line_total
+        estudios.append({
+            "nombre": detail.get("nombre_prueba") or "Estudio clínico",
+            "cantidad": quantity,
+            "precio_unitario": unit_price,
+            "total": line_total,
+        })
+
+    abonos = obtener_abonos_orden(int(orden_id))
+    for payment in abonos:
+        payment["fecha_formateada"] = _receipt_datetime(payment.get("fecha_abono"))
+        payment["metodo_descripcion"] = (
+            payment.get("metodo_pago_otro")
+            if payment.get("metodo_pago") == "otro"
+            else payment.get("metodo_pago")
+        ) or "No especificado"
+    selected_payment = None
+    if abono_id is not None:
+        selected_payment = next(
+            (payment for payment in abonos if str(payment.get("id")) == str(abono_id)),
+            None,
+        )
+        if not selected_payment:
+            return None
+
+    total = float(orden.get("total_pruebas") or calculated_total)
+    paid = sum(float(payment.get("cantidad") or 0) for payment in abonos)
+    balance = max(total - paid, 0.0)
+    employee_id = (
+        selected_payment.get("registrado_por_empleado_id")
+        if selected_payment else orden.get("creado_por_empleado_id")
+    )
+    employee = obtener_empleado_basico(employee_id)
+    cashier = (
+        f"{employee.get('nombres', '')} {employee.get('apellidos', '')}".strip()
+        if employee else (session.get("nombres") or session.get("usuario") or "Personal de mostrador")
+    )
+    patient_address = ""
+    if paciente:
+        patient_address = ", ".join(filter(None, [
+            " ".join(filter(None, [paciente.get("calle"), paciente.get("numero_ext"),
+                                   f"Int. {paciente.get('numero_int')}" if paciente.get("numero_int") else None])),
+            paciente.get("municipio"), paciente.get("estado"), paciente.get("codigo_postal"),
+        ]))
+    system_settings = obtener_configuracion_sistema()
+    settings = system_settings.get("recibo_configuracion", DEFAULT_RECEIPT_SETTINGS)
+    laboratory = system_settings.get("laboratorio_configuracion", DEFAULT_LAB_SETTINGS)
+    return {
+        "orden": orden,
+        "orden_id": int(orden_id),
+        "paciente": paciente,
+        "paciente_direccion": patient_address,
+        "hospital": hospital,
+        "doctor": doctor,
+        "estudios": estudios,
+        "abonos": abonos,
+        "abono": selected_payment,
+        "total": total,
+        "pagado": paid,
+        "saldo": balance,
+        "cajero": cashier,
+        "fecha_orden": _receipt_datetime(orden.get("creado_en")),
+        "fecha_emision": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "config": settings,
+        "laboratorio": laboratory,
+        "tipo_recibo": "Recibo de abono" if selected_payment else "Comprobante de orden",
+    }
+
+
+def nombre_archivo_recibo(context):
+    patient = context.get("paciente") or {}
+    patient_name = " ".join(filter(None, [patient.get("nombres"), patient.get("apellidos")]))
+    normalized = unicodedata.normalize("NFKD", patient_name).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", normalized).strip("-").lower() or "paciente"
+    payment_suffix = f"-abono-{context['abono'].get('id')}" if context.get("abono") else ""
+    return f"recibo-{slug}-orden-{context['orden_id']:04d}{payment_suffix}.pdf"
+
+
+def generar_pdf_recibo(context):
+    buffer = BytesIO()
+    document = SimpleDocTemplate(
+        buffer, pagesize=letter, rightMargin=17 * mm, leftMargin=17 * mm,
+        topMargin=14 * mm, bottomMargin=14 * mm,
+        title=f"{context['tipo_recibo']} #{context['orden_id']:04d}",
+    )
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(
+        name="ReceiptTitle", parent=styles["Title"], fontName="Helvetica-Bold",
+        fontSize=17, leading=21, textColor=colors.HexColor("#0b1f33"), alignment=TA_CENTER,
+    ))
+    styles.add(ParagraphStyle(
+        name="ReceiptSmall", parent=styles["BodyText"], fontSize=8.5, leading=12,
+        textColor=colors.HexColor("#526273"),
+    ))
+    story = []
+    config = context["config"]
+    laboratory = context.get("laboratorio") or config
+    if config.get("mostrar_laboratorio_logo", True):
+        logo = None
+        if laboratory.get("logo_url"):
+            try:
+                logo = RLImage(laboratory["logo_url"], width=22 * mm, height=22 * mm)
+                logo.hAlign = "CENTER"
+            except Exception:
+                logger.warning("No se pudo incluir el logo personalizado en el PDF", exc_info=True)
+        if logo is None:
+            logo = Drawing(22 * mm, 22 * mm)
+            logo.add(Rect(0, 0, 22 * mm, 22 * mm, rx=5 * mm, ry=5 * mm,
+                          fillColor=colors.white, strokeColor=None))
+            flask = Path(strokeColor=colors.HexColor("#5b21b6"), strokeWidth=1.55 * mm,
+                         fillColor=None, strokeLineCap=1, strokeLineJoin=1)
+            flask.moveTo(8.5 * mm, 17.5 * mm); flask.lineTo(13.5 * mm, 17.5 * mm)
+            flask.moveTo(9.7 * mm, 17.5 * mm); flask.lineTo(9.7 * mm, 12.5 * mm)
+            flask.lineTo(5.8 * mm, 5.5 * mm); flask.curveTo(5 * mm, 4 * mm, 6 * mm, 3.4 * mm, 7.2 * mm, 3.4 * mm)
+            flask.lineTo(14.8 * mm, 3.4 * mm); flask.curveTo(16 * mm, 3.4 * mm, 17 * mm, 4 * mm, 16.2 * mm, 5.5 * mm)
+            flask.lineTo(12.3 * mm, 12.5 * mm); flask.lineTo(12.3 * mm, 17.5 * mm)
+            logo.add(flask)
+            liquid = Path(strokeColor=colors.HexColor("#8b5cf6"), strokeWidth=1.1 * mm,
+                          fillColor=None, strokeLineCap=1)
+            liquid.moveTo(7.2 * mm, 8.3 * mm)
+            liquid.curveTo(9 * mm, 8.3 * mm, 9.8 * mm, 7 * mm, 11.2 * mm, 7 * mm)
+            liquid.curveTo(12.8 * mm, 7 * mm, 13.6 * mm, 8.3 * mm, 15 * mm, 8.3 * mm)
+            logo.add(liquid)
+            logo.hAlign = "CENTER"
+        story.extend([logo, Spacer(1, 2 * mm)])
+    if config.get("mostrar_laboratorio_nombre", True):
+        story.append(Paragraph(escape(laboratory.get("nombre") or "AppLab"), styles["ReceiptTitle"]))
+    contact_lines = [
+        laboratory.get("direccion") if config.get("mostrar_laboratorio_direccion", True) else None,
+        laboratory.get("telefono") if config.get("mostrar_laboratorio_telefono", True) else None,
+        f"WhatsApp: {laboratory.get('whatsapp')}" if config.get("mostrar_laboratorio_whatsapp", True) and laboratory.get("whatsapp") else None,
+        laboratory.get("correo") if config.get("mostrar_laboratorio_correo", True) else None,
+        f"RFC: {laboratory.get('rfc')}" if config.get("mostrar_laboratorio_rfc", True) and laboratory.get("rfc") else None,
+    ]
+    if any(contact_lines):
+        story.append(Paragraph(escape(" · ".join(filter(None, contact_lines))), ParagraphStyle(
+            "ReceiptCenter", parent=styles["ReceiptSmall"], alignment=TA_CENTER
+        )))
+    story.append(Spacer(1, 7 * mm))
+    story.append(Paragraph(escape(context["tipo_recibo"]), styles["Heading2"]))
+    patient_name = (
+        f"{context['paciente'].get('nombres', '')} {context['paciente'].get('apellidos', '')}".strip()
+        if context["paciente"] else "No disponible"
+    )
+    info_rows = [
+        ["Folio", f"#{context['orden_id']:04d}", "Fecha", context["fecha_emision"]],
+        ["Paciente", patient_name, "Estado", str(context["orden"].get("estado") or "pendiente").title()],
+    ]
+    if config.get("mostrar_paciente_telefono") and context["paciente"]:
+        info_rows.append(["Teléfono", context["paciente"].get("telefono") or "—", "", ""])
+    if config.get("mostrar_paciente_direccion"):
+        info_rows.append(["Domicilio", context["paciente_direccion"] or "—", "", ""])
+    if config.get("mostrar_procedencia"):
+        info_rows.append(["Procedencia", context["hospital"].get("nombre") if context["hospital"] else "Paciente particular", "", ""])
+    if config.get("mostrar_medico"):
+        doctor_name = (f"{context['doctor'].get('nombres', '')} {context['doctor'].get('apellidos', '')}".strip()
+                       if context["doctor"] else "Sin médico solicitante")
+        info_rows.append(["Médico", doctor_name, "", ""])
+    info_table = Table(info_rows, colWidths=[24 * mm, 62 * mm, 20 * mm, 58 * mm])
+    info_table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"), ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"), ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LINEBELOW", (0, -1), (-1, -1), 0.4, colors.HexColor("#dfe7ee")),
+    ]))
+    story.extend([info_table, Spacer(1, 5 * mm)])
+
+    if config.get("mostrar_estudios") and context["estudios"]:
+        rows = [["Estudio", "Cant.", "Precio", "Importe"]]
+        rows.extend([
+            [study["nombre"], str(study["cantidad"]), f"${study['precio_unitario']:.2f}", f"${study['total']:.2f}"]
+            for study in context["estudios"]
+        ])
+        table = Table(rows, colWidths=[92 * mm, 18 * mm, 27 * mm, 27 * mm], repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0b1f33")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"), ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"), ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#dfe7ee")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+            ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.extend([table, Spacer(1, 5 * mm)])
+
+    if config.get("mostrar_observaciones") and context["orden"].get("observaciones"):
+        story.extend([
+            Paragraph("<b>Observaciones</b>", styles["BodyText"]),
+            Paragraph(escape(str(context["orden"].get("observaciones"))), styles["ReceiptSmall"]),
+            Spacer(1, 4 * mm),
+        ])
+
+    if context["abono"]:
+        payment = context["abono"]
+        story.append(Paragraph(
+            f"<b>Abono recibido:</b> ${float(payment.get('cantidad') or 0):.2f} &nbsp;&nbsp; "
+            f"<b>Método:</b> {escape(str(payment.get('metodo_descripcion') or 'No especificado').title())}",
+            styles["BodyText"],
+        ))
+        story.append(Spacer(1, 3 * mm))
+
+    if config.get("mostrar_historial_pagos") and context["abonos"]:
+        payment_rows = [["Fecha", "Método", "Importe"]]
+        payment_rows.extend([
+            [payment.get("fecha_formateada") or "—", str(payment.get("metodo_descripcion") or "—").title(),
+             f"${float(payment.get('cantidad') or 0):.2f}"]
+            for payment in context["abonos"]
+        ])
+        payment_table = Table(payment_rows, colWidths=[55 * mm, 65 * mm, 35 * mm], repeatRows=1)
+        payment_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e7f7f8")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#087f8c")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("ALIGN", (2, 0), (2, -1), "RIGHT"),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.3, colors.HexColor("#dfe7ee")),
+            ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.extend([Paragraph("<b>Movimientos de pago</b>", styles["BodyText"]), Spacer(1, 2 * mm), payment_table, Spacer(1, 5 * mm)])
+
+    if config.get("mostrar_saldo"):
+        totals = Table([
+            ["Total de la orden", f"${context['total']:.2f}"],
+            ["Total pagado", f"${context['pagado']:.2f}"],
+            ["Saldo pendiente", f"${context['saldo']:.2f}"],
+        ], colWidths=[55 * mm, 35 * mm], hAlign="RIGHT")
+        totals.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, -2), "Helvetica"), ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("ALIGN", (1, 0), (1, -1), "RIGHT"), ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LINEABOVE", (0, -1), (-1, -1), 0.7, colors.HexColor("#0b1f33")),
+        ]))
+        story.extend([totals, Spacer(1, 5 * mm)])
+
+    if config.get("mostrar_cajero"):
+        story.append(Paragraph(f"<b>Recibió:</b> {escape(context['cajero'])}", styles["ReceiptSmall"]))
+    if config.get("recibo_mensaje_pie"):
+        story.extend([Spacer(1, 7 * mm), Paragraph(escape(config["recibo_mensaje_pie"]), ParagraphStyle(
+            "ReceiptFooter", parent=styles["ReceiptSmall"], alignment=TA_CENTER,
+            textColor=colors.HexColor("#087f8c")
+        ))])
+    document.build(story)
+    buffer.seek(0)
+    return buffer
+
+
 @app_routes.route("/reporte", methods=["GET", "POST"])
 @require_role("Mostrador")
 def reporte():
@@ -3024,6 +3693,50 @@ def imprimir_orden():
 
     return redirect(url_for("app_routes.reporte"))
 
+
+@app_routes.route("/orden/<int:orden_id>/recibo")
+@require_role("Mostrador")
+def recibo_orden(orden_id):
+    abono_id = request.args.get("abono_id", type=int)
+    context = construir_contexto_recibo(orden_id, abono_id)
+    if not context:
+        flash("No se encontró el recibo solicitado.", "error")
+        return redirect(url_for("app_routes.reporte", orden_id=orden_id))
+    return render_template(
+        "mostrador/recibo.html",
+        **context,
+        pdf_filename=nombre_archivo_recibo(context),
+        pdf_url=url_for("app_routes.recibo_orden_pdf", orden_id=orden_id, abono_id=abono_id),
+        pdf_download_url=url_for("app_routes.recibo_orden_pdf", orden_id=orden_id, abono_id=abono_id, download=1),
+        receipt_url=url_for("app_routes.recibo_orden", orden_id=orden_id, abono_id=abono_id, _external=True),
+    )
+
+
+@app_routes.route("/orden/<int:orden_id>/recibo.pdf")
+@require_role("Mostrador")
+def recibo_orden_pdf(orden_id):
+    abono_id = request.args.get("abono_id", type=int)
+    context = construir_contexto_recibo(orden_id, abono_id)
+    if not context:
+        abort(404)
+    return send_file(
+        generar_pdf_recibo(context),
+        mimetype="application/pdf",
+        as_attachment=request.args.get("download") == "1",
+        download_name=nombre_archivo_recibo(context),
+    )
+
+
+@app_routes.route("/orden/<int:orden_id>/ticket")
+@require_role("Mostrador")
+def ticket_orden(orden_id):
+    abono_id = request.args.get("abono_id", type=int)
+    context = construir_contexto_recibo(orden_id, abono_id)
+    if not context:
+        flash("No se encontró el ticket solicitado.", "error")
+        return redirect(url_for("app_routes.reporte", orden_id=orden_id))
+    return render_template("mostrador/ticket.html", **context)
+
 @app_routes.route("/orden/<int:orden_id>/abonar", methods=["POST"])
 @require_role("Mostrador")
 def abonar_orden(orden_id: int):
@@ -3066,7 +3779,7 @@ def abonar_orden(orden_id: int):
     empleado_id = session.get("empleado_id")
 
     try:
-        registrar_abono(
+        result = registrar_abono(
             orden_id,
             cantidad,
             empleado_id,
@@ -3075,11 +3788,27 @@ def abonar_orden(orden_id: int):
             metodo_pago_otro,
         )
         flash("Abono registrado correctamente.", "success")
+        abono_id = None
+        if isinstance(result, dict):
+            abono_id = result.get("id") or result.get("abono_id")
+        elif isinstance(result, list) and result and isinstance(result[0], dict):
+            abono_id = result[0].get("id") or result[0].get("abono_id")
+        elif isinstance(result, (int, str)) and str(result).isdigit():
+            abono_id = int(result)
+        if not abono_id:
+            current_payments = obtener_abonos_orden(orden_id)
+            valid_payments = [payment for payment in current_payments if payment.get("id") is not None]
+            if valid_payments:
+                abono_id = max(valid_payments, key=lambda payment: int(payment["id"]))["id"]
     except Exception as e:
         print("Error al registrar abono:", e)
         flash("Ocurrió un error al registrar el abono.", "error")
 
-    return redirect(reporte_orden_url)
+        return redirect(reporte_orden_url)
+
+    return redirect(url_for(
+        "app_routes.reporte", orden_id=orden_id, abono_guardado=abono_id or ""
+    ))
 
 @app_routes.route("/orden_pruebas")
 @require_role("Mostrador")
@@ -3134,6 +3863,7 @@ def listos():
         "mostrador/listos.html",
         resultados_listos=obtener_resultados_listos(),
         ordenes_quimico=obtener_ordenes_para_quimico(),
+        system_settings=obtener_configuracion_sistema(),
     )
 
 
@@ -3158,7 +3888,31 @@ def entregar_resultado(orden_id):
         flash("Selecciona un medio de entrega válido.", "error")
         return redirect(url_for("app_routes.listos"))
     try:
+        settings = obtener_configuracion_sistema()
+        balance = obtener_saldo_orden(orden_id)
+        if balance is None:
+            flash("No se encontró la orden solicitada.", "error")
+            return redirect(url_for("app_routes.listos"))
+        override_authorizer = None
+        if (
+            balance["saldo"] > 0.009
+            and not settings["mostrador_entrega_saldo_pendiente"]
+        ):
+            override_authorizer = admin_override_from_request()
+            if not override_authorizer:
+                flash(
+                    "La orden tiene saldo pendiente. Solicita autorización administrativa para entregarla.",
+                    "error",
+                )
+                return redirect(url_for("app_routes.listos"))
         finalizar_entrega_resultado(orden_id, session.get("user_id"), medio)
+        if override_authorizer:
+            registrar_excepcion_sistema(
+                "entregar_resultado_con_saldo",
+                f"Se autorizó entregar la orden #{orden_id:04d} con saldo de ${balance['saldo']:.2f}.",
+                override_authorizer,
+                override_requester(),
+            )
         flash(
             f"Orden #{orden_id:04d} finalizada y conservada en el historial.",
             "success",
@@ -3180,7 +3934,7 @@ def manage_muestra():
 @app_routes.route("/api/analisis/<int:orden_id>")
 @require_role("Enfermero, Quimico")
 def get_analisis(orden_id):
-    if session.get("rol") == "Quimico":
+    if current_workspace_role() == "Quimico":
         try:
             captura = obtener_captura_resultados(orden_id) or {}
             estudios = captura.get("estudios") or []
@@ -3270,7 +4024,7 @@ def api_actualizar_requisito_muestra(orden_id):
 
 
 @app_routes.route("/enfermero/etiquetas")
-@require_role("Admin, Enfermero")
+@require_role("Admin, Enfermero, Quimico")
 def etiquetas_muestra():
     try:
         etiquetas = listar_etiquetas_muestra()
@@ -3311,11 +4065,11 @@ def guardar_configuracion_etiquetas():
     except Exception:
         logger.exception("No se pudo actualizar la configuración de etiquetas")
         flash("No se pudo guardar la configuración de etiquetas.", "error")
-    return redirect(url_for("app_routes.etiquetas_muestra"))
+    return redirect(url_for("app_routes.configuracion_sistema"))
 
 
 @app_routes.route("/api/etiquetas/impresion", methods=["POST"])
-@require_role("Admin, Enfermero")
+@require_role("Admin, Enfermero, Quimico")
 def api_registrar_impresion_etiquetas():
     payload = request.get_json(silent=True) or {}
     ids = payload.get("muestra_ids") or []
