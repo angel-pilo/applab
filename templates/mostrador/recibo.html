@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ tipo_recibo }} #{{ "%04d"|format(orden_id) }} | {{ laboratorio.nombre_corto }}</title>
+  <style>
+    :root { color-scheme: light; --ink:#0b1f33; --muted:#60758a; --line:#dfe7ee; --cyan:#087f8c; --surface:#f4f7fa; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--surface); font-family:Inter,Segoe UI,Arial,sans-serif; font-size:14px; }
+    .toolbar { position:sticky; top:0; z-index:10; display:flex; padding:12px 18px; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.96); backdrop-filter:blur(8px); }
+    .toolbar-group { display:flex; flex-wrap:wrap; gap:8px; }
+    .button { display:inline-flex; min-height:40px; padding:9px 14px; align-items:center; justify-content:center; gap:7px; border:1px solid #cad6e2; border-radius:10px; color:#334e68; background:#fff; cursor:pointer; text-decoration:none; font:inherit; font-size:13px; font-weight:700; }
+    .button.primary { border-color:var(--ink); color:#fff; background:var(--ink); }
+    .button.whatsapp { border-color:#b7e4c7; color:#08743b; background:#ecfdf3; }
+    .page { width:min(210mm,calc(100% - 24px)); min-height:270mm; margin:24px auto; padding:16mm 17mm; border:1px solid var(--line); border-radius:16px; background:#fff; box-shadow:0 20px 55px rgba(11,31,51,.11); }
+    .receipt-head { padding-bottom:18px; text-align:center; border-bottom:2px solid var(--ink); }
+    .logo { display:grid; width:54px; height:54px; margin:0 auto 10px; place-items:center; border-radius:13px; color:#fff; background:linear-gradient(135deg,#1769d2,#19b5c5); object-fit:contain; padding:5px; font-size:22px; }
+    h1 { margin:0; font-size:23px; letter-spacing:-.02em; }
+    .lab-meta { margin:7px auto 0; max-width:560px; color:var(--muted); font-size:11px; line-height:1.55; }
+    .document-title { display:flex; margin:22px 0 14px; align-items:flex-end; justify-content:space-between; gap:14px; }
+    .eyebrow { margin:0 0 3px; color:var(--cyan); font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    h2 { margin:0; font-size:19px; }
+    .folio { padding:8px 11px; border-radius:9px; color:#fff; background:var(--ink); font-size:12px; font-weight:800; }
+    .info-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+    .info { padding:11px 13px; border-bottom:1px solid var(--line); }
+    .info:nth-child(odd) { border-right:1px solid var(--line); }
+    .info.full { grid-column:1/-1; border-right:0; }
+    .info small { display:block; margin-bottom:4px; color:var(--muted); font-size:10px; }
+    .info strong { display:block; font-size:12px; }
+    .section { margin-top:20px; }
+    .section-heading { display:flex; margin-bottom:8px; align-items:center; justify-content:space-between; gap:12px; }
+    .section-heading h3 { margin:0; font-size:13px; }
+    table { width:100%; border-collapse:collapse; }
+    th { padding:8px 9px; color:#fff; background:var(--ink); text-align:left; font-size:10px; }
+    td { padding:9px; border-bottom:1px solid var(--line); font-size:11px; }
+    th:not(:first-child),td:not(:first-child) { text-align:right; }
+    tbody tr:nth-child(even) { background:#f8fafc; }
+    .payment-highlight { display:flex; padding:13px; align-items:center; justify-content:space-between; gap:12px; border:1px solid #b7e4c7; border-radius:11px; background:#ecfdf3; }
+    .payment-highlight small { display:block; color:#39835a; font-size:10px; }
+    .payment-highlight strong { font-size:17px; color:#08743b; }
+    .totals { width:min(330px,100%); margin:18px 0 0 auto; }
+    .totals div { display:flex; padding:6px 0; justify-content:space-between; gap:18px; color:var(--muted); font-size:12px; }
+    .totals div:last-child { margin-top:3px; padding-top:10px; border-top:1px solid var(--ink); color:var(--ink); font-weight:800; }
+    .notes { padding:12px 13px; border-radius:10px; color:#526273; background:#f8fafc; font-size:11px; line-height:1.55; }
+    .receipt-footer { margin-top:28px; padding-top:16px; border-top:1px solid var(--line); text-align:center; }
+    .receipt-footer p { margin:4px 0; color:var(--muted); font-size:10px; }
+    .receipt-footer .thanks { margin-top:10px; color:var(--cyan); font-weight:700; }
+    .share-status { position:fixed; right:16px; bottom:16px; z-index:20; display:none; max-width:340px; padding:12px 15px; border-radius:11px; color:#fff; background:var(--ink); box-shadow:0 12px 30px rgba(0,0,0,.2); font-size:12px; }
+    @media (max-width:640px) { .toolbar { align-items:stretch; flex-direction:column; } .toolbar-group { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); } .button { padding-inline:8px; font-size:11px; } .page { width:100%; min-height:0; margin:0; padding:22px 16px; border:0; border-radius:0; box-shadow:none; } .info-grid { grid-template-columns:1fr; } .info:nth-child(odd) { border-right:0; } }
+    @media print { @page { size:A4; margin:11mm; } body { background:#fff; } .toolbar,.share-status { display:none !important; } .page { width:100%; min-height:0; margin:0; padding:0; border:0; border-radius:0; box-shadow:none; } }
+  </style>
+</head>
+<body>
+  <nav class="toolbar" aria-label="Acciones del recibo">
+    <a class="button" href="{{ url_for('app_routes.reporte', orden_id=orden_id) }}">← Volver a la orden</a>
+    <div class="toolbar-group">
+      <a class="button" href="{{ url_for('app_routes.ticket_orden', orden_id=orden_id, abono_id=abono.id if abono else none) }}">Imprimir ticket</a>
+      <a class="button primary" href="{{ pdf_download_url }}">Descargar PDF</a>
+      <button id="share-receipt" class="button whatsapp" type="button">Enviar PDF</button>
+    </div>
+  </nav>
+
+  <main class="page">
+    <header class="receipt-head">
+      {% if config.mostrar_laboratorio_logo %}<img class="logo" src="{{ laboratorio.logo_url or url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" alt="Logo de {{ laboratorio.nombre_corto }}">{% endif %}
+      {% if config.mostrar_laboratorio_nombre %}<h1>{{ laboratorio.nombre }}</h1>{% endif %}
+      <p class="lab-meta">
+        {% for value in [laboratorio.direccion if config.mostrar_laboratorio_direccion else '', laboratorio.telefono if config.mostrar_laboratorio_telefono else '', laboratorio.correo if config.mostrar_laboratorio_correo else '', ('RFC: ' ~ laboratorio.rfc) if config.mostrar_laboratorio_rfc and laboratorio.rfc else ''] %}
+          {% if value %}{{ value }}{% if not loop.last %} · {% endif %}{% endif %}
+        {% endfor %}
+      </p>
+    </header>
+
+    <section class="document-title">
+      <div><p class="eyebrow">Documento de mostrador</p><h2>{{ tipo_recibo }}</h2></div>
+      <span class="folio">Orden #{{ "%04d"|format(orden_id) }}</span>
+    </section>
+
+    <section class="info-grid">
+      <div class="info"><small>Paciente</small><strong>{{ paciente.nombres ~ ' ' ~ paciente.apellidos if paciente else 'No disponible' }}</strong></div>
+      <div class="info"><small>Fecha de emisión</small><strong>{{ fecha_emision }}</strong></div>
+      {% if config.mostrar_paciente_telefono %}<div class="info"><small>Teléfono</small><strong>{{ paciente.telefono if paciente else '—' }}</strong></div>{% endif %}
+      <div class="info"><small>Estado de cuenta</small><strong>{{ orden.estado|default('pendiente')|title }}</strong></div>
+      {% if config.mostrar_paciente_direccion %}<div class="info full"><small>Domicilio del paciente</small><strong>{{ paciente_direccion or '—' }}</strong></div>{% endif %}
+      {% if config.mostrar_procedencia %}<div class="info"><small>Procedencia</small><strong>{{ hospital.nombre if hospital else 'Paciente particular' }}</strong></div>{% endif %}
+      {% if config.mostrar_medico %}<div class="info"><small>Médico solicitante</small><strong>{{ doctor.nombres ~ ' ' ~ doctor.apellidos if doctor else 'Sin médico solicitante' }}</strong></div>{% endif %}
+    </section>
+
+    {% if config.mostrar_estudios and estudios %}
+      <section class="section">
+        <div class="section-heading"><h3>Estudios de la orden</h3><small>{{ estudios|length }} registrado{{ '' if estudios|length == 1 else 's' }}</small></div>
+        <table><thead><tr><th>Estudio</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr></thead><tbody>
+          {% for estudio in estudios %}<tr><td>{{ estudio.nombre }}</td><td>{{ estudio.cantidad }}</td><td>${{ "%.2f"|format(estudio.precio_unitario) }}</td><td>${{ "%.2f"|format(estudio.total) }}</td></tr>{% endfor %}
+        </tbody></table>
+      </section>
+    {% endif %}
+
+    {% if config.mostrar_observaciones and orden.observaciones %}<section class="section"><h3>Observaciones</h3><div class="notes">{{ orden.observaciones }}</div></section>{% endif %}
+
+    {% if abono %}
+      <section class="section payment-highlight">
+        <div><small>Abono recibido · {{ abono.fecha_formateada }}</small><b>{{ abono.metodo_descripcion|title }}{% if abono.nota %} · {{ abono.nota }}{% endif %}</b></div>
+        <strong>+${{ "%.2f"|format(abono.cantidad|float) }}</strong>
+      </section>
+    {% endif %}
+
+    {% if config.mostrar_historial_pagos and abonos %}
+      <section class="section">
+        <div class="section-heading"><h3>Movimientos de pago</h3></div>
+        <table><thead><tr><th>Fecha</th><th>Método</th><th>Importe</th></tr></thead><tbody>
+          {% for pago in abonos %}<tr><td>{{ pago.fecha_formateada }}</td><td>{{ pago.metodo_descripcion|title }}</td><td>${{ "%.2f"|format(pago.cantidad|float) }}</td></tr>{% endfor %}
+        </tbody></table>
+      </section>
+    {% endif %}
+
+    {% if config.mostrar_saldo %}
+      <section class="totals"><div><span>Total de la orden</span><b>${{ "%.2f"|format(total) }}</b></div><div><span>Total pagado</span><b>${{ "%.2f"|format(pagado) }}</b></div><div><span>Saldo pendiente</span><b>${{ "%.2f"|format(saldo) }}</b></div></section>
+    {% endif %}
+
+    <footer class="receipt-footer">
+      {% if config.mostrar_cajero %}<p>Atendido por: <strong>{{ cajero }}</strong></p>{% endif %}
+      {% if config.mostrar_laboratorio_whatsapp and laboratorio.whatsapp %}<p>WhatsApp del laboratorio: {{ laboratorio.whatsapp }}</p>{% endif %}
+      {% if config.recibo_mensaje_pie %}<p class="thanks">{{ config.recibo_mensaje_pie }}</p>{% endif %}
+    </footer>
+  </main>
+
+  <div id="share-status" class="share-status" role="status" aria-live="polite"></div>
+  <script>
+    const shareButton = document.getElementById("share-receipt");
+    const statusBox = document.getElementById("share-status");
+    const pdfUrl = {{ pdf_url|tojson }};
+    const receiptUrl = {{ receipt_url|tojson }};
+    const fileName = {{ pdf_filename|tojson }};
+
+    function showStatus(message) {
+      statusBox.textContent = message;
+      statusBox.style.display = "block";
+      window.setTimeout(() => { statusBox.style.display = "none"; }, 4500);
+    }
+
+    shareButton.addEventListener("click", async () => {
+      shareButton.disabled = true;
+      shareButton.textContent = "Preparando PDF...";
+      try {
+        const response = await fetch(pdfUrl, { credentials: "same-origin" });
+        if (!response.ok) throw new Error("No se pudo generar el PDF.");
+        const file = new File([await response.blob()], fileName, { type: "application/pdf" });
+        const shareData = {
+          title: {{ tipo_recibo|tojson }},
+          text: `{{ tipo_recibo }} de la orden #{{ "%04d"|format(orden_id) }}`,
+          files: [file]
+        };
+        if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+          await navigator.share(shareData);
+          showStatus("Recibo compartido correctamente.");
+        } else {
+          const download = document.createElement("a");
+          download.href = URL.createObjectURL(file);
+          download.download = fileName;
+          download.click();
+          window.setTimeout(() => URL.revokeObjectURL(download.href), 1500);
+          window.open(`https://wa.me/?text=${encodeURIComponent(`Recibo de la orden #{{ "%04d"|format(orden_id) }}. Adjunta el PDF que acaba de descargarse. ${receiptUrl}`)}`, "_blank", "noopener");
+          showStatus("El PDF se descargó. Adjúntalo en la conversación de WhatsApp.");
+        }
+      } catch (error) {
+        if (error.name !== "AbortError") showStatus(error.message || "No se pudo compartir el recibo.");
+      } finally {
+        shareButton.disabled = false;
+        shareButton.textContent = "Enviar PDF";
+      }
+    });
+  </script>
+</body>
+</html>
