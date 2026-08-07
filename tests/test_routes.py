@@ -51,6 +51,49 @@ class EmployeeAvatarValidationTests(unittest.TestCase):
         self.assertEqual(routes.normalize_avatar_choice("unknown"), "initials")
 
 
+class ReceiptPdfTests(unittest.TestCase):
+    def test_receipt_pdf_is_generated_as_a_real_pdf(self):
+        context = {
+            "tipo_recibo": "Recibo de abono",
+            "orden_id": 12,
+            "config": {
+                "laboratorio_nombre": "Laboratorio prueba",
+                "laboratorio_direccion": "Centro 1",
+                "laboratorio_telefono": "123",
+                "laboratorio_correo": "contacto@example.com",
+                "laboratorio_rfc": "",
+                "mostrar_paciente_telefono": True,
+                "mostrar_paciente_direccion": True,
+                "mostrar_procedencia": True,
+                "mostrar_medico": True,
+                "mostrar_estudios": True,
+                "mostrar_observaciones": True,
+                "mostrar_historial_pagos": True,
+                "mostrar_saldo": True,
+                "mostrar_cajero": True,
+                "recibo_mensaje_pie": "Gracias",
+            },
+            "paciente": {"nombres": "Ana", "apellidos": "López", "telefono": "123"},
+            "paciente_direccion": "Centro 1",
+            "hospital": None,
+            "doctor": None,
+            "orden": {"estado": "credito", "observaciones": "Ayuno"},
+            "fecha_emision": "04/08/2026 10:00",
+            "estudios": [{"nombre": "QS3", "cantidad": 1, "precio_unitario": 300.0, "total": 300.0}],
+            "abono": {"cantidad": 100, "metodo_descripcion": "efectivo", "fecha_formateada": "04/08/2026"},
+            "abonos": [{"cantidad": 100, "metodo_descripcion": "efectivo", "fecha_formateada": "04/08/2026"}],
+            "total": 300.0,
+            "pagado": 100.0,
+            "saldo": 200.0,
+            "cajero": "Nombre Mostrador",
+        }
+
+        pdf = routes.generar_pdf_recibo(context).getvalue()
+
+        self.assertTrue(pdf.startswith(b"%PDF-"))
+        self.assertGreater(len(pdf), 1000)
+
+
 class OrderValidationTests(unittest.TestCase):
     @patch.object(routes, "existe_doctor_activo", return_value=True)
     @patch.object(routes, "existe_hospital_activo", return_value=True)
@@ -206,6 +249,66 @@ class AdminDashboardServiceTests(unittest.TestCase):
         self.assertEqual(dashboard["inventory_alerts"], [])
 
 
+class PatientHistoryServiceTests(unittest.TestCase):
+    def test_history_uses_backend_client_when_public_rls_hides_orders(self):
+        table_rows = {
+            "ordenes": [{
+                "id": 9,
+                "creado_en": "2026-08-06T10:00:00+00:00",
+                "total_pruebas": 500,
+                "total_abonos": 100,
+                "estado": "credito",
+                "flujo": "finalizada",
+                "hospital_id": None,
+                "doctor_id": None,
+            }],
+            "orden_pruebas_detalle": [{
+                "orden_id": 9,
+                "nombre_prueba": "QS3",
+                "cantidad": 1,
+            }],
+            "resultados_paciente": [{
+                "orden_id": 9,
+                "estado": "finalizado",
+                "semaforo": True,
+            }],
+        }
+
+        class FakeQuery:
+            def __init__(self, table):
+                self.table = table
+
+            def select(self, *_):
+                return self
+
+            def eq(self, *_):
+                return self
+
+            def in_(self, *_):
+                return self
+
+            def order(self, *_args, **_kwargs):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=table_rows[self.table])
+
+        fake_admin = SimpleNamespace(table=lambda name: FakeQuery(name))
+        public_client = SimpleNamespace(
+            table=lambda _name: self.fail("El historial no debe consultar con la clave pública")
+        )
+        with patch.object(services, "supabase_admin", fake_admin), patch.object(
+            services, "supabase", public_client
+        ):
+            history = services.obtener_historial_ordenes_paciente(5)
+
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["id"], 9)
+        self.assertEqual(history[0]["saldo"], 400)
+        self.assertEqual(history[0]["estudios"][0]["nombre_prueba"], "QS3")
+        self.assertEqual(history[0]["resultado_estado"], "finalizado")
+
+
 class ClinicalTestServiceTests(unittest.TestCase):
     class FakeQuery:
         def __init__(self):
@@ -320,6 +423,49 @@ class AuthorizationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].endswith("/quimico"))
 
+    def test_admin_can_switch_workspace_without_changing_identity_role(self):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session.update({
+                "usuario": "admin",
+                "rol": "Admin",
+                "area_activa": "Admin",
+            })
+
+        response = client.post("/cambiar-area/quimico", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/quimico"))
+        with client.session_transaction() as flask_session:
+            self.assertEqual(flask_session["rol"], "Admin")
+            self.assertEqual(flask_session["area_activa"], "Quimico")
+
+    def test_admin_area_card_opens_operational_admin_dashboard(self):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session.update({
+                "usuario": "admin",
+                "rol": "Admin",
+                "area_activa": "Mostrador",
+            })
+
+        response = client.post("/cambiar-area/admin", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/admin/panel"))
+        with client.session_transaction() as flask_session:
+            self.assertEqual(flask_session["rol"], "Admin")
+            self.assertEqual(flask_session["area_activa"], "Admin")
+
+    def test_non_admin_cannot_switch_workspace(self):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session.update({"usuario": "mostrador", "rol": "Mostrador"})
+
+        response = client.post("/cambiar-area/admin", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 403)
+
     def test_custom_profile_redirects_to_first_authorized_workspace(self):
         client = self.app.test_client()
         with client.session_transaction() as flask_session:
@@ -354,6 +500,54 @@ class AuthorizationTests(unittest.TestCase):
         response = client.get("/api/backlog/events")
 
         self.assertEqual(response.status_code, 403)
+
+    @patch.object(routes, "guardar_configuracion_sistema", return_value=True)
+    @patch.object(routes, "registrar_cambio_politicas", return_value=True)
+    def test_custom_system_manager_can_update_policies(self, *_):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session.update({
+                "usuario": "supervisor",
+                "rol": "Personalizado",
+                "permisos": ["admin.system_settings"],
+                "user_id": 9,
+            })
+
+        response = client.post(
+            "/configuracion/sistema",
+            data={"empleados_cambian_foto": "on"},
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+    @patch.object(routes, "finalizar_entrega_resultado")
+    @patch.object(routes, "verificar_autorizador_admin", return_value=None)
+    @patch.object(routes, "obtener_saldo_orden", return_value={
+        "total": 500.0, "pagado": 100.0, "saldo": 400.0, "estado": "credito"
+    })
+    @patch.object(routes, "obtener_configuracion_sistema", return_value={
+        "empleados_cambian_password": True,
+        "empleados_cambian_foto": True,
+        "mostrador_entrega_saldo_pendiente": False,
+    })
+    def test_unpaid_delivery_requires_admin_override(
+        self, _settings, _balance, _authorizer, finalize
+    ):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session.update({
+                "usuario": "mostrador", "rol": "Mostrador", "user_id": 3
+            })
+
+        response = client.post(
+            "/resultados/12/entregar",
+            data={"medio_entrega": "impreso"},
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        finalize.assert_not_called()
 
     @patch.object(
         routes,
