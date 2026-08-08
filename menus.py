@@ -29,6 +29,7 @@ ROLE_MENU = {
 
     "Quimico": [
         {"text": "Resultados",       "icon": "fa-clipboard-check", "url": "app_routes.resultados"},
+        {"text": "Estudios externos", "icon": "fa-truck", "url": "app_routes.estudios_externos"},
         {"text": "Resultados finalizados", "icon": "fa-file-medical-alt", "url": "app_routes.historial_resultados"},
         {"text": "Ingresar inventario", "icon": "fa-dolly-flatbed", "url": "app_routes.registrar_entrada_inventario"},
         {"text": "Imprimir etiquetas", "icon": "fa-qrcode", "url": "app_routes.etiquetas_muestra"},
@@ -47,3 +48,8 @@ ROLE_MENU = {
         {"text": "Mi cuenta",           "icon":"fa-user-cog",      "url": "app_routes.configuracion"},
     ],
 }
+
+# Los traslados a proveedores pertenecen exclusivamente al flujo de Quimico.
+ROLE_MENU["Enfermero"] = [
+    item for item in ROLE_MENU["Enfermero"] if item.get("icon") != "fa-truck"
+]

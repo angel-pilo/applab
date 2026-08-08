@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const search = document.getElementById("buscar-muestra");
   let currentOrderId = null;
   let samples = [];
+  let externalStudies = [];
 
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, character => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
@@ -46,7 +47,21 @@ document.addEventListener("DOMContentLoaded", () => {
       updateProgress();
       return;
     }
-    body.innerHTML = samples.map(item => {
+    const externalNotice = externalStudies.length ? `
+      <section class="mb-4 rounded-2xl border border-violet-200 bg-violet-50 p-4">
+        <div class="flex items-start gap-3">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700"><i class="fas fa-truck-medical"></i></span>
+          <div><h3 class="font-bold text-violet-950">Muestras para laboratorio de referencia</h3><p class="mt-1 text-xs text-violet-700">Al finalizar la toma quedarÃ¡n listas para preparar su envÃ­o.</p></div>
+        </div>
+        <div class="mt-3 space-y-2">${externalStudies.map(study => `
+          <article class="rounded-xl border border-violet-100 bg-white p-3 text-xs">
+            <div class="flex flex-wrap items-center justify-between gap-2"><strong class="text-gray-900">${escapeHtml(study.nombre_prueba)}</strong><span class="rounded-full bg-violet-50 px-2 py-1 font-semibold text-violet-700">${escapeHtml(study.nombre_proveedor)}</span></div>
+            <p class="mt-2 text-gray-600"><b>Muestra:</b> ${escapeHtml(study.tipo_muestra || "Por definir")} Â· <b>Recipiente:</b> ${escapeHtml(study.recipiente || "Por definir")} Â· <b>ConservaciÃ³n:</b> ${escapeHtml(study.conservacion || "Por definir")}</p>
+            ${study.instrucciones ? `<p class="mt-1 text-gray-500">${escapeHtml(study.instrucciones)}</p>` : ""}
+          </article>`).join("")}
+        </div>
+      </section>` : "";
+    body.innerHTML = externalNotice + samples.map(item => {
       const studies = (item.estudios || []).map(study =>
         `<span class="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">${escapeHtml(study)}</span>`
       ).join("");
@@ -94,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error);
       samples = data.muestras || [];
+      externalStudies = data.estudios_externos || [];
       renderSamples();
       setStatus("Los cambios se guardan automáticamente.");
     } catch (error) {
@@ -148,6 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.classList.remove("overflow-hidden");
     currentOrderId = null;
     samples = [];
+    externalStudies = [];
   }
 
   document.querySelectorAll("[data-open-samples]").forEach(button =>

@@ -55,6 +55,7 @@ PERMISSION_GROUPS = [
             ("lab.results.capture", "Capturar y finalizar resultados"),
             ("lab.results.history", "Consultar resultados finalizados"),
             ("lab.inventory.entry", "Registrar entradas de inventario"),
+            ("lab.external.manage", "Gestionar pruebas enviadas a proveedores"),
         ],
     },
 ]
@@ -166,10 +167,17 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.obtener_ordenes_pendientes": "lab.results.capture",
     "app_routes.guardar_resultados": "lab.results.capture",
     "app_routes.registrar_entrada_inventario": {"lab.inventory.entry", "admin.inventory"},
+    "app_routes.estudios_externos": "lab.external.manage",
+    "app_routes.api_crear_envio_externo": "lab.external.manage",
+    "app_routes.api_estado_estudio_externo": "lab.external.manage",
+    "app_routes.subir_resultado_externo": "lab.external.manage",
+    "app_routes.documento_resultado_externo": "lab.external.manage",
+    "app_routes.manifiesto_envio_externo": "lab.external.manage",
     "app_routes.get_analisis": {"nursing.samples", "lab.results.capture"},
     "app_routes.escanear_etiqueta_muestra": {"nursing.labels", "lab.results.capture"},
     "app_routes.imprimir_resultados_laboratorio": {
-        "lab.results.capture", "lab.results.history", "front.results.deliver"
+        "lab.results.capture", "lab.results.history", "front.results.deliver",
+        "front.patients", "front.orders.view"
     },
     "app_routes.finalizar_resultados": "lab.results.capture",
     "app_routes.finalizar_resultados_legacy": "lab.results.capture",
@@ -204,6 +212,7 @@ def preferred_home(permissions):
         ("lab.results.capture", "app_routes.resultados"),
         ("lab.results.history", "app_routes.historial_resultados"),
         ("lab.inventory.entry", "app_routes.registrar_entrada_inventario"),
+        ("lab.external.manage", "app_routes.estudios_externos"),
         ("admin.tests", "app_routes.pruebas_clinicas"),
         ("admin.inventory", "app_routes.manage_inventory"),
         ("admin.providers", "app_routes.manage_proveedores"),
