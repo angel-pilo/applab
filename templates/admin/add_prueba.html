@@ -157,8 +157,50 @@
                 />
             </div>
 
+            <div class="w-full">
+              <label class="block text-sm font-bold mb-2">Procesamiento</label>
+              <div class="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Lugar de procesamiento">
+                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-4 transition hover:border-cyan-300">
+                  <input type="radio" name="procesamiento" value="interno" class="mt-1"
+                         {% if prueba.get('procesamiento', 'interno') != 'externo' %}checked{% endif %}>
+                  <span><strong class="block text-sm text-gray-900">En el laboratorio</strong><small class="mt-1 block text-gray-500">La prueba consume reactivos del inventario interno.</small></span>
+                </label>
+                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-4 transition hover:border-violet-300">
+                  <input type="radio" name="procesamiento" value="externo" class="mt-1"
+                         {% if prueba.get('procesamiento') == 'externo' %}checked{% endif %}>
+                  <span><strong class="block text-sm text-gray-900">Proveedor de referencia</strong><small class="mt-1 block text-gray-500">La muestra se prepara aqu&iacute; y se env&iacute;a a otro laboratorio.</small></span>
+                </label>
+              </div>
+            </div>
+
+            <div id="external-processing-fields" class="hidden w-full rounded-2xl border border-violet-100 bg-violet-50/40 p-5">
+              <div class="mb-4 flex items-start gap-3">
+                <span class="grid h-10 w-10 place-items-center rounded-xl bg-violet-100 text-violet-700"><i class="fas fa-truck"></i></span>
+                <div><h3 class="text-sm font-bold text-gray-900">Indicaciones para el env&iacute;o</h3><p class="text-xs text-gray-500">Estos datos acompa&ntilde;ar&aacute;n a Enfermer&iacute;a y al manifiesto del proveedor.</p></div>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                  <label for="proveedor_servicio_id" class="block text-sm font-semibold mb-2">Proveedor de servicio *</label>
+                  <select id="proveedor_servicio_id" name="proveedor_servicio_id" class="w-full rounded-lg border p-2.5">
+                    <option value="">Selecciona un proveedor de servicio</option>
+                    {% for proveedor in proveedores_servicio|default([]) %}
+                    <option value="{{ proveedor.id }}" {% if prueba.get('proveedor_servicio_id')|string == proveedor.id|string %}selected{% endif %}>{{ proveedor.nombre }} Â· Servicio</option>
+                    {% endfor %}
+                  </select>
+                  <p class="mt-1.5 text-xs text-gray-500"><i class="fas fa-filter mr-1 text-violet-600"></i>Solo se muestran proveedores activos marcados como servicio.</p>
+                </div>
+                <div><label for="tipo_muestra_externa" class="block text-sm font-semibold mb-2">Tipo de muestra *</label><input id="tipo_muestra_externa" name="tipo_muestra_externa" class="w-full rounded-lg border p-2.5" placeholder="Ej. Suero" value="{{ prueba.get('tipo_muestra_externa', '') or '' }}"></div>
+                <div><label for="recipiente_muestra" class="block text-sm font-semibold mb-2">Recipiente *</label><input id="recipiente_muestra" name="recipiente_muestra" class="w-full rounded-lg border p-2.5" placeholder="Ej. Tubo rojo" value="{{ prueba.get('recipiente_muestra', '') or '' }}"></div>
+                <div><label for="conservacion_muestra" class="block text-sm font-semibold mb-2">Conservaci&oacute;n *</label><input id="conservacion_muestra" name="conservacion_muestra" class="w-full rounded-lg border p-2.5" placeholder="Ej. Refrigerada 2-8 &deg;C" value="{{ prueba.get('conservacion_muestra', '') or '' }}"></div>
+                <div><label for="volumen_minimo" class="block text-sm font-semibold mb-2">Volumen m&iacute;nimo</label><input id="volumen_minimo" name="volumen_minimo" class="w-full rounded-lg border p-2.5" placeholder="Ej. 2 mL" value="{{ prueba.get('volumen_minimo', '') or '' }}"></div>
+                <div><label for="tiempo_entrega_dias" class="block text-sm font-semibold mb-2">Entrega estimada (d&iacute;as) *</label><input type="number" min="0" id="tiempo_entrega_dias" name="tiempo_entrega_dias" class="w-full rounded-lg border p-2.5" value="{{ prueba.get('tiempo_entrega_dias', '') if prueba.get('tiempo_entrega_dias') is not none else '' }}"></div>
+                <div><label for="costo_proveedor" class="block text-sm font-semibold mb-2">Costo del proveedor</label><input type="number" min="0" step="0.01" id="costo_proveedor" name="costo_proveedor" class="w-full rounded-lg border p-2.5" value="{{ prueba.get('costo_proveedor', '') if prueba.get('costo_proveedor') is not none else '' }}"></div>
+                <div class="sm:col-span-2 lg:col-span-3"><label for="instrucciones_envio" class="block text-sm font-semibold mb-2">Indicaciones adicionales</label><textarea id="instrucciones_envio" name="instrucciones_envio" rows="2" class="w-full rounded-lg border p-2.5" placeholder="Ayuno, estabilidad, embalaje o rechazo de muestra...">{{ prueba.get('instrucciones_envio', '') or '' }}</textarea></div>
+              </div>
+            </div>
+
             <!-- Buscador de reactivos -->
-            <div class="w-full md:w-1/3 relative">
+            <div id="reactivos-field" class="w-full md:w-1/3 relative">
                 <label for="reactivo" class="block text-sm font-bold mb-2">
                     Reactivos necesarios
                 </label>
@@ -185,7 +227,7 @@
             </div>
 
             <!-- Botón para abrir sugerencias de reactivos -->
-            <div class="flex items-center mt-4 w-full">
+            <div id="reactivos-actions" class="flex items-center mt-4 w-full">
                 <button
                     type="button"
                     id="btn-add-reactivo"
@@ -410,6 +452,33 @@ document.addEventListener("DOMContentLoaded", function () {
   // --- Form ---
   const form = document.getElementById("form-prueba");
   const inputValoresJson = document.getElementById("valores_normales_json");
+  const externalFields = document.getElementById("external-processing-fields");
+  const reactivosField = document.getElementById("reactivos-field");
+  const reactivosActions = document.getElementById("reactivos-actions");
+  const externalRequired = [
+    "proveedor_servicio_id", "tipo_muestra_externa", "recipiente_muestra",
+    "conservacion_muestra", "tiempo_entrega_dias"
+  ];
+
+  function isExternalTest() {
+    return document.querySelector('input[name="procesamiento"]:checked')?.value === "externo";
+  }
+
+  function updateProcessingFields() {
+    const external = isExternalTest();
+    externalFields?.classList.toggle("hidden", !external);
+    reactivosField?.classList.toggle("hidden", external);
+    reactivosActions?.classList.toggle("hidden", external);
+    externalRequired.forEach(id => {
+      const field = document.getElementById(id);
+      if (field) field.required = external;
+    });
+  }
+
+  document.querySelectorAll('input[name="procesamiento"]').forEach(input => {
+    input.addEventListener("change", updateProcessingFields);
+  });
+  updateProcessingFields();
 
   // ========== REACTIVOS ==========
 
@@ -883,7 +952,7 @@ document.addEventListener("DOMContentLoaded", function () {
         field.classList.remove("border-red-500", "ring-2", "ring-red-100");
       });
 
-      if (!hiddenContainer.querySelector('input[name="reactivos"]')) {
+      if (!isExternalTest() && !hiddenContainer.querySelector('input[name="reactivos"]')) {
         event.preventDefault();
         formError.textContent = "Selecciona al menos un reactivo con datos completos.";
         formError.classList.remove("hidden");

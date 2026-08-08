@@ -23,12 +23,13 @@
       <h2 id="resumen-quimico" class="text-lg font-bold text-gray-900">Resumen operativo</h2>
       <p class="text-sm text-gray-500">Estado actual de las órdenes dentro del proceso analítico.</p>
     </div>
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
       {% set indicators = [
         ('Órdenes en laboratorio', resumen.ordenes_laboratorio, 'Listas para captura o validación.', 'fa-flask', 'bg-cyan-50 text-cyan-700 ring-cyan-100'),
         ('Faltantes de muestra', resumen.faltantes_muestra, 'Continúan pendientes con Enfermería.', 'fa-vial', 'bg-amber-50 text-amber-700 ring-amber-100'),
         ('Carga operativa', resumen.carga_operativa, 'Órdenes activas de ambas etapas.', 'fa-clipboard-list', 'bg-violet-50 text-violet-700 ring-violet-100'),
         ('Resultados finalizados', resumen.resultados_finalizados, 'Banco histórico de reportes liberados.', 'fa-file-medical-alt', 'bg-emerald-50 text-emerald-700 ring-emerald-100')
+        ,('Estudios externos', resumen.estudios_externos, 'Seguimiento con proveedores de referencia.', 'fa-truck', 'bg-violet-50 text-violet-700 ring-violet-100')
       ] %}
       {% for label, value, description, icon, colors in indicators %}
       <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
@@ -67,6 +68,15 @@
           <small class="mt-1 block leading-5 text-gray-500">Consulta el historial de reportes enviados.</small>
         </span>
         <span class="ml-auto rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{{ resumen.resultados_finalizados }}</span>
+      </a>
+      {% endif %}
+
+      {% if has_permission('lab.external.manage') %}
+      <a href="{{ url_for('app_routes.estudios_externos') }}"
+         class="group flex min-h-28 items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md">
+        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700"><i class="fas fa-truck"></i></span>
+        <span class="min-w-0"><strong class="block text-sm font-bold text-gray-900">Estudios externos</strong><small class="mt-1 block leading-5 text-gray-500">EnvÃ­os, recepciÃ³n y resultados de proveedores.</small></span>
+        <span class="ml-auto rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700">{{ resumen.estudios_externos }}</span>
       </a>
       {% endif %}
 

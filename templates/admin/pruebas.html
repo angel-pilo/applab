@@ -7,15 +7,16 @@
 {% set search_placeholder = "Buscar prueba..." %}
 {% set empty_search_message = "No se encontró ninguna prueba." %}
 
-{% block table_head %}<th class="px-5 py-3">ID</th><th class="px-5 py-3">Nombre</th><th class="px-5 py-3">Tipo</th><th class="px-5 py-3">Reactivos</th><th class="px-5 py-3">Estado</th><th class="px-5 py-3 text-right">Acciones</th>{% endblock %}
+{% block table_head %}<th class="px-5 py-3">ID</th><th class="px-5 py-3">Nombre</th><th class="px-5 py-3">Tipo</th><th class="px-5 py-3">Procesamiento</th><th class="px-5 py-3">Recursos / proveedor</th><th class="px-5 py-3">Estado</th><th class="px-5 py-3 text-right">Acciones</th>{% endblock %}
 {% block table_body %}
   {% for prueba in pruebas %}
   <tr class="transition hover:bg-gray-50 {% if not prueba.activo %}bg-gray-50 text-gray-500{% endif %}">
     <td class="px-5 py-4 font-medium">#{{ prueba.id }}</td><td class="px-5 py-4 font-semibold text-gray-900">{{ prueba.nombre }}</td><td class="px-5 py-4 capitalize">{{ prueba.tipo }}</td>
-    <td class="px-5 py-4">{% if prueba.reactivos %}{{ prueba.reactivos|join(', ') }}{% else %}<span class="italic text-gray-400">Sin reactivos asignados</span>{% endif %}</td>
+    <td class="px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ 'bg-violet-50 text-violet-700' if prueba.procesamiento == 'externo' else 'bg-cyan-50 text-cyan-700' }}">{{ 'Externa' if prueba.procesamiento == 'externo' else 'Interna' }}</span></td>
+    <td class="px-5 py-4">{% if prueba.procesamiento == 'externo' %}<span class="font-medium text-violet-700">{{ prueba.nombre_proveedor or 'Proveedor asignado' }}</span>{% elif prueba.reactivos %}{{ prueba.reactivos|join(', ') }}{% else %}<span class="italic text-gray-400">Sin reactivos asignados</span>{% endif %}</td>
     <td class="px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ 'bg-emerald-50 text-emerald-700' if prueba.activo else 'bg-gray-200 text-gray-600' }}">{{ 'Activo' if prueba.activo else 'Inactivo' }}</span></td>
     <td class="px-5 py-4"><div class="admin-action-group">{% if prueba.activo %}<button class="btn-editar admin-action-button" onclick="window.location.href='{{ url_for('app_routes.edit_prueba', prueba_id=prueba.id) }}'">Editar</button><button class="btn-eliminar admin-action-button" onclick="openAdminConfirmation({endpoint: '{{ url_for('app_routes.delete_prueba', prueba_id=prueba.id) }}', entity: 'esta prueba', action: 'eliminar'})">Eliminar</button>{% else %}<button class="btn-activar admin-action-button" onclick="openAdminConfirmation({endpoint: '{{ url_for('app_routes.activate_prueba', prueba_id=prueba.id) }}', entity: 'esta prueba', action: 'activar'})">Activar</button>{% endif %}</div></td>
   </tr>
-  {% else %}<tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No hay pruebas registradas.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">No hay pruebas registradas.</td></tr>{% endfor %}
 {% endblock %}
 {% block catalog_extras %}{% include 'admin/components/confirmation_modal.html' %}{% endblock %}
