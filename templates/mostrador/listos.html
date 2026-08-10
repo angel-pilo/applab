@@ -52,9 +52,8 @@
             {% if resultado.telefono %}
             {% set whatsapp_phone = resultado.telefono|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '')|replace('+', '') %}
             <a href="https://wa.me/{{ whatsapp_phone }}?text={{ ('Hola ' ~ resultado.nombres ~ ', sus resultados de la orden #' ~ resultado.orden_id ~ ' están listos.')|urlencode }}"
-               target="_blank" rel="noopener"
                class="inline-flex h-10 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700">
-              <i class="fab fa-whatsapp mr-2"></i>WhatsApp
+              <i class="fab fa-whatsapp mr-2"></i>Avisar o enviar
             </a>
             {% endif %}
             <a href="{{ url_for('app_routes.reporte', orden_id=resultado.orden_id) }}"
@@ -121,81 +120,77 @@
   </section>
 </div>
 
-<div id="delivery-override-modal" class="app-flash-modal hidden" role="dialog" aria-modal="true" aria-labelledby="delivery-override-title">
-  <button type="button" class="app-flash-backdrop" data-close-delivery-override aria-label="Cerrar"></button>
-  <div class="app-flash-dialog">
-    <header class="app-flash-header">
-      <span class="app-flash-icon is-info"><i class="fas fa-user-shield"></i></span>
-      <div><p>Autorización administrativa</p><h2 id="delivery-override-title">Entregar con saldo pendiente</h2></div>
-      <button type="button" class="app-flash-close" data-close-delivery-override><i class="fas fa-times"></i></button>
-    </header>
-    <div class="app-flash-body space-y-4">
-      <p id="delivery-override-text">Esta orden requiere autorización para continuar.</p>
-      <div class="admin-field">
-        <label for="delivery-admin-username">Usuario autorizador</label>
-        <input id="delivery-admin-username" autocomplete="username" placeholder="Usuario Admin">
-      </div>
-      <div class="admin-field">
-        <label for="delivery-admin-password">Contraseña</label>
-        <input id="delivery-admin-password" type="password" autocomplete="current-password" placeholder="Contraseña del autorizador">
-      </div>
-      <p id="delivery-override-error" class="hidden text-xs font-semibold text-red-700">Completa las credenciales para continuar.</p>
+<div id="results-preview-modal" class="fixed inset-0 z-[12000] hidden items-center justify-center bg-slate-950/60 p-3" role="dialog" aria-modal="true">
+  <section class="flex h-[min(92dvh,58rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <header class="flex items-center justify-between border-b border-slate-200 px-4 py-3"><div><p class="text-[10px] font-bold uppercase tracking-wider text-cyan-700">Expediente cl&iacute;nico</p><h2 id="results-preview-title" class="font-bold text-slate-900">Vista previa</h2></div><button type="button" data-close-results-preview class="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-500"><i class="fas fa-times"></i></button></header>
+    <div class="min-h-0 flex-1 bg-slate-100 p-2"><iframe id="results-preview-frame" class="h-full w-full rounded-xl border border-slate-200 bg-white" title="Vista previa"></iframe></div>
+  </section>
+</div>
+
+<div id="result-communication-modal" class="fixed inset-0 z-[12010] hidden items-center justify-center bg-slate-950/60 p-4" role="dialog" aria-modal="true">
+  <section class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <header class="flex items-start justify-between border-b border-slate-200 p-5"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-700">Comunicaci&oacute;n con paciente</p><h2 class="mt-1 text-xl font-bold text-slate-900">Avisar o enviar resultados</h2></div><button type="button" data-close-result-communication class="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-500"><i class="fas fa-times"></i></button></header>
+    <div class="space-y-3 p-5">
+      <p id="communication-patient" class="text-sm text-slate-600"></p>
+      <div id="communication-balance-warning" class="hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"><strong>Saldo pendiente.</strong> El env&iacute;o quedar&aacute; registrado en el backlog con el usuario que lo realiz&oacute;.</div>
+      <button id="send-ready-notice" type="button" class="flex w-full items-start gap-3 rounded-xl border border-emerald-200 p-4 text-left hover:bg-emerald-50"><span class="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><i class="fab fa-whatsapp"></i></span><span><strong class="block text-sm text-slate-900">Solo avisar</strong><small class="mt-1 block text-slate-500">Abre WhatsApp con un mensaje indicando que los resultados est&aacute;n listos.</small></span></button>
+      <button id="send-result-pdf" type="button" class="flex w-full items-start gap-3 rounded-xl border border-cyan-200 p-4 text-left hover:bg-cyan-50"><span class="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><i class="fas fa-file-pdf"></i></span><span><strong class="block text-sm text-slate-900">Enviar resultado en PDF</strong><small class="mt-1 block text-slate-500">Genera el reporte firmado para compartirlo por WhatsApp.</small></span></button>
+      <p id="communication-status" class="min-h-4 text-xs text-slate-500" aria-live="polite"></p>
     </div>
-    <footer class="app-flash-actions app-confirm-actions">
-      <button type="button" class="app-confirm-secondary" data-close-delivery-override>Cancelar</button>
-      <button type="button" class="app-flash-primary" id="authorize-delivery">Autorizar y entregar</button>
-    </footer>
-  </div>
+  </section>
+</div>
+
+<div id="finalize-delivery-modal" class="fixed inset-0 z-[12020] hidden items-center justify-center bg-slate-950/60 p-4" role="dialog" aria-modal="true">
+  <section class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <header class="flex items-start gap-3 border-b border-slate-200 p-5"><span class="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><i class="fas fa-check-double"></i></span><div><p class="text-xs font-bold uppercase tracking-wider text-cyan-700">Confirmar operaci&oacute;n</p><h2 class="mt-1 text-xl font-bold text-slate-900">Finalizar orden</h2></div></header>
+    <div class="space-y-4 p-5"><p id="finalize-delivery-text" class="text-sm leading-6 text-slate-600"></p><div id="finalize-admin-fields" class="hidden space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4"><p class="text-sm font-semibold text-amber-900">Esta orden requiere autorizaci&oacute;n administrativa por saldo pendiente.</p><input id="finalize-admin-user" class="w-full rounded-xl border border-amber-200 bg-white p-2.5 text-sm" placeholder="Usuario administrador" autocomplete="username"><input id="finalize-admin-password" type="password" class="w-full rounded-xl border border-amber-200 bg-white p-2.5 text-sm" placeholder="Contrase&ntilde;a" autocomplete="current-password"></div><p id="finalize-delivery-error" class="hidden rounded-xl bg-red-50 p-3 text-sm text-red-700"></p></div>
+    <footer class="flex justify-end gap-2 border-t border-slate-200 p-4"><button type="button" data-close-finalize-delivery class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">Cancelar</button><button id="confirm-finalize-delivery" type="button" class="rounded-xl bg-[#0b1f33] px-4 py-2.5 text-sm font-semibold text-white">S&iacute;, finalizar</button></footer>
+  </section>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const modal = document.getElementById("delivery-override-modal");
-  const username = document.getElementById("delivery-admin-username");
-  const password = document.getElementById("delivery-admin-password");
-  const error = document.getElementById("delivery-override-error");
-  let pendingForm = null;
+  const previewModal = document.getElementById("results-preview-modal"), previewFrame = document.getElementById("results-preview-frame");
+  const closePreview = () => { previewModal.classList.add("hidden"); previewModal.classList.remove("flex"); previewFrame.src = "about:blank"; document.body.classList.remove("overflow-hidden"); };
+  document.querySelectorAll('a[href*="/reporte?orden_id="], a[href*="/resultados/"][href$="/imprimir"]').forEach(link => link.addEventListener("click", event => { event.preventDefault(); document.getElementById("results-preview-title").textContent = link.textContent.trim(); const url = new URL(link.href); url.searchParams.set("embedded", "1"); previewFrame.src = url.toString(); previewModal.classList.remove("hidden"); previewModal.classList.add("flex"); document.body.classList.add("overflow-hidden"); }));
+  document.querySelectorAll("[data-close-results-preview]").forEach(button => button.addEventListener("click", closePreview));
 
-  const close = () => {
-    modal.classList.add("hidden");
-    document.body.classList.remove("app-flash-open");
-    pendingForm = null;
-    username.value = "";
-    password.value = "";
-    error.classList.add("hidden");
+  const communicationModal = document.getElementById("result-communication-modal"), communicationStatus = document.getElementById("communication-status");
+  let communication = null;
+  const closeCommunication = () => { communicationModal.classList.add("hidden"); communicationModal.classList.remove("flex"); communication = null; communicationStatus.textContent = ""; };
+  document.querySelectorAll('a[href^="https://wa.me/"]').forEach(link => link.addEventListener("click", event => { event.preventDefault(); const article = link.closest("article"), form = article.querySelector(".delivery-form"), url = new URL(link.href); communication = { order: form.dataset.order, balance: Number(form.dataset.balance || 0), phone: url.pathname.replace(/\D/g, ""), noticeUrl: link.href, pdfUrl: `/resultados/${form.dataset.order}/pdf`, logUrl: `/resultados/${form.dataset.order}/comunicacion` }; document.getElementById("communication-patient").textContent = `Orden #${communication.order}. Selecciona si deseas avisar o compartir el reporte.`; document.getElementById("communication-balance-warning").classList.toggle("hidden", communication.balance <= 0.009); communicationModal.classList.remove("hidden"); communicationModal.classList.add("flex"); }));
+  document.querySelectorAll("[data-close-result-communication]").forEach(button => button.addEventListener("click", closeCommunication));
+  const logCommunication = async action => {
+    const response = await fetch(communication.logUrl, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({accion:action, medio:"whatsapp"})});
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "No se pudo registrar la comunicaci\u00f3n.");
+    return data;
   };
-  const open = form => {
-    pendingForm = form;
-    document.getElementById("delivery-override-text").textContent =
-      `La orden #${form.dataset.order} tiene un saldo de $${form.dataset.balance}. Ingresa las credenciales de un autorizador administrativo.`;
-    modal.classList.remove("hidden");
-    document.body.classList.add("app-flash-open");
-    username.focus();
-  };
-
-  document.querySelectorAll(".delivery-form").forEach(form => {
-    form.addEventListener("submit", event => {
-      if (!form.querySelector('[name="medio_entrega"]').value) return;
-      if (form.dataset.requiresOverride === "true" && !form.dataset.authorized) {
-        event.preventDefault();
-        open(form);
-      }
-    });
-  });
-  document.querySelectorAll("[data-close-delivery-override]").forEach(button => button.addEventListener("click", close));
-  document.getElementById("authorize-delivery").addEventListener("click", () => {
-    if (!pendingForm || !username.value.trim() || !password.value) {
-      error.classList.remove("hidden");
-      return;
+  document.getElementById("send-ready-notice").addEventListener("click", async () => {
+    if (!communication) return;
+    const placeholder = window.open("", "_blank");
+    communicationStatus.textContent = "Registrando aviso...";
+    communicationStatus.className = "min-h-4 text-xs text-slate-500";
+    try {
+      await logCommunication("aviso");
+      if (placeholder) placeholder.location.href = communication.noticeUrl;
+      else window.location.href = communication.noticeUrl;
+      closeCommunication();
+    } catch (error) {
+      placeholder?.close();
+      communicationStatus.textContent = error.message;
+      communicationStatus.className = "min-h-4 text-xs text-red-600";
     }
-    pendingForm.querySelector('[name="admin_username"]').value = username.value.trim();
-    pendingForm.querySelector('[name="admin_password"]').value = password.value;
-    pendingForm.dataset.authorized = "true";
-    pendingForm.submit();
   });
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape" && !modal.classList.contains("hidden")) close();
-  });
+  document.getElementById("send-result-pdf").addEventListener("click", async () => { if (!communication) return; const placeholder = window.open("", "_blank"); communicationStatus.textContent = "Generando PDF firmado..."; try { const response = await fetch(communication.pdfUrl); if (!response.ok) throw new Error("No se pudo generar el PDF."); const blob = await response.blob(), file = new File([blob], `resultados-orden-${String(communication.order).padStart(4,"0")}.pdf`, {type:"application/pdf"}); await logCommunication("envio_pdf"); if (navigator.canShare?.({files:[file]})) { placeholder?.close(); await navigator.share({files:[file], title:"Resultados de laboratorio", text:`Resultados de la orden #${communication.order}`}); } else { const objectUrl = URL.createObjectURL(blob), anchor = document.createElement("a"); anchor.href = objectUrl; anchor.download = file.name; anchor.click(); setTimeout(() => URL.revokeObjectURL(objectUrl), 30000); if (placeholder) placeholder.location.href = `https://wa.me/${communication.phone}?text=${encodeURIComponent("Adjunto sus resultados de laboratorio. El archivo PDF acaba de descargarse para agregarlo a esta conversacion.")}`; } closeCommunication(); } catch (error) { placeholder?.close(); communicationStatus.textContent = error.message; communicationStatus.className = "min-h-4 text-xs text-red-600"; } });
+
+  const finalizeModal = document.getElementById("finalize-delivery-modal"), finalizeError = document.getElementById("finalize-delivery-error"), adminFields = document.getElementById("finalize-admin-fields");
+  let finalizeForm = null;
+  const closeFinalize = () => { finalizeModal.classList.add("hidden"); finalizeModal.classList.remove("flex"); finalizeForm = null; finalizeError.classList.add("hidden"); adminFields.classList.add("hidden"); };
+  document.addEventListener("submit", event => { const form = event.target.closest?.(".delivery-form"); if (!form) return; event.preventDefault(); event.stopImmediatePropagation(); const medium = form.querySelector('[name="medio_entrega"]'); if (!medium.value) { medium.reportValidity(); return; } finalizeForm = form; const balance = Number(form.dataset.balance || 0); document.getElementById("finalize-delivery-text").textContent = `\u00bfEst\u00e1s seguro de finalizar la orden #${form.dataset.order}? Se guardar\u00e1 en el historial como entregada por ${medium.options[medium.selectedIndex].text}.`; adminFields.classList.toggle("hidden", form.dataset.requiresOverride !== "true" || balance <= 0.009); finalizeModal.classList.remove("hidden"); finalizeModal.classList.add("flex"); }, true);
+  document.querySelectorAll("[data-close-finalize-delivery]").forEach(button => button.addEventListener("click", closeFinalize));
+  document.getElementById("confirm-finalize-delivery").addEventListener("click", async () => { if (!finalizeForm) return; const payload = {medio_entrega:finalizeForm.querySelector('[name="medio_entrega"]').value, admin_username:document.getElementById("finalize-admin-user").value.trim(), admin_password:document.getElementById("finalize-admin-password").value}; try { const response = await fetch(`/api/resultados/${finalizeForm.dataset.order}/finalizar-entrega`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)}), data = await response.json(); if (!response.ok || !data.ok) { if (data.requires_override) adminFields.classList.remove("hidden"); throw new Error(data.error); } const article = finalizeForm.closest("article"); closeFinalize(); article?.remove(); window.showClinicalDialog?.({type:"success", title:"Orden finalizada", message:data.message}); } catch (error) { finalizeError.textContent = error.message; finalizeError.classList.remove("hidden"); } });
+  document.addEventListener("keydown", event => { if (event.key === "Escape") { closePreview(); closeCommunication(); closeFinalize(); } });
 });
 </script>
 {% endblock %}
