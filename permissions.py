@@ -146,6 +146,8 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.faltantes": "front.orders.view",
     "app_routes.listos": "front.results.deliver",
     "app_routes.entregar_resultado": "front.results.deliver",
+    "app_routes.registrar_comunicacion_resultado_route": "front.results.deliver",
+    "app_routes.finalizar_entrega_resultado_api": "front.results.deliver",
     "app_routes.mostrar_resultados": "front.results.deliver",
 
     # Enfermería
@@ -176,6 +178,10 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.get_analisis": {"nursing.samples", "lab.results.capture"},
     "app_routes.escanear_etiqueta_muestra": {"nursing.labels", "lab.results.capture"},
     "app_routes.imprimir_resultados_laboratorio": {
+        "lab.results.capture", "lab.results.history", "front.results.deliver",
+        "front.patients", "front.orders.view"
+    },
+    "app_routes.pdf_resultados_laboratorio": {
         "lab.results.capture", "lab.results.history", "front.results.deliver",
         "front.patients", "front.orders.view"
     },

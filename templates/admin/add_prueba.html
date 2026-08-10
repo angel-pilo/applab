@@ -184,7 +184,7 @@
                   <select id="proveedor_servicio_id" name="proveedor_servicio_id" class="w-full rounded-lg border p-2.5">
                     <option value="">Selecciona un proveedor de servicio</option>
                     {% for proveedor in proveedores_servicio|default([]) %}
-                    <option value="{{ proveedor.id }}" {% if prueba.get('proveedor_servicio_id')|string == proveedor.id|string %}selected{% endif %}>{{ proveedor.nombre }} Â· Servicio</option>
+                    <option value="{{ proveedor.id }}" {% if prueba.get('proveedor_servicio_id')|string == proveedor.id|string %}selected{% endif %}>{{ proveedor.nombre }} &middot; Servicio</option>
                     {% endfor %}
                   </select>
                   <p class="mt-1.5 text-xs text-gray-500"><i class="fas fa-filter mr-1 text-violet-600"></i>Solo se muestran proveedores activos marcados como servicio.</p>
