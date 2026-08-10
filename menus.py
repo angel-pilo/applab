@@ -44,12 +44,6 @@ ROLE_MENU = {
         {"text": "Registro de toma",    "icon":"fa-syringe", "url": "app_routes.proximamente", "params": {"feature": "Registro de toma"}, "badge": "Próximamente"},
         {"text": "Etiquetas / QR",      "icon":"fa-qrcode",        "url": "app_routes.etiquetas_muestra"},
         {"text": "Bioseguridad",        "icon":"fa-shield-virus", "url": "app_routes.proximamente", "params": {"feature": "Bioseguridad"}, "badge": "Próximamente"},
-        {"text": "Envío / Traslado",    "icon":"fa-truck", "url": "app_routes.proximamente", "params": {"feature": "Envío / Traslado"}, "badge": "Próximamente"},
         {"text": "Mi cuenta",           "icon":"fa-user-cog",      "url": "app_routes.configuracion"},
     ],
 }
-
-# Los traslados a proveedores pertenecen exclusivamente al flujo de Quimico.
-ROLE_MENU["Enfermero"] = [
-    item for item in ROLE_MENU["Enfermero"] if item.get("icon") != "fa-truck"
-]
