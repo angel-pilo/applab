@@ -65,54 +65,11 @@
   </section>
 </main>
 
-<div id="completed-report-modal" class="fixed inset-0 z-[10000] hidden" role="dialog" aria-modal="true" aria-labelledby="completed-report-title">
-  <button type="button" data-close-report class="absolute inset-0 bg-slate-950/60 backdrop-blur-[1px]" aria-label="Cerrar reporte"></button>
-  <div class="absolute left-1/2 top-1/2 flex h-[calc(100vh-2rem)] w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-    <header class="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wide text-cyan-700">Reporte clínico</p>
-        <h2 id="completed-report-title" class="mt-0.5 font-bold text-gray-900">Resultado finalizado</h2>
-      </div>
-      <button type="button" data-close-report class="grid h-9 w-9 place-items-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50" aria-label="Cerrar"><i class="fas fa-times"></i></button>
-    </header>
-    <div id="completed-report-loading" class="absolute inset-x-0 bottom-0 top-[65px] z-10 grid place-items-center bg-white text-sm text-gray-500">
-      <span><i class="fas fa-spinner fa-spin mr-2 text-cyan-700"></i>Cargando reporte...</span>
-    </div>
-    <iframe id="completed-report-frame" title="Reporte de resultados" class="min-h-0 flex-1 border-0 bg-white"></iframe>
-  </div>
-</div>
+{% include 'components/result_report_modal.html' %}
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const search = document.getElementById("completed-results-search");
-  const modal = document.getElementById("completed-report-modal");
-  const frame = document.getElementById("completed-report-frame");
-  const loading = document.getElementById("completed-report-loading");
-  const title = document.getElementById("completed-report-title");
-
-  function openReport(button) {
-    title.textContent = `Resultado de la orden #${String(button.dataset.reportOrder).padStart(4, "0")}`;
-    loading.classList.remove("hidden");
-    frame.src = button.dataset.reportUrl;
-    modal.classList.remove("hidden");
-    document.body.classList.add("overflow-hidden");
-  }
-  function closeReport() {
-    modal.classList.add("hidden");
-    document.body.classList.remove("overflow-hidden");
-    frame.src = "about:blank";
-  }
-  frame.addEventListener("load", () => loading.classList.add("hidden"));
-  document.querySelectorAll("[data-report-url]").forEach(button =>
-    button.addEventListener("click", () => openReport(button))
-  );
-  document.querySelectorAll("[data-close-report]").forEach(button =>
-    button.addEventListener("click", closeReport)
-  );
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape" && !modal.classList.contains("hidden")) closeReport();
-  });
-
   search?.addEventListener("input", () => {
     const term = search.value.trim().toLocaleLowerCase("es");
     let visible = 0;
