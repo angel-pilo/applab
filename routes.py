@@ -1336,16 +1336,19 @@ def quimico_dashboard():
     ordenes = obtener_ordenes_para_quimico()
     faltantes = obtener_ordenes_para_muestra()
     finalizados = obtener_historial_resultados()
+    externos = listar_estudios_externos(estados=ESTADOS_EXTERNOS_ACTIVOS)
     return render_template(
         "quimico/quimico.html",
         ordenes=ordenes,
         faltantes=faltantes,
         finalizados=finalizados,
+        externos=externos,
         resumen={
             "ordenes_laboratorio": len(ordenes),
             "faltantes_muestra": len(faltantes),
             "carga_operativa": len(ordenes) + len(faltantes),
             "resultados_finalizados": len(finalizados),
+            "estudios_externos": len(externos),
         },
     )
 
@@ -2763,6 +2766,58 @@ def pruebas_clinicas():
     return render_template('admin/pruebas.html', pruebas=pruebas)
 
 # Registrar nueva prueba clínica
+def _configuracion_procesamiento_prueba(form):
+    procesamiento = (form.get("procesamiento") or "interno").strip().lower()
+    if procesamiento not in {"interno", "externo"}:
+        raise ValueError("Selecciona si la prueba se procesa interna o externamente.")
+    config = {
+        "procesamiento": procesamiento,
+        "proveedor_servicio_id": None,
+        "tipo_muestra_externa": None,
+        "recipiente_muestra": None,
+        "conservacion_muestra": None,
+        "volumen_minimo": None,
+        "tiempo_entrega_dias": None,
+        "instrucciones_envio": None,
+        "costo_proveedor": None,
+    }
+    if procesamiento == "interno":
+        return config
+
+    proveedor = (form.get("proveedor_servicio_id") or "").strip()
+    tipo_muestra = (form.get("tipo_muestra_externa") or "").strip()
+    recipiente = (form.get("recipiente_muestra") or "").strip()
+    conservacion = (form.get("conservacion_muestra") or "").strip()
+    dias = (form.get("tiempo_entrega_dias") or "").strip()
+    if not all((proveedor, tipo_muestra, recipiente, conservacion, dias)):
+        raise ValueError(
+            "Para una prueba externa indica proveedor, muestra, recipiente, "
+            "conservación y tiempo de entrega."
+        )
+    proveedores_validos = {str(item["id"]) for item in obtener_proveedores_servicio()}
+    if proveedor not in proveedores_validos:
+        raise ValueError("Selecciona un proveedor de servicio activo.")
+    try:
+        dias_num = int(dias)
+        costo = (form.get("costo_proveedor") or "").strip()
+        costo_num = float(costo) if costo else None
+        if dias_num < 0 or (costo_num is not None and costo_num < 0):
+            raise ValueError
+    except ValueError:
+        raise ValueError("El tiempo de entrega y el costo deben ser valores válidos.")
+    config.update({
+        "proveedor_servicio_id": int(proveedor),
+        "tipo_muestra_externa": tipo_muestra,
+        "recipiente_muestra": recipiente,
+        "conservacion_muestra": conservacion,
+        "volumen_minimo": (form.get("volumen_minimo") or "").strip() or None,
+        "tiempo_entrega_dias": dias_num,
+        "instrucciones_envio": (form.get("instrucciones_envio") or "").strip() or None,
+        "costo_proveedor": costo_num,
+    })
+    return config
+
+
 @app_routes.route('/admin/add_prueba', methods=['GET', 'POST'])
 @require_role("Admin")
 def add_prueba():
@@ -2784,6 +2839,16 @@ def add_prueba():
 
         element_errors = validate_clinical_test_elements(valores_normales)
         reactivos_validos, reactivos_error = validar_reactivos_para_prueba(reactivos_ids)
+        try:
+            procesamiento_config = _configuracion_procesamiento_prueba(request.form)
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return render_template(
+                'admin/add_prueba.html', is_edit=False,
+                reactivos=obtener_todos_los_reactivos(),
+                proveedores_servicio=obtener_proveedores_servicio(),
+                prueba={**request.form.to_dict(), 'valores_normales': valores_normales},
+            )
 
         # Validación básica antes de crear cualquier registro.
         if not nombre or not tipo or not precio:
@@ -2803,17 +2868,18 @@ def add_prueba():
                 reactivos=obtener_todos_los_reactivos(),
                 prueba={'valores_normales': valores_normales}
             )
-        if not reactivos_validos:
+        if procesamiento_config["procesamiento"] == "interno" and not reactivos_validos:
             flash(reactivos_error, "error")
             return render_template(
                 'admin/add_prueba.html',
                 is_edit=False,
                 reactivos=obtener_todos_los_reactivos(),
+                proveedores_servicio=obtener_proveedores_servicio(),
                 prueba={'valores_normales': valores_normales}
             )
 
         # Crear prueba clínica básica
-        nueva_prueba = crear_prueba(nombre, tipo, precio)  # Ahora pasamos el precio
+        nueva_prueba = crear_prueba(nombre, tipo, precio, procesamiento_config)
         if not nueva_prueba:
             flash("Error al crear la prueba.", "error")
             reactivos = obtener_todos_los_reactivos()
@@ -2828,7 +2894,7 @@ def add_prueba():
         prueba_id = nueva_prueba[0]['id']
 
         # Asignar reactivos
-        if reactivos_ids:
+        if procesamiento_config["procesamiento"] == "interno" and reactivos_ids:
             asignar_reactivos_a_prueba(prueba_id, reactivos_ids)
 
         if valores_normales:
@@ -2853,6 +2919,7 @@ def add_prueba():
         'admin/add_prueba.html',
         is_edit=False,
         reactivos=reactivos,
+        proveedores_servicio=obtener_proveedores_servicio(),
         prueba={'valores_normales': []}
     )
 
@@ -2878,6 +2945,11 @@ def edit_prueba(prueba_id):
 
         element_errors = validate_clinical_test_elements(valores_normales)
         reactivos_validos, reactivos_error = validar_reactivos_para_prueba(reactivos_ids)
+        try:
+            procesamiento_config = _configuracion_procesamiento_prueba(request.form)
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for('app_routes.edit_prueba', prueba_id=prueba_id))
 
         # Validación básica antes de modificar registros existentes.
         if not nombre or not tipo or not precio:
@@ -2886,15 +2958,18 @@ def edit_prueba(prueba_id):
         if element_errors:
             flash(element_errors[0], "error")
             return redirect(url_for('app_routes.edit_prueba', prueba_id=prueba_id))
-        if not reactivos_validos:
+        if procesamiento_config["procesamiento"] == "interno" and not reactivos_validos:
             flash(reactivos_error, "error")
             return redirect(url_for('app_routes.edit_prueba', prueba_id=prueba_id))
 
         # Actualizar prueba básica
-        actualizar_prueba(prueba_id, nombre, tipo, precio)  # Ahora pasamos el precio
+        actualizar_prueba(prueba_id, nombre, tipo, precio, procesamiento_config)
 
         # Actualizar reactivos
-        actualizar_reactivos_de_prueba(prueba_id, reactivos_ids)
+        actualizar_reactivos_de_prueba(
+            prueba_id,
+            reactivos_ids if procesamiento_config["procesamiento"] == "interno" else [],
+        )
 
         # Eliminar valores normales antiguos y agregar los nuevos
         eliminar_valores_normales_de_prueba(prueba_id)
@@ -2928,7 +3003,8 @@ def edit_prueba(prueba_id):
         'admin/add_prueba.html',
         is_edit=True,
         prueba=prueba,  # Incluye los valores normales y reactivos asociados
-        reactivos=reactivos
+        reactivos=reactivos,
+        proveedores_servicio=obtener_proveedores_servicio(),
     )
 
 # Eliminar (desactivar) prueba clínica
@@ -3571,6 +3647,7 @@ def reporte():
             total_abonos=total_abonos,
             total_restante=total_restante,
             folio_sugerido=folio_sugerido,
+            embedded_form=request.args.get("embedded") == "1",
         )
 
     # ---------------------------------
@@ -3923,6 +4000,71 @@ def entregar_resultado(orden_id):
     return redirect(url_for("app_routes.listos"))
 
 
+@app_routes.route("/api/resultados/<int:orden_id>/finalizar-entrega", methods=["POST"])
+@require_role("Mostrador")
+def finalizar_entrega_resultado_api(orden_id):
+    payload = request.get_json(silent=True) or {}
+    medio = (payload.get("medio_entrega") or "").strip().lower()
+    if medio not in {"whatsapp", "impreso", "correo", "directo", "otro"}:
+        return jsonify({"ok": False, "error": "Selecciona un medio de entrega válido."}), 400
+    try:
+        settings = obtener_configuracion_sistema()
+        balance = obtener_saldo_orden(orden_id)
+        if balance is None:
+            return jsonify({"ok": False, "error": "No se encontró la orden."}), 404
+        authorizer = None
+        if balance["saldo"] > 0.009 and not settings["mostrador_entrega_saldo_pendiente"]:
+            authorizer = verificar_autorizador_admin(
+                payload.get("admin_username"), payload.get("admin_password")
+            )
+            if not authorizer:
+                return jsonify({
+                    "ok": False,
+                    "requires_override": True,
+                    "saldo": balance["saldo"],
+                    "error": "La orden tiene saldo pendiente. Ingresa la autorización de un administrador para finalizarla.",
+                }), 403
+        if not finalizar_entrega_resultado(orden_id, session.get("user_id"), medio):
+            raise ValueError("La orden no pudo cambiar a estado entregado.")
+        registrar_comunicacion_resultado(
+            orden_id,
+            session.get("user_id"),
+            "finalizacion",
+            medio,
+            balance["saldo"],
+            f"Orden #{orden_id:04d} finalizada por {medio}. Saldo al finalizar: ${balance['saldo']:.2f}.",
+        )
+        if authorizer:
+            registrar_excepcion_sistema(
+                "entregar_resultado_con_saldo",
+                f"Se autorizó finalizar la orden #{orden_id:04d} con saldo de ${balance['saldo']:.2f}.",
+                authorizer, override_requester(),
+            )
+        return jsonify({"ok": True, "message": f"Orden #{orden_id:04d} finalizada correctamente."})
+    except Exception as exc:
+        logger.exception("No se pudo finalizar la entrega de la orden %s", orden_id)
+        return jsonify({"ok": False, "error": str(exc) or "No se pudo finalizar la orden."}), 400
+
+
+@app_routes.route("/resultados/<int:orden_id>/comunicacion", methods=["POST"])
+@require_role("Mostrador")
+def registrar_comunicacion_resultado_route(orden_id):
+    payload = request.get_json(silent=True) or {}
+    accion = (payload.get("accion") or "").strip().lower()
+    medio = (payload.get("medio") or "whatsapp").strip().lower()
+    if accion not in {"aviso", "envio_pdf"} or medio not in {"whatsapp", "correo", "otro"}:
+        return jsonify({"ok": False, "error": "La acción de comunicación no es válida."}), 400
+    balance = obtener_saldo_orden(orden_id)
+    if balance is None:
+        return jsonify({"ok": False, "error": "No se encontró la orden."}), 404
+    audited = registrar_comunicacion_resultado(
+        orden_id, session.get("user_id"), accion, medio, balance["saldo"]
+    )
+    if not audited:
+        return jsonify({"ok": False, "error": "No se pudo guardar la acción en el backlog."}), 503
+    return jsonify({"ok": True, "saldo": balance["saldo"]})
+
+
 # Enfermero
 @app_routes.route("/muestra")
 @require_role("Enfermero")
@@ -3962,6 +4104,8 @@ def get_analisis(orden_id):
 def api_finalizar_muestra(orden_id):
     try:
         ok = finalizar_muestras_orden(orden_id, session.get("user_id"))
+        if ok:
+            marcar_estudios_externos_listos(orden_id, session.get("user_id"))
         return jsonify({"ok": bool(ok)})
     except Exception as exc:
         logger.exception("No se pudieron finalizar las muestras de la orden %s", orden_id)
@@ -3980,6 +4124,7 @@ def api_requisitos_muestra(orden_id):
         return jsonify({
             "ok": True,
             "muestras": muestras,
+            "estudios_externos": listar_estudios_externos(orden_id=orden_id),
             "completa": bool(muestras) and all(
                 item.get("recolectada") for item in muestras
             ),
@@ -4021,6 +4166,142 @@ def api_actualizar_requisito_muestra(orden_id):
             "ok": False,
             "error": "No se pudo guardar el estado de la muestra.",
         }), 400
+
+
+EXTERNAL_RESULTS_BUCKET = os.getenv("SUPABASE_EXTERNAL_RESULTS_BUCKET", "resultados_externos")
+EXTERNAL_RESULT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "webp"}
+EXTERNAL_RESULT_MAX_BYTES = 8 * 1024 * 1024
+
+
+@app_routes.route("/quimico/estudios-externos")
+@require_role("Quimico")
+def estudios_externos():
+    estudios = listar_estudios_externos()
+    resumen = {
+        "listos": sum(item.get("estado") == "listo_envio" for item in estudios),
+        "en_transito": sum(item.get("estado") in {"enviado", "recibido_proveedor"} for item in estudios),
+        "por_validar": sum(item.get("estado") == "resultado_recibido" for item in estudios),
+        "atrasados": sum(
+            item.get("estado") in {"enviado", "recibido_proveedor"}
+            and item.get("fecha_prometida")
+            and str(item["fecha_prometida"]) < datetime.now().date().isoformat()
+            for item in estudios
+        ),
+    }
+    return render_template(
+        "quimico/estudios_externos.html", estudios=estudios, resumen=resumen
+    )
+
+
+@app_routes.route("/api/estudios-externos/envios", methods=["POST"])
+@require_role("Quimico")
+def api_crear_envio_externo():
+    payload = request.get_json(silent=True) or {}
+    try:
+        envio = crear_envio_proveedor(
+            payload.get("estudio_ids"), session.get("user_id"),
+            payload.get("mensajeria"), payload.get("numero_guia"),
+            payload.get("fecha_prometida"), payload.get("observaciones"),
+        )
+        return jsonify({
+            "ok": True, "envio": envio,
+            "manifest_url": url_for("app_routes.manifiesto_envio_externo", envio_id=envio["id"]),
+        })
+    except Exception as exc:
+        logger.exception("No se pudo crear el envío externo")
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+@app_routes.route("/api/estudios-externos/<int:estudio_id>/estado", methods=["POST"])
+@require_role("Quimico")
+def api_estado_estudio_externo(estudio_id):
+    payload = request.get_json(silent=True) or request.form
+    try:
+        estudio = actualizar_estado_estudio_externo(
+            estudio_id, payload.get("estado"), session.get("user_id"),
+            payload.get("referencia_proveedor"), payload.get("observaciones"),
+        )
+        if not estudio:
+            raise ValueError("No se encontró el estudio externo.")
+        return jsonify({"ok": True, "estudio": estudio})
+    except Exception as exc:
+        logger.exception("No se pudo actualizar el estudio externo %s", estudio_id)
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+@app_routes.route("/estudios-externos/<int:estudio_id>/resultado", methods=["POST"])
+@require_role("Quimico")
+def subir_resultado_externo(estudio_id):
+    upload = request.files.get("documento")
+    extension = (
+        upload.filename.rsplit(".", 1)[-1].lower()
+        if upload and upload.filename and "." in upload.filename else ""
+    )
+    if extension not in EXTERNAL_RESULT_EXTENSIONS:
+        return jsonify({"ok": False, "error": "Adjunta un PDF, JPG, PNG o WEBP."}), 400
+    content = upload.read(EXTERNAL_RESULT_MAX_BYTES + 1)
+    if not content or len(content) > EXTERNAL_RESULT_MAX_BYTES:
+        return jsonify({"ok": False, "error": "El archivo debe pesar menos de 8 MB."}), 400
+    valid_signature = (
+        (extension == "pdf" and content.startswith(b"%PDF"))
+        or (extension in {"jpg", "jpeg"} and content.startswith(b"\xff\xd8\xff"))
+        or (extension == "png" and content.startswith(b"\x89PNG\r\n\x1a\n"))
+        or (extension == "webp" and len(content) > 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP")
+    )
+    if not valid_signature:
+        return jsonify({"ok": False, "error": "El contenido del archivo no es válido."}), 400
+    path = f"provider-results/{estudio_id}/{uuid.uuid4().hex}.{extension}"
+    try:
+        supabase_storage.storage.from_(EXTERNAL_RESULTS_BUCKET).upload(
+            path, content,
+            {"content-type": upload.mimetype or "application/octet-stream", "cache-control": "3600"},
+        )
+        now = datetime.utcnow().isoformat()
+        response = (
+            supabase_storage.table("estudios_externos")
+            .update({
+                "documento_resultado_path": path,
+                "estado": "resultado_recibido",
+                "resultado_recibido_en": now,
+                "actualizado_en": now,
+                "actualizado_por_usuario_id": session.get("user_id"),
+                "referencia_proveedor": (request.form.get("referencia_proveedor") or "").strip() or None,
+                "observaciones": (request.form.get("observaciones") or "").strip() or None,
+            }).eq("id", estudio_id).execute()
+        )
+        if not response.data:
+            raise ValueError("No se encontró el estudio externo.")
+        return jsonify({"ok": True})
+    except Exception as exc:
+        logger.exception("No se pudo almacenar el resultado externo")
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+@app_routes.route("/estudios-externos/<int:estudio_id>/documento")
+@require_role("Quimico")
+def documento_resultado_externo(estudio_id):
+    rows = listar_estudios_externos()
+    estudio = next((item for item in rows if int(item["id"]) == estudio_id), None)
+    if not estudio or not estudio.get("documento_resultado_path"):
+        abort(404)
+    signed = supabase_storage.storage.from_(EXTERNAL_RESULTS_BUCKET).create_signed_url(
+        estudio["documento_resultado_path"], 300
+    )
+    target = signed if isinstance(signed, str) else (
+        signed.get("signedURL") or signed.get("signedUrl") or signed.get("url")
+    )
+    if not target:
+        abort(404)
+    return redirect(target)
+
+
+@app_routes.route("/quimico/envios-externos/<int:envio_id>/manifiesto")
+@require_role("Quimico")
+def manifiesto_envio_externo(envio_id):
+    envio = obtener_envio_proveedor(envio_id)
+    if not envio:
+        abort(404)
+    return render_template("quimico/manifiesto_envio_externo.html", envio=envio)
 
 
 @app_routes.route("/enfermero/etiquetas")
@@ -4278,6 +4559,15 @@ def api_ejecutar_resultado():
         )
         if not estudio:
             return jsonify({"ok": False, "error": "El estudio no pertenece a la orden."}), 404
+        externo = next((
+            item for item in listar_estudios_externos(orden_id=orden_id)
+            if int(item.get("orden_detalle_id") or 0) == detalle_id
+        ), None)
+        if externo and externo.get("estado") not in {"resultado_recibido", "validado"}:
+            return jsonify({
+                "ok": False,
+                "error": "Primero registra la recepciÃ³n del resultado enviado por el proveedor.",
+            }), 409
 
         valores_entrada = payload.get("valores") or {}
         verificaciones_entrada = payload.get("verificaciones") or {}
@@ -4489,6 +4779,7 @@ def finalizar_resultados():
     try:
         orden_id = int(payload.get("orden_id"))
         finalizar_resultados_orden(orden_id, session.get("user_id"))
+        validar_estudios_externos_orden(orden_id, session.get("user_id"))
         return jsonify({
             "ok": True,
             "message": "Resultados finalizados y enviados a mostrador.",
@@ -4564,7 +4855,123 @@ def imprimir_resultados_laboratorio(orden_id):
         estudios=estudios_impresos,
         firma=firma,
         fecha_impresion=datetime.now().strftime("%d/%m/%Y %H:%M"),
+        embedded_form=request.args.get("embedded") == "1",
     )
+
+
+@app_routes.route("/resultados/<int:orden_id>/pdf")
+@require_role("Mostrador, Quimico")
+def pdf_resultados_laboratorio(orden_id):
+    try:
+        captura = obtener_captura_resultados(orden_id) or {}
+        if not captura:
+            abort(404)
+        firma = obtener_firma_resultado(orden_id) or {}
+        paciente = captura.get("paciente") or {}
+        orden = captura.get("orden") or {}
+        estudios = []
+        for estudio in captura.get("estudios") or []:
+            ejecuciones = estudio.get("ejecuciones") or []
+            if not ejecuciones:
+                continue
+            latest = ejecuciones[0]
+            resultados = []
+            for elemento in estudio.get("elementos") or []:
+                key = str(elemento.get("id"))
+                evaluation = (latest.get("evaluaciones") or {}).get(key) or {}
+                resultados.append({
+                    "nombre": elemento.get("nombre") or "Elemento",
+                    "valor": (latest.get("valores") or {}).get(key) or "--",
+                    "unidad": evaluation.get("unidad") or "",
+                    "referencia": evaluation.get("referencia") or "Sin referencia",
+                    "estado": evaluation.get("estado") or "sin_referencia",
+                    "verificado": evaluation.get("verificado") is True,
+                })
+            estudios.append({"nombre": estudio.get("nombre_prueba") or "Estudio", "resultados": resultados})
+        if not estudios:
+            return jsonify({"ok": False, "error": "La orden no tiene resultados terminados."}), 404
+
+        buffer = BytesIO()
+        document = SimpleDocTemplate(
+            buffer, pagesize=letter, rightMargin=15 * mm, leftMargin=15 * mm,
+            topMargin=14 * mm, bottomMargin=14 * mm,
+            title=f"Resultados orden {orden_id:04d}",
+        )
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            "ResultTitle", parent=styles["Title"], fontName="Helvetica-Bold",
+            fontSize=18, leading=22, textColor=colors.HexColor("#0b1f33"),
+            alignment=TA_CENTER,
+        )
+        small_style = ParagraphStyle(
+            "ResultSmall", parent=styles["BodyText"], fontSize=8.5, leading=11,
+            textColor=colors.HexColor("#526273"),
+        )
+        story = [Paragraph("REPORTE DE RESULTADOS", title_style), Spacer(1, 4 * mm)]
+        patient_name = " ".join(filter(None, [paciente.get("nombres"), paciente.get("apellidos")])) or "Paciente"
+        info = Table([
+            ["Paciente", patient_name, "Orden", f"#{orden_id:04d}"],
+            ["Fecha", datetime.now().strftime("%d/%m/%Y %H:%M"), "Sexo", paciente.get("sexo") or "No registrado"],
+        ], colWidths=[24 * mm, 72 * mm, 20 * mm, 58 * mm])
+        info.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f4f7fa")),
+            ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#0b1f33")),
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#dbe2ea")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("PADDING", (0, 0), (-1, -1), 7),
+        ]))
+        story.extend([info, Spacer(1, 7 * mm)])
+        for estudio in estudios:
+            story.append(Paragraph(escape(estudio["nombre"]), styles["Heading2"]))
+            rows = [["Elemento", "Resultado", "Referencia", "Evaluacion"]]
+            for item in estudio["resultados"]:
+                status = {
+                    "normal": "Normal", "alto": "Alto", "bajo": "Bajo",
+                    "fuera": "Fuera de rango",
+                }.get(item["estado"], "Sin referencia")
+                if item["verificado"]:
+                    status += " - VERIFICADO"
+                rows.append([
+                    item["nombre"], f"{item['valor']} {item['unidad']}".strip(),
+                    item["referencia"], status,
+                ])
+            table = Table(rows, repeatRows=1, colWidths=[47 * mm, 42 * mm, 54 * mm, 37 * mm])
+            table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0b1f33")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+                ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#dbe2ea")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("PADDING", (0, 0), (-1, -1), 6),
+            ]))
+            story.extend([table, Spacer(1, 6 * mm)])
+        story.append(Spacer(1, 12 * mm))
+        if firma.get("nombre"):
+            story.append(Paragraph(escape(firma["nombre"]), ParagraphStyle(
+                "Signature", parent=small_style, alignment=TA_CENTER,
+                fontName="Helvetica-Bold", fontSize=10,
+            )))
+            story.append(Paragraph(
+                escape(f"Cedula profesional {firma.get('cedula') or 'no registrada'}"),
+                ParagraphStyle("SignatureMeta", parent=small_style, alignment=TA_CENTER),
+            ))
+        document.build(story)
+        buffer.seek(0)
+        normalized = unicodedata.normalize("NFKD", patient_name).encode("ascii", "ignore").decode("ascii")
+        slug = re.sub(r"[^a-zA-Z0-9]+", "-", normalized).strip("-").lower() or "paciente"
+        return send_file(
+            buffer, mimetype="application/pdf",
+            as_attachment=request.args.get("download") == "1",
+            download_name=f"resultados-{slug}-orden-{orden_id:04d}.pdf",
+        )
+    except Exception:
+        logger.exception("No se pudo generar el PDF de resultados de la orden %s", orden_id)
+        return jsonify({"ok": False, "error": "No se pudo generar el PDF de resultados."}), 500
 
 
 @app_routes.route('/mostrar_resultados', methods=['GET'])

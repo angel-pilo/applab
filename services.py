@@ -1,7 +1,7 @@
 import bcrypt
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from supabase_client import supabase, supabase_admin, supabase_storage
 
 
@@ -1028,6 +1028,23 @@ def obtener_proveedores():
         print(f"Error al obtener proveedores: {e}")
         return []
 
+
+def obtener_proveedores_servicio(solo_activos=True):
+    """Devuelve proveedores habilitados para procesar pruebas de referencia."""
+    try:
+        query = (
+            supabase_admin.table("proveedores")
+            .select("id,nombre,tipo,telefono,correo,activo")
+            .eq("tipo", "servicio")
+        )
+        if solo_activos:
+            query = query.eq("activo", True)
+        response = query.order("nombre").execute()
+        return response.data or []
+    except Exception:
+        logger.exception("No se pudieron consultar los proveedores de servicio")
+        return []
+
 # Obtener proveedor por ID
 def obtener_proveedor_por_id(proveedor_id):
     try:
@@ -1249,7 +1266,7 @@ def obtener_movimientos_inventario(limit=20):
     except Exception:
         return []
 
-def crear_prueba(nombre, tipo, precio):
+def crear_prueba(nombre, tipo, precio, configuracion=None):
     """Crea una nueva prueba clínica con el precio."""
     try:
         data = {
@@ -1258,6 +1275,8 @@ def crear_prueba(nombre, tipo, precio):
             "precio": precio,  # Agregar el precio aquí
             "activo": True
         }
+        if configuracion:
+            data.update(configuracion)
         response = supabase.table('pruebas_clinicas').insert(data).execute()
 
         if hasattr(response, 'error') and response.error:
@@ -1312,6 +1331,17 @@ def obtener_pruebas():
         )
 
         pruebas_data = response.data or []
+        proveedor_ids = {
+            int(item["proveedor_servicio_id"])
+            for item in pruebas_data if item.get("proveedor_servicio_id")
+        }
+        proveedores = {}
+        if proveedor_ids:
+            proveedor_rows = (
+                supabase_admin.table("proveedores").select("id,nombre")
+                .in_("id", sorted(proveedor_ids)).execute()
+            ).data or []
+            proveedores = {int(item["id"]): item["nombre"] for item in proveedor_rows}
 
         # Para cada prueba, traer sus reactivos (opcional)
         for prueba in pruebas_data:
@@ -1333,6 +1363,9 @@ def obtener_pruebas():
             except Exception as e:
                 print(f"Error al obtener reactivos para prueba {prueba['id']}: {e}")
                 prueba["reactivos"] = []
+            prueba["nombre_proveedor"] = proveedores.get(
+                int(prueba.get("proveedor_servicio_id") or 0)
+            )
 
         return pruebas_data
 
@@ -1383,7 +1416,7 @@ def obtener_prueba_por_id(prueba_id):
         return None
 
 
-def actualizar_prueba(prueba_id, nombre, tipo, precio):
+def actualizar_prueba(prueba_id, nombre, tipo, precio, configuracion=None):
     """Actualiza los datos básicos de una prueba clínica, incluyendo el precio."""
     try:
         data = {
@@ -1391,6 +1424,8 @@ def actualizar_prueba(prueba_id, nombre, tipo, precio):
             "tipo": tipo,
             "precio": precio,  # Actualizar el precio
         }
+        if configuracion:
+            data.update(configuracion)
         response = supabase.table('pruebas_clinicas').update(data).eq('id', prueba_id).execute()
 
         if hasattr(response, 'error') and response.error:
@@ -2257,6 +2292,266 @@ def finalizar_muestras_orden(orden_id, usuario_id):
         {"p_orden_id": int(orden_id), "p_usuario_id": int(usuario_id)},
     ).execute()
     return bool(response.data)
+
+
+def registrar_comunicacion_resultado(orden_id, usuario_id, accion, medio,
+                                     saldo=0, detalle=None):
+    """Audita avisos y envíos digitales sin guardar datos sensibles del archivo."""
+    try:
+        actor = {}
+        if usuario_id:
+            user_rows = (
+                supabase_admin.table("usuarios").select("id,username")
+                .eq("id", int(usuario_id)).limit(1).execute()
+            ).data or []
+            employee_rows = (
+                supabase_admin.table("empleados").select("id,nombres,apellidos")
+                .eq("usuario_id", int(usuario_id)).limit(1).execute()
+            ).data or []
+            user = user_rows[0] if user_rows else {}
+            employee = employee_rows[0] if employee_rows else {}
+            actor = {
+                "empleado_id": employee.get("id"),
+                "username": user.get("username"),
+                "nombre": " ".join(filter(None, [
+                    employee.get("nombres"), employee.get("apellidos")
+                ])),
+            }
+        titles = {
+            "aviso": "Paciente notificado de resultados listos",
+            "envio_pdf": "Resultado PDF compartido con el paciente",
+            "finalizacion": "Entrega de resultados finalizada",
+        }
+        supabase_storage.table("bitacora_eventos").insert({
+            "modulo": "Mostrador",
+            "accion": str(accion),
+            "severidad": "warning" if float(saldo or 0) > 0.009 else "info",
+            "titulo": titles.get(str(accion), "Resultado comunicado al paciente"),
+            "detalle": detalle or (
+                f"Orden #{int(orden_id):04d}: {accion} por {medio}. "
+                f"Saldo al momento: ${float(saldo or 0):.2f}."
+            ),
+            "entidad_tipo": "ordenes",
+            "entidad_id": str(int(orden_id)),
+            "actor_usuario_id": usuario_id,
+            "actor_empleado_id": actor.get("empleado_id"),
+            "actor_username": actor.get("username"),
+            "actor_nombre": actor.get("nombre"),
+            "metadata": {
+                "orden_id": int(orden_id), "accion": str(accion),
+                "medio": str(medio), "saldo": float(saldo or 0),
+            },
+        }).execute()
+        return True
+    except Exception:
+        logger.exception("No se pudo auditar la comunicación de la orden %s", orden_id)
+        return False
+
+
+ESTADOS_EXTERNOS_ACTIVOS = (
+    "muestra_pendiente", "listo_envio", "enviado", "recibido_proveedor",
+    "resultado_recibido", "rechazado", "requiere_nueva_muestra",
+)
+
+
+def _hidratar_estudios_externos(rows):
+    """Agrega nombres sin depender de relaciones embebidas de PostgREST."""
+    rows = [dict(row) for row in (rows or [])]
+    if not rows:
+        return []
+
+    def indexed(table, ids, columns):
+        ids = sorted({int(value) for value in ids if value is not None})
+        if not ids:
+            return {}
+        response = supabase_admin.table(table).select(columns).in_("id", ids).execute()
+        return {int(item["id"]): item for item in (response.data or [])}
+
+    detalles = indexed(
+        "orden_pruebas_detalle", (r.get("orden_detalle_id") for r in rows),
+        "id,nombre_prueba,tipo_prueba",
+    )
+    ordenes = indexed(
+        "ordenes", (r.get("orden_id") for r in rows),
+        "id,paciente_id,creado_en,cuarto",
+    )
+    proveedores = indexed(
+        "proveedores", (r.get("proveedor_id") for r in rows),
+        "id,nombre,telefono,correo,calle,numero_ext,numero_int,codigo_postal,municipio,estado",
+    )
+    pacientes = indexed(
+        "pacientes", (o.get("paciente_id") for o in ordenes.values()),
+        "id,nombres,apellidos,telefono,fecha_nacimiento,sexo",
+    )
+    for row in rows:
+        detalle = detalles.get(int(row.get("orden_detalle_id") or 0), {})
+        orden = ordenes.get(int(row.get("orden_id") or 0), {})
+        paciente = pacientes.get(int(orden.get("paciente_id") or 0), {})
+        proveedor = proveedores.get(int(row.get("proveedor_id") or 0), {})
+        row["nombre_prueba"] = detalle.get("nombre_prueba") or "Prueba externa"
+        row["tipo_prueba"] = detalle.get("tipo_prueba") or ""
+        row["nombre_paciente"] = " ".join(filter(None, (
+            paciente.get("nombres"), paciente.get("apellidos")
+        ))) or "Paciente desconocido"
+        row["paciente"] = paciente
+        row["proveedor"] = proveedor
+        row["nombre_proveedor"] = proveedor.get("nombre") or "Proveedor sin nombre"
+        row["orden_creada_en"] = orden.get("creado_en")
+    return rows
+
+
+def listar_estudios_externos(estados=None, orden_id=None):
+    try:
+        query = supabase_admin.table("estudios_externos").select("*")
+        if estados:
+            query = query.in_("estado", list(estados))
+        if orden_id is not None:
+            query = query.eq("orden_id", int(orden_id))
+        response = query.order("creado_en", desc=True).execute()
+        return _hidratar_estudios_externos(response.data or [])
+    except Exception:
+        logger.exception("No se pudieron consultar los estudios externos")
+        return []
+
+
+def marcar_estudios_externos_listos(orden_id, usuario_id):
+    """Enfermería libera las pruebas externas al completar todas las muestras."""
+    now = datetime.utcnow().isoformat()
+    try:
+        response = (
+            supabase_admin.table("estudios_externos")
+            .update({
+                "estado": "listo_envio",
+                "listo_envio_en": now,
+                "actualizado_en": now,
+                "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
+            })
+            .eq("orden_id", int(orden_id))
+            .in_("estado", ["muestra_pendiente", "requiere_nueva_muestra"])
+            .execute()
+        )
+        return response.data or []
+    except Exception:
+        logger.exception("No se pudieron liberar los estudios externos de la orden")
+        return []
+
+
+def crear_envio_proveedor(estudio_ids, usuario_id, mensajeria=None,
+                          numero_guia=None, fecha_prometida=None,
+                          observaciones=None):
+    ids = sorted({int(item) for item in estudio_ids or []})
+    if not ids:
+        raise ValueError("Selecciona al menos un estudio para el envío.")
+    estudios = listar_estudios_externos(estados=["listo_envio"], orden_id=None)
+    estudios = [item for item in estudios if int(item["id"]) in ids]
+    if len(estudios) != len(ids):
+        raise ValueError("Uno o más estudios ya no están listos para envío.")
+    proveedores = {int(item["proveedor_id"]) for item in estudios}
+    if len(proveedores) != 1:
+        raise ValueError("Cada envío debe contener estudios de un solo proveedor.")
+
+    proveedor_id = proveedores.pop()
+    if not fecha_prometida:
+        dias = max(int(item.get("tiempo_entrega_dias") or 0) for item in estudios)
+        fecha_prometida = (datetime.utcnow().date() + timedelta(days=dias)).isoformat()
+    now = datetime.utcnow().isoformat()
+    envio_data = {
+        "proveedor_id": proveedor_id,
+        "estado": "enviado",
+        "mensajeria": (mensajeria or "").strip() or None,
+        "numero_guia": (numero_guia or "").strip() or None,
+        "fecha_prometida": fecha_prometida,
+        "enviado_en": now,
+        "observaciones": (observaciones or "").strip() or None,
+        "creado_por_usuario_id": int(usuario_id) if usuario_id else None,
+    }
+    envio = supabase_admin.table("envios_proveedor").insert(envio_data).execute().data[0]
+    try:
+        supabase_admin.table("envios_proveedor_detalle").insert([
+            {"envio_id": envio["id"], "estudio_externo_id": item_id}
+            for item_id in ids
+        ]).execute()
+        supabase_admin.table("estudios_externos").update({
+            "estado": "enviado", "enviado_en": now,
+            "fecha_prometida": fecha_prometida, "actualizado_en": now,
+            "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
+        }).in_("id", ids).execute()
+    except Exception:
+        supabase_admin.table("envios_proveedor").delete().eq("id", envio["id"]).execute()
+        raise
+    return envio
+
+
+def actualizar_estado_estudio_externo(estudio_id, estado, usuario_id,
+                                      referencia=None, observaciones=None):
+    permitidos = {
+        "recibido_proveedor", "resultado_recibido", "validado", "rechazado",
+        "requiere_nueva_muestra", "cancelado",
+    }
+    if estado not in permitidos:
+        raise ValueError("Estado de estudio externo no permitido.")
+    now = datetime.utcnow().isoformat()
+    data = {
+        "estado": estado, "actualizado_en": now,
+        "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
+    }
+    timestamp_fields = {
+        "recibido_proveedor": "recibido_proveedor_en",
+        "resultado_recibido": "resultado_recibido_en",
+        "validado": "validado_en",
+    }
+    if estado in timestamp_fields:
+        data[timestamp_fields[estado]] = now
+    if referencia is not None:
+        data["referencia_proveedor"] = (referencia or "").strip() or None
+    if observaciones is not None:
+        data["observaciones"] = (observaciones or "").strip() or None
+    response = (
+        supabase_admin.table("estudios_externos").update(data)
+        .eq("id", int(estudio_id)).execute()
+    )
+    return response.data[0] if response.data else None
+
+
+def validar_estudios_externos_orden(orden_id, usuario_id):
+    now = datetime.utcnow().isoformat()
+    try:
+        response = (
+            supabase_admin.table("estudios_externos")
+            .update({
+                "estado": "validado", "validado_en": now,
+                "actualizado_en": now,
+                "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
+            })
+            .eq("orden_id", int(orden_id))
+            .eq("estado", "resultado_recibido").execute()
+        )
+        return response.data or []
+    except Exception:
+        logger.exception("No se pudieron validar los estudios externos de la orden")
+        return []
+
+
+def obtener_envio_proveedor(envio_id):
+    response = (
+        supabase_admin.table("envios_proveedor").select("*")
+        .eq("id", int(envio_id)).limit(1).execute()
+    )
+    if not response.data:
+        return None
+    envio = dict(response.data[0])
+    detalles = (
+        supabase_admin.table("envios_proveedor_detalle")
+        .select("estudio_externo_id").eq("envio_id", int(envio_id)).execute()
+    ).data or []
+    ids = [item["estudio_externo_id"] for item in detalles]
+    estudios = listar_estudios_externos()
+    envio["estudios"] = [item for item in estudios if item["id"] in ids]
+    proveedores = obtener_proveedores()
+    envio["proveedor"] = next(
+        (item for item in proveedores if item["id"] == envio["proveedor_id"]), {}
+    )
+    return envio
 
 
 def obtener_configuracion_etiquetas():

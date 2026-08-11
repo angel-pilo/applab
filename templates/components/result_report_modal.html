@@ -1,0 +1,47 @@
+<div id="result-report-modal" class="fixed inset-0 z-[10000] hidden" role="dialog" aria-modal="true" aria-labelledby="result-report-title">
+  <button type="button" data-close-result-report class="absolute inset-0 bg-slate-950/60 backdrop-blur-[1px]" aria-label="Cerrar reporte"></button>
+  <section class="absolute left-1/2 top-1/2 flex h-[calc(100dvh-1.25rem)] w-[calc(100%-1.25rem)] max-w-6xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:h-[calc(100dvh-2rem)] sm:w-[calc(100%-2rem)]">
+    <header class="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-cyan-700">Expediente clínico</p>
+        <h2 id="result-report-title" class="mt-0.5 font-bold text-gray-900">Resultado de laboratorio</h2>
+      </div>
+      <button type="button" data-close-result-report class="grid h-9 w-9 place-items-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+    </header>
+    <div id="result-report-loading" class="absolute inset-x-0 bottom-0 top-[65px] z-10 grid place-items-center bg-white text-sm text-gray-500">
+      <span><i class="fas fa-spinner fa-spin mr-2 text-cyan-700"></i>Cargando resultados...</span>
+    </div>
+    <iframe id="result-report-frame" title="Reporte de resultados" class="min-h-0 flex-1 border-0 bg-white"></iframe>
+  </section>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("result-report-modal");
+  const frame = document.getElementById("result-report-frame");
+  const loading = document.getElementById("result-report-loading");
+  const title = document.getElementById("result-report-title");
+  if (!modal || !frame || !loading || !title) return;
+
+  function closeReport() {
+    modal.classList.add("hidden");
+    document.body.classList.remove("overflow-hidden");
+    frame.src = "about:blank";
+  }
+
+  document.querySelectorAll("[data-report-url]").forEach(button => {
+    button.addEventListener("click", () => {
+      title.textContent = `Resultado de la orden #${String(button.dataset.reportOrder).padStart(4, "0")}`;
+      loading.classList.remove("hidden");
+      frame.src = button.dataset.reportUrl;
+      modal.classList.remove("hidden");
+      document.body.classList.add("overflow-hidden");
+    });
+  });
+  frame.addEventListener("load", () => loading.classList.add("hidden"));
+  document.querySelectorAll("[data-close-result-report]").forEach(button => button.addEventListener("click", closeReport));
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !modal.classList.contains("hidden")) closeReport();
+  });
+});
+</script>

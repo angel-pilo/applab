@@ -150,6 +150,32 @@ class ClinicalTestValidationTests(unittest.TestCase):
         }])
         self.assertEqual(errors, [])
 
+    def test_internal_test_does_not_require_external_provider(self):
+        config = routes._configuracion_procesamiento_prueba({
+            "procesamiento": "interno",
+        })
+        self.assertEqual(config["procesamiento"], "interno")
+        self.assertIsNone(config["proveedor_servicio_id"])
+
+    def test_external_test_requires_active_service_provider(self):
+        form = {
+            "procesamiento": "externo",
+            "proveedor_servicio_id": "7",
+            "tipo_muestra_externa": "Suero",
+            "recipiente_muestra": "Tubo rojo",
+            "conservacion_muestra": "Refrigerada",
+            "tiempo_entrega_dias": "3",
+            "costo_proveedor": "150.50",
+        }
+        with patch.object(
+            routes, "obtener_proveedores_servicio",
+            return_value=[{"id": 7, "nombre": "Referencia"}],
+        ):
+            config = routes._configuracion_procesamiento_prueba(form)
+        self.assertEqual(config["procesamiento"], "externo")
+        self.assertEqual(config["proveedor_servicio_id"], 7)
+        self.assertEqual(config["tiempo_entrega_dias"], 3)
+
 
 class SupabaseConfigurationTests(unittest.TestCase):
     def test_rest_endpoint_is_normalized_to_project_url(self):
