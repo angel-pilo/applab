@@ -1,12 +1,38 @@
 import bcrypt
 import logging
+import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from supabase_client import supabase, supabase_admin, supabase_storage
 
 
 logger = logging.getLogger(__name__)
 _LAB_IDENTITY_CACHE = {"value": None, "expires_at": 0.0}
+
+try:
+    _APP_UTC_OFFSET_HOURS = float(os.getenv("APP_UTC_OFFSET_HOURS", "-6"))
+except (TypeError, ValueError):
+    _APP_UTC_OFFSET_HOURS = -6.0
+APP_LOCAL_TIMEZONE = timezone(timedelta(hours=_APP_UTC_OFFSET_HOURS))
+
+
+def convertir_fecha_hora_local(value):
+    """Convierte timestamps de Supabase (UTC) a la hora local de AppLab."""
+    if value in (None, ""):
+        return ""
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        raw = str(value).strip()
+        if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+            return raw
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            return raw
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(APP_LOCAL_TIMEZONE).isoformat()
 
 DEFAULT_SYSTEM_SETTINGS = {
     "empleados_cambian_password": True,
@@ -104,7 +130,7 @@ def guardar_configuracion_sistema(settings, usuario_id):
     payload.update({
         "id": 1,
         "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
-        "actualizado_en": datetime.now().isoformat(),
+        "actualizado_en": datetime.now(timezone.utc).isoformat(),
     })
     response = supabase_admin.table("configuracion_sistema").upsert(
         payload, on_conflict="id"
@@ -127,7 +153,7 @@ def guardar_configuracion_recibos(settings, usuario_id):
         "id": 1,
         "recibo_configuracion": normalized,
         "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
-        "actualizado_en": datetime.now().isoformat(),
+        "actualizado_en": datetime.now(timezone.utc).isoformat(),
     }
     response = supabase_admin.table("configuracion_sistema").upsert(
         payload, on_conflict="id"
@@ -145,7 +171,7 @@ def guardar_configuracion_laboratorio(settings, usuario_id):
         "id": 1,
         "laboratorio_configuracion": normalized,
         "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
-        "actualizado_en": datetime.now().isoformat(),
+        "actualizado_en": datetime.now(timezone.utc).isoformat(),
     }
     try:
         response = supabase_admin.table("configuracion_sistema").upsert(
@@ -170,7 +196,7 @@ def guardar_configuracion_laboratorio(settings, usuario_id):
             "id": 1,
             "recibo_configuracion": current_receipt,
             "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
-            "actualizado_en": datetime.now().isoformat(),
+            "actualizado_en": datetime.now(timezone.utc).isoformat(),
         }
         response = supabase_admin.table("configuracion_sistema").upsert(
             fallback_payload, on_conflict="id"
@@ -191,57 +217,63 @@ def obtener_identidad_laboratorio():
     return identity
 
 
-def verificar_autorizador_admin(username, password):
-    """Valida un Admin o un perfil con permiso explícito de excepción."""
+def validar_autorizador_admin_detallado(username, password):
+    """Valida una excepción administrativa y devuelve un mensaje utilizable."""
     username = str(username or "").strip()
     password = str(password or "")
     if not username or not password:
-        return None
+        return None, "Escribe el usuario y la contraseña del administrador."
     try:
         user_response = (
-            supabase.table("usuarios")
+            supabase_admin.table("usuarios")
             .select("id,username,password,estado_usuario")
             .eq("username", username).limit(1).execute()
         )
         if not user_response.data:
-            return None
+            return None, "Usuario o contraseña incorrectos."
         user = user_response.data[0]
         if not user.get("estado_usuario") or not bcrypt.checkpw(
             password.encode("utf-8"), str(user.get("password") or "").encode("utf-8")
         ):
-            return None
+            return None, "Usuario o contraseña incorrectos."
         employee_response = (
-            supabase.table("empleados")
+            supabase_admin.table("empleados")
             .select("id,nombres,apellidos")
             .eq("usuario_id", user["id"]).limit(1).execute()
         )
         if not employee_response.data:
-            return None
+            return None, "El usuario es válido, pero no tiene un perfil de empleado asociado."
         employee = employee_response.data[0]
         role_response = (
-            supabase.table("empleado_roles").select("rol_id")
-            .eq("empleado_id", employee["id"]).limit(1).execute()
+            supabase_admin.table("empleado_roles").select("rol_id")
+            .eq("empleado_id", employee["id"]).execute()
         )
-        role_id = role_response.data[0].get("rol_id") if role_response.data else None
-        authorized = role_id == 1
-        if role_id == 5:
+        role_ids = {row.get("rol_id") for row in (role_response.data or [])}
+        authorized = 1 in role_ids
+        if not authorized and 5 in role_ids:
             permission_response = (
-                supabase.table("empleado_permisos").select("permiso_codigo")
+                supabase_admin.table("empleado_permisos").select("permiso_codigo")
                 .eq("empleado_id", employee["id"])
                 .eq("permiso_codigo", "admin.override").limit(1).execute()
             )
             authorized = bool(permission_response.data)
         if not authorized:
-            return None
+            return None, "El usuario es correcto, pero no tiene permiso para autorizar esta operación."
         return {
             "usuario_id": user["id"],
             "empleado_id": employee["id"],
             "username": user.get("username"),
             "nombre": f"{employee.get('nombres', '')} {employee.get('apellidos', '')}".strip(),
-        }
+        }, None
     except Exception:
         logger.exception("No se pudo validar al autorizador administrativo")
-        return None
+        return None, "No se pudieron validar las credenciales. Intenta nuevamente."
+
+
+def verificar_autorizador_admin(username, password):
+    """Compatibilidad para los formularios que solo requieren el autorizador."""
+    authorizer, _error = validar_autorizador_admin_detallado(username, password)
+    return authorizer
 
 
 def registrar_excepcion_sistema(accion, detalle, autorizador, solicitante=None):
@@ -249,7 +281,7 @@ def registrar_excepcion_sistema(accion, detalle, autorizador, solicitante=None):
     try:
         supabase_storage.table("bitacora_eventos").insert({
             "modulo": "Sistema",
-            "accion": "autorizar_excepcion",
+            "accion": "actualizar",
             "severidad": "warning",
             "titulo": "Excepción administrativa autorizada",
             "detalle": str(detalle),
@@ -259,7 +291,11 @@ def registrar_excepcion_sistema(accion, detalle, autorizador, solicitante=None):
             "actor_empleado_id": autorizador.get("empleado_id"),
             "actor_username": autorizador.get("username"),
             "actor_nombre": autorizador.get("nombre"),
-            "metadata": {"solicitante": solicitante or {}, "accion": accion},
+            "metadata": {
+                "solicitante": solicitante or {},
+                "accion_sistema": "autorizar_excepcion",
+                "excepcion": accion,
+            },
         }).execute()
         return True
     except Exception:
@@ -271,7 +307,7 @@ def registrar_cambio_politicas(settings, actor):
     try:
         supabase_storage.table("bitacora_eventos").insert({
             "modulo": "Sistema",
-            "accion": "actualizar_politicas",
+            "accion": "actualizar",
             "severidad": "info",
             "titulo": "Políticas del sistema actualizadas",
             "detalle": "Se modificaron las reglas globales de operación y seguridad.",
@@ -282,6 +318,7 @@ def registrar_cambio_politicas(settings, actor):
             "actor_username": actor.get("username"),
             "actor_nombre": actor.get("nombre"),
             "metadata": {
+                "accion_sistema": "actualizar_politicas",
                 "cambios": [
                     {"campo": key, "anterior": "—", "nuevo": value}
                     for key, value in settings.items()
@@ -2003,7 +2040,7 @@ def obtener_resultados_listos():
         balances = {}
         if order_ids:
             order_response = (
-                supabase.table("ordenes")
+                supabase_admin.table("ordenes")
                 .select("id,total_pruebas,total_abonos,estado")
                 .in_("id", order_ids).execute()
             )
@@ -2021,6 +2058,9 @@ def obtener_resultados_listos():
                 "total": 0.0, "pagado": 0.0, "saldo": 0.0,
                 "estado_pago": "pendiente",
             }))
+            item["actualizado_en_local"] = convertir_fecha_hora_local(
+                item.get("actualizado_en")
+            )
         return results
     except Exception:
         logger.exception("No se pudieron obtener los resultados listos")
@@ -2041,8 +2081,9 @@ def obtener_empleado_basico(empleado_id):
 
 
 def obtener_saldo_orden(orden_id):
+    """Consulta la orden desde el servidor, sin quedar bloqueado por RLS del cliente."""
     response = (
-        supabase.table("ordenes")
+        supabase_admin.table("ordenes")
         .select("id,total_pruebas,total_abonos,estado")
         .eq("id", int(orden_id)).limit(1).execute()
     )
@@ -2063,10 +2104,112 @@ def obtener_historial_resultados():
     """Resultados finalizados, pendientes de entrega y ya entregados."""
     try:
         response = supabase.rpc("listar_historial_resultados_app").execute()
-        return response.data if isinstance(response.data, list) else []
+        results = response.data if isinstance(response.data, list) else []
+        for item in results:
+            item["actualizado_en_local"] = convertir_fecha_hora_local(
+                item.get("actualizado_en")
+            )
+            item["entregado_en_local"] = convertir_fecha_hora_local(
+                item.get("entregado_en")
+            )
+            item["orden_creada_en_local"] = convertir_fecha_hora_local(
+                item.get("orden_creada_en")
+            )
+        return results
     except Exception:
         logger.exception("No se pudo obtener el historial de resultados")
         return []
+
+
+def obtener_historial_resultados_mostrador():
+    """Todos los resultados finalizados, con entrega, estudios y estado de cuenta."""
+    results = obtener_historial_resultados()
+    if not results:
+        return []
+
+    order_ids = sorted({
+        int(item["orden_id"])
+        for item in results
+        if item.get("orden_id") is not None
+    })
+    balances = {}
+    studies_by_order = {}
+
+    try:
+        response = (
+            supabase_admin.table("ordenes")
+            .select("id,total_pruebas,total_abonos,estado,creado_en")
+            .in_("id", order_ids)
+            .execute()
+        )
+        for order in response.data or []:
+            total = float(order.get("total_pruebas") or 0)
+            paid = float(order.get("total_abonos") or 0)
+            balance = max(total - paid, 0)
+            balances[int(order["id"])] = {
+                "total": total,
+                "pagado": paid,
+                "saldo": balance,
+                "estado_pago": "pagada" if balance <= 0.009 else "pendiente",
+                "fecha_orden": convertir_fecha_hora_local(order.get("creado_en"))[:10],
+            }
+    except Exception:
+        logger.exception("No se pudo enriquecer el estado de cuenta del historial de resultados")
+
+    try:
+        response = (
+            supabase_admin.table("orden_pruebas_detalle")
+            .select("orden_id,nombre_prueba,tipo_prueba,cantidad")
+            .in_("orden_id", order_ids)
+            .order("id", desc=False)
+            .execute()
+        )
+        for study in response.data or []:
+            order_id = int(study["orden_id"])
+            studies_by_order.setdefault(order_id, []).append({
+                "nombre": study.get("nombre_prueba") or "Estudio sin nombre",
+                "tipo": study.get("tipo_prueba") or "",
+                "cantidad": int(study.get("cantidad") or 1),
+            })
+    except Exception:
+        logger.exception("No se pudieron enriquecer los estudios del historial de resultados")
+
+    for item in results:
+        order_id = int(item["orden_id"])
+        item.update(balances.get(order_id, {
+            "total": 0.0,
+            "pagado": 0.0,
+            "saldo": 0.0,
+            "estado_pago": "pagada",
+            "fecha_orden": "",
+        }))
+        item["estudios"] = studies_by_order.get(order_id, [])
+        item["entregado"] = (
+            item.get("entregado") is True
+            or str(item.get("entregado") or "").strip().lower()
+            in {"true", "1", "t", "yes"}
+        )
+        item["estado_entrega"] = "entregado" if item["entregado"] else "pendiente"
+        item["fecha_resultado"] = (
+            item.get("actualizado_en_local")
+            or convertir_fecha_hora_local(item.get("actualizado_en"))
+        )
+        item["fecha_entrega"] = (
+            item.get("entregado_en_local")
+            or convertir_fecha_hora_local(item.get("entregado_en"))
+            if item["entregado"] else ""
+        )
+
+    results.sort(key=lambda item: item.get("fecha_resultado") or "", reverse=True)
+    return results
+
+
+def obtener_resultados_entregados():
+    """Compatibilidad: devuelve únicamente resultados ya entregados."""
+    return [
+        item for item in obtener_historial_resultados_mostrador()
+        if item.get("entregado") is True
+    ]
 
 
 def finalizar_entrega_resultado(orden_id, usuario_id, medio_entrega):
@@ -2322,13 +2465,16 @@ def registrar_comunicacion_resultado(orden_id, usuario_id, accion, medio,
             "envio_pdf": "Resultado PDF compartido con el paciente",
             "finalizacion": "Entrega de resultados finalizada",
         }
+        event_type = str(accion)
         supabase_storage.table("bitacora_eventos").insert({
             "modulo": "Mostrador",
-            "accion": str(accion),
+            # La tabla usa una nomenclatura cerrada para esta columna.
+            # El tipo operativo concreto se conserva en titulo y metadata.
+            "accion": "actualizar",
             "severidad": "warning" if float(saldo or 0) > 0.009 else "info",
-            "titulo": titles.get(str(accion), "Resultado comunicado al paciente"),
+            "titulo": titles.get(event_type, "Resultado comunicado al paciente"),
             "detalle": detalle or (
-                f"Orden #{int(orden_id):04d}: {accion} por {medio}. "
+                f"Orden #{int(orden_id):04d}: {event_type} por {medio}. "
                 f"Saldo al momento: ${float(saldo or 0):.2f}."
             ),
             "entidad_tipo": "ordenes",
@@ -2338,7 +2484,7 @@ def registrar_comunicacion_resultado(orden_id, usuario_id, accion, medio,
             "actor_username": actor.get("username"),
             "actor_nombre": actor.get("nombre"),
             "metadata": {
-                "orden_id": int(orden_id), "accion": str(accion),
+                "orden_id": int(orden_id), "accion_resultado": event_type,
                 "medio": str(medio), "saldo": float(saldo or 0),
             },
         }).execute()
@@ -2416,7 +2562,7 @@ def listar_estudios_externos(estados=None, orden_id=None):
 
 def marcar_estudios_externos_listos(orden_id, usuario_id):
     """Enfermería libera las pruebas externas al completar todas las muestras."""
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     try:
         response = (
             supabase_admin.table("estudios_externos")
@@ -2453,8 +2599,10 @@ def crear_envio_proveedor(estudio_ids, usuario_id, mensajeria=None,
     proveedor_id = proveedores.pop()
     if not fecha_prometida:
         dias = max(int(item.get("tiempo_entrega_dias") or 0) for item in estudios)
-        fecha_prometida = (datetime.utcnow().date() + timedelta(days=dias)).isoformat()
-    now = datetime.utcnow().isoformat()
+        fecha_prometida = (
+            datetime.now(APP_LOCAL_TIMEZONE).date() + timedelta(days=dias)
+        ).isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     envio_data = {
         "proveedor_id": proveedor_id,
         "estado": "enviado",
@@ -2490,7 +2638,7 @@ def actualizar_estado_estudio_externo(estudio_id, estado, usuario_id,
     }
     if estado not in permitidos:
         raise ValueError("Estado de estudio externo no permitido.")
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     data = {
         "estado": estado, "actualizado_en": now,
         "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
@@ -2514,7 +2662,7 @@ def actualizar_estado_estudio_externo(estudio_id, estado, usuario_id,
 
 
 def validar_estudios_externos_orden(orden_id, usuario_id):
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     try:
         response = (
             supabase_admin.table("estudios_externos")

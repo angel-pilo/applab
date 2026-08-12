@@ -9,7 +9,7 @@ from urllib.parse import unquote, urlparse
 from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for, jsonify, send_file
 from functools import wraps
 from services import *
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from reportlab.lib import colors
@@ -628,6 +628,44 @@ def cambiar_area(area):
     session["area_activa"] = workspace
     return redirect(url_for(endpoint))
 
+
+@app_routes.get("/admin/acceso/<area>/<destination>")
+@require_role("Admin")
+def admin_search_access(area, destination):
+    """Abre una acción de otra área conservando la identidad de Admin."""
+    destinations = {
+        "mostrador": {
+            "dashboard": "app_routes.mostrador_dashboard",
+            "nueva_orden": "app_routes.nueva_orden",
+            "resultados_listos": "app_routes.listos",
+            "historial_resultados": "app_routes.resultados_entregados",
+            "ordenes_recientes": "app_routes.recientes",
+        },
+        "enfermero": {
+            "dashboard": "app_routes.enfermero_dashboard",
+            "faltantes_muestra": "app_routes.manage_muestra",
+            "etiquetas": "app_routes.etiquetas_muestra",
+        },
+        "quimico": {
+            "dashboard": "app_routes.quimico_dashboard",
+            "captura_resultados": "app_routes.resultados",
+            "estudios_externos": "app_routes.estudios_externos",
+            "resultados_finalizados": "app_routes.historial_resultados",
+            "ingresar_inventario": "app_routes.registrar_entrada_inventario",
+        },
+    }
+    workspace_names = {
+        "mostrador": "Mostrador",
+        "enfermero": "Enfermero",
+        "quimico": "Quimico",
+    }
+    area_key = (area or "").lower()
+    endpoint = destinations.get(area_key, {}).get(destination)
+    if not endpoint:
+        abort(404)
+    session["area_activa"] = workspace_names[area_key]
+    return redirect(url_for(endpoint))
+
 @app_routes.route("/admin")
 @require_role("Admin")
 def admin_dashboard():
@@ -640,6 +678,8 @@ def admin_dashboard():
 @app_routes.route("/admin/panel")
 @require_role("Admin")
 def admin_operational_dashboard():
+    if session.get("rol") == "Admin":
+        session["area_activa"] = "Admin"
     dashboard = obtener_resumen_admin()
     return render_template(
         "admin/admin.html",
@@ -3944,6 +3984,35 @@ def listos():
     )
 
 
+@app_routes.route("/resultados/entregados")
+@require_role("Mostrador")
+def resultados_entregados():
+    resultados = obtener_historial_resultados_mostrador()
+    opciones_estudios = sorted({
+        (estudio.get("nombre") or "", estudio.get("tipo") or "")
+        for resultado in resultados
+        for estudio in resultado.get("estudios", [])
+        if estudio.get("nombre")
+    }, key=lambda item: (item[0].casefold(), item[1].casefold()))
+    return render_template(
+        "mostrador/resultados_entregados.html",
+        resultados=resultados,
+        opciones_estudios=opciones_estudios,
+        entregados=sum(1 for item in resultados if item.get("estado_entrega") == "entregado"),
+        pendientes_entrega=sum(
+            1 for item in resultados if item.get("estado_entrega") == "pendiente"
+        ),
+        cuentas_pendientes=sum(
+            1 for item in resultados if item.get("estado_pago") == "pendiente"
+        ),
+        saldo_pendiente_total=round(sum(
+            float(item.get("saldo") or 0)
+            for item in resultados
+            if item.get("estado_pago") == "pendiente"
+        ), 2),
+    )
+
+
 @app_routes.route("/api/mostrador/resumen")
 @require_role("Mostrador")
 def api_resumen_mostrador():
@@ -4014,7 +4083,7 @@ def finalizar_entrega_resultado_api(orden_id):
             return jsonify({"ok": False, "error": "No se encontró la orden."}), 404
         authorizer = None
         if balance["saldo"] > 0.009 and not settings["mostrador_entrega_saldo_pendiente"]:
-            authorizer = verificar_autorizador_admin(
+            authorizer, authorization_error = validar_autorizador_admin_detallado(
                 payload.get("admin_username"), payload.get("admin_password")
             )
             if not authorizer:
@@ -4022,7 +4091,7 @@ def finalizar_entrega_resultado_api(orden_id):
                     "ok": False,
                     "requires_override": True,
                     "saldo": balance["saldo"],
-                    "error": "La orden tiene saldo pendiente. Ingresa la autorización de un administrador para finalizarla.",
+                    "error": authorization_error,
                 }), 403
         if not finalizar_entrega_resultado(orden_id, session.get("user_id"), medio):
             raise ValueError("La orden no pudo cambiar a estado entregado.")
@@ -4256,7 +4325,7 @@ def subir_resultado_externo(estudio_id):
             path, content,
             {"content-type": upload.mimetype or "application/octet-stream", "cache-control": "3600"},
         )
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         response = (
             supabase_storage.table("estudios_externos")
             .update({
