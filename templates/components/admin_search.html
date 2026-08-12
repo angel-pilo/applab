@@ -1,0 +1,88 @@
+{% set admin_search_options = [
+  {'permission': 'admin.tests', 'title': 'Pruebas clínicas', 'group': 'Catálogo', 'description': 'Consultar y administrar estudios clínicos.', 'keywords': 'estudios analisis valores normales', 'icon': 'fa-clipboard-check', 'endpoint': 'app_routes.pruebas_clinicas'},
+  {'permission': 'admin.tests', 'title': 'Registrar prueba clínica', 'group': 'Acción', 'description': 'Crear un estudio, sus elementos y referencias.', 'keywords': 'nueva prueba estudio elemento', 'icon': 'fa-plus-circle', 'endpoint': 'app_routes.add_prueba'},
+  {'permission': 'admin.inventory', 'title': 'Inventario de reactivos', 'group': 'Catálogo', 'description': 'Consultar existencias, lotes y vencimientos.', 'keywords': 'insumos stock almacen caducidad', 'icon': 'fa-vials', 'endpoint': 'app_routes.manage_inventory'},
+  {'permission': 'admin.inventory', 'title': 'Registrar reactivo', 'group': 'Acción', 'description': 'Dar de alta un reactivo nuevo.', 'keywords': 'nuevo insumo producto', 'icon': 'fa-plus-circle', 'endpoint': 'app_routes.add_reactivo'},
+  {'permission': 'admin.inventory', 'title': 'Registrar entrada de inventario', 'group': 'Acción', 'description': 'Recibir cantidades y crear un lote independiente.', 'keywords': 'compra llegada recibir lote stock', 'icon': 'fa-dolly-flatbed', 'endpoint': 'app_routes.registrar_entrada_inventario'},
+  {'permission': 'admin.patients', 'alternate': 'front.patients', 'title': 'Pacientes', 'group': 'Catálogo', 'description': 'Consultar expedientes e historial clínico.', 'keywords': 'expediente historial persona', 'icon': 'fa-id-card', 'endpoint': 'app_routes.manage_patients'},
+  {'permission': 'admin.patients', 'alternate': 'front.patients', 'title': 'Registrar paciente', 'group': 'Acción', 'description': 'Crear un expediente clínico.', 'keywords': 'nuevo expediente persona', 'icon': 'fa-user-plus', 'endpoint': 'app_routes.add_patient'},
+  {'permission': 'admin.providers', 'title': 'Proveedores', 'group': 'Catálogo', 'description': 'Consultar proveedores de productos y servicios.', 'keywords': 'maquila empresa compra', 'icon': 'fa-truck', 'endpoint': 'app_routes.manage_proveedores'},
+  {'permission': 'admin.providers', 'title': 'Registrar proveedor', 'group': 'Acción', 'description': 'Agregar un proveedor al catálogo.', 'keywords': 'nuevo empresa producto servicio maquila', 'icon': 'fa-truck-loading', 'endpoint': 'app_routes.add_proveedor'},
+  {'permission': 'admin.doctors', 'title': 'Doctores', 'group': 'Catálogo', 'description': 'Consultar médicos solicitantes.', 'keywords': 'medicos consultorio', 'icon': 'fa-stethoscope', 'endpoint': 'app_routes.manage_doctores'},
+  {'permission': 'admin.doctors', 'title': 'Registrar doctor', 'group': 'Acción', 'description': 'Agregar un médico y su lugar de consulta.', 'keywords': 'nuevo medico consultorio', 'icon': 'fa-user-md', 'endpoint': 'app_routes.add_doctor'},
+  {'permission': 'admin.hospitals', 'title': 'Hospitales', 'group': 'Catálogo', 'description': 'Consultar instituciones registradas.', 'keywords': 'clinicas procedencia instituciones', 'icon': 'fa-hospital', 'endpoint': 'app_routes.manage_hospitals'},
+  {'permission': 'admin.hospitals', 'title': 'Registrar hospital', 'group': 'Acción', 'description': 'Agregar una institución de procedencia.', 'keywords': 'nueva clinica institucion', 'icon': 'fa-clinic-medical', 'endpoint': 'app_routes.add_hospital'},
+  {'permission': 'admin.employees', 'title': 'Empleados', 'group': 'Seguridad', 'description': 'Consultar personal, roles y accesos.', 'keywords': 'usuarios permisos personal', 'icon': 'fa-user-tie', 'endpoint': 'app_routes.manage_employees'},
+  {'permission': 'admin.employees', 'title': 'Registrar empleado', 'group': 'Acción', 'description': 'Crear un usuario y asignar permisos.', 'keywords': 'nuevo usuario personal rol', 'icon': 'fa-user-plus', 'endpoint': 'app_routes.add_employee'},
+  {'permission': 'admin.backlog', 'title': 'Backlog de actividad', 'group': 'Auditoría', 'description': 'Revisar cambios y usuarios responsables.', 'keywords': 'bitacora historial movimientos auditoria', 'icon': 'fa-history', 'endpoint': 'app_routes.backlog'},
+  {'permission': 'admin.system_settings', 'title': 'Configuración global', 'group': 'Sistema', 'description': 'Modificar las políticas generales del laboratorio.', 'keywords': 'politicas permisos sistema opciones', 'icon': 'fa-sliders-h', 'endpoint': 'app_routes.configuracion_sistema'},
+  {'title': 'Mi cuenta', 'group': 'Cuenta', 'description': 'Cambiar fotografía, contraseña y datos personales.', 'keywords': 'perfil foto password contraseña', 'icon': 'fa-user-cog', 'endpoint': 'app_routes.configuracion'},
+  {'area': 'Mostrador', 'area_key': 'mostrador', 'destination': 'dashboard', 'title': 'Panel de mostrador', 'group': 'Panel', 'description': 'Abrir el resumen operativo de recepción.', 'keywords': 'inicio recepcion ordenes pagos', 'icon': 'fa-concierge-bell'},
+  {'area': 'Mostrador', 'area_key': 'mostrador', 'destination': 'nueva_orden', 'title': 'Generar orden', 'group': 'Acción', 'description': 'Registrar paciente, estudios y abono.', 'keywords': 'nueva orden paciente pago estudio', 'icon': 'fa-file-medical'},
+  {'area': 'Mostrador', 'area_key': 'mostrador', 'destination': 'resultados_listos', 'title': 'Resultados listos', 'group': 'Resultados', 'description': 'Consultar y entregar resultados terminados.', 'keywords': 'entregar whatsapp pdf paciente', 'icon': 'fa-file-export'},
+  {'area': 'Mostrador', 'area_key': 'mostrador', 'destination': 'historial_resultados', 'title': 'Historial de resultados', 'group': 'Historial', 'description': 'Buscar resultados y entregas anteriores.', 'keywords': 'entregados pagos saldo historial', 'icon': 'fa-archive'},
+  {'area': 'Mostrador', 'area_key': 'mostrador', 'destination': 'ordenes_recientes', 'title': 'Órdenes recientes', 'group': 'Órdenes', 'description': 'Revisar las órdenes registradas.', 'keywords': 'folios recientes pagos orden', 'icon': 'fa-stream'},
+  {'area': 'Enfermería', 'area_key': 'enfermero', 'destination': 'dashboard', 'title': 'Panel de enfermería', 'group': 'Panel', 'description': 'Abrir el seguimiento de toma de muestras.', 'keywords': 'inicio muestras enfermero', 'icon': 'fa-syringe'},
+  {'area': 'Enfermería', 'area_key': 'enfermero', 'destination': 'faltantes_muestra', 'title': 'Faltantes de muestra', 'group': 'Muestras', 'description': 'Controlar requisitos y muestras pendientes.', 'keywords': 'sangre orina toma pendiente', 'icon': 'fa-vial'},
+  {'area': 'Enfermería', 'area_key': 'enfermero', 'destination': 'etiquetas', 'title': 'Etiquetas y QR', 'group': 'Muestras', 'description': 'Generar identificadores para las muestras.', 'keywords': 'imprimir qr codigo etiqueta', 'icon': 'fa-qrcode'},
+  {'area': 'Químico', 'area_key': 'quimico', 'destination': 'dashboard', 'title': 'Panel de químico', 'group': 'Panel', 'description': 'Abrir la bandeja operativa del laboratorio.', 'keywords': 'inicio laboratorio analisis', 'icon': 'fa-flask'},
+  {'area': 'Químico', 'area_key': 'quimico', 'destination': 'captura_resultados', 'title': 'Capturar resultados', 'group': 'Resultados', 'description': 'Registrar, verificar y finalizar estudios.', 'keywords': 'analisis valores captura verificar', 'icon': 'fa-clipboard-check'},
+  {'area': 'Químico', 'area_key': 'quimico', 'destination': 'estudios_externos', 'title': 'Estudios externos', 'group': 'Proveedores', 'description': 'Dar seguimiento a pruebas de referencia.', 'keywords': 'maquila proveedor envio traslado', 'icon': 'fa-truck'},
+  {'area': 'Químico', 'area_key': 'quimico', 'destination': 'resultados_finalizados', 'title': 'Resultados finalizados', 'group': 'Historial', 'description': 'Consultar reportes terminados.', 'keywords': 'reporte historial imprimir pdf', 'icon': 'fa-file-medical-alt'},
+  {'area': 'Químico', 'area_key': 'quimico', 'destination': 'ingresar_inventario', 'title': 'Ingresar inventario', 'group': 'Inventario', 'description': 'Registrar entradas y lotes recibidos.', 'keywords': 'reactivo lote entrada cantidad', 'icon': 'fa-dolly-flatbed'}
+] %}
+
+<div id="admin-global-search" class="fixed inset-0 z-[120] hidden" role="dialog" aria-modal="true"
+     aria-labelledby="admin-global-search-title" aria-hidden="true">
+  <button type="button" class="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]" data-admin-search-close aria-label="Cerrar búsqueda"></button>
+  <div class="relative mx-auto mt-[8vh] w-[calc(100%-2rem)] max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:mt-[12vh]">
+    <header class="flex items-center gap-3 border-b border-slate-200 px-4 py-4 sm:px-5">
+      <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><i class="fas fa-search" aria-hidden="true"></i></span>
+      <div class="min-w-0 flex-1">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-cyan-700">Acceso directo</p>
+        <h2 id="admin-global-search-title" class="text-sm font-bold text-slate-900">Buscar en Administración</h2>
+      </div>
+      <kbd class="hidden rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500 sm:inline-flex">Ctrl K</kbd>
+      <button type="button" class="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800" data-admin-search-close aria-label="Cerrar búsqueda"><i class="fas fa-times" aria-hidden="true"></i></button>
+    </header>
+
+    <div class="p-4 sm:p-5">
+      <div class="relative">
+        <i class="fas fa-search pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400" aria-hidden="true"></i>
+        <input id="admin-global-search-input" type="search"
+               class="h-12 w-full rounded-xl border border-slate-300 bg-slate-50 pl-11 pr-11 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-100"
+               placeholder="Busca módulos o acciones: reactivo, empleado, prueba..."
+               autocomplete="off" role="combobox" aria-autocomplete="list"
+               aria-controls="admin-global-search-results" aria-expanded="true">
+        <button id="admin-global-search-clear" type="button"
+                class="absolute right-2 top-1/2 hidden h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Limpiar búsqueda"><i class="fas fa-times" aria-hidden="true"></i></button>
+      </div>
+
+      <div id="admin-global-search-results" class="mt-3 max-h-[min(27rem,58vh)] overflow-y-auto" role="listbox">
+        <div class="flex items-center justify-between px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <span id="admin-global-search-summary">Opciones disponibles</span><span>Enter para abrir</span>
+        </div>
+        {% for option in admin_search_options %}
+          {% if option.permission is not defined or has_permission(option.permission) or (option.alternate is defined and has_permission(option.alternate)) %}
+            <a href="{% if option.area_key is defined %}{{ url_for('app_routes.admin_search_access', area=option.area_key, destination=option.destination) }}{% else %}{{ url_for(option.endpoint) }}{% endif %}" role="option" tabindex="-1" data-admin-global-search-item
+               data-search="{{ option.area|default('Administración') }} {{ option.title }} {{ option.group }} {{ option.description }} {{ option.keywords }}"
+               class="group flex items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-cyan-50 focus:bg-cyan-50 focus:outline-none">
+              <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 group-hover:bg-white group-hover:text-cyan-700"><i class="fas {{ option.icon }}" aria-hidden="true"></i></span>
+              <span class="min-w-0 flex-1">
+                <span class="flex flex-wrap items-center gap-2"><strong class="text-sm text-slate-900">{{ option.title }}</strong><small class="rounded-full bg-cyan-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-700">{{ option.area|default('Administración') }}</small><small class="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">{{ option.group }}</small></span>
+                <span class="mt-1 block truncate text-xs text-slate-500">{{ option.description }}</span>
+              </span>
+              <i class="fas fa-arrow-right shrink-0 text-xs text-slate-300 group-hover:text-cyan-700" aria-hidden="true"></i>
+            </a>
+          {% endif %}
+        {% endfor %}
+        <div id="admin-global-search-empty" class="hidden px-4 py-9 text-center">
+          <span class="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-slate-100 text-slate-400"><i class="fas fa-search" aria-hidden="true"></i></span>
+          <strong class="mt-3 block text-sm text-slate-800">No encontramos esa opción</strong>
+          <span class="mt-1 block text-xs text-slate-500">Prueba con otra palabra, por ejemplo “inventario” o “empleado”.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
