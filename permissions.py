@@ -79,6 +79,7 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.enfermero_dashboard": "nursing.dashboard",
     "app_routes.quimico_dashboard": "lab.dashboard",
     "app_routes.cambiar_area": "admin.dashboard",
+    "app_routes.admin_search_access": "admin.dashboard",
 
     # Administración
     "app_routes.backlog": "admin.backlog",
@@ -145,6 +146,7 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.api_resumen_mostrador": {"front.dashboard", "front.orders.view"},
     "app_routes.faltantes": "front.orders.view",
     "app_routes.listos": "front.results.deliver",
+    "app_routes.resultados_entregados": "front.results.deliver",
     "app_routes.entregar_resultado": "front.results.deliver",
     "app_routes.registrar_comunicacion_resultado_route": "front.results.deliver",
     "app_routes.finalizar_entrega_resultado_api": "front.results.deliver",

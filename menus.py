@@ -15,6 +15,7 @@ ROLE_MENU = {
     "Mostrador": [
         {"text": "Generar orden",    "icon": "fa-file-medical", "url": "app_routes.nueva_orden"},
         {"text": "Resultados listos","icon": "fa-file-export",  "url": "app_routes.listos"},
+        {"text": "Historial de resultados", "icon": "fa-archive", "url": "app_routes.resultados_entregados"},
         {"text": "Pacientes",        "icon": "fa-id-card",      "url": "app_routes.manage_patients"},
         {"text": "Órdenes recientes","icon": "fa-stream",       "url": "app_routes.recientes"},
         {

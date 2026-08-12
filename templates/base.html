@@ -95,7 +95,8 @@
   />
 
   <!-- Tu CSS (después de Tailwind) -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v='brand-background-tool') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css', v='4.6.13') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v='clinical-date-picker-v1') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
 {% set embedded_form = request.args.get('embed') == '1' or request.form.get('embed') == '1' %}
@@ -133,8 +134,15 @@
     </div>
   </div>
 
+  <script src="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.js', v='4.6.13') }}"></script>
+  <script src="{{ url_for('static', filename='vendor/flatpickr/l10n/es.js', v='4.6.13') }}"></script>
+  <script src="{{ url_for('static', filename='js/date_picker.js', v='clinical-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   <script src="{{ url_for('static', filename='js/form_validation.js') }}"></script>
+  {% if not embedded_form and rol_actual == 'Admin' %}
+    {% include 'components/admin_search.html' %}
+    <script src="{{ url_for('static', filename='js/admin_search.js', v='clinical-v1') }}"></script>
+  {% endif %}
   {% if embedded_form %}
   <script>
   document.addEventListener("DOMContentLoaded", () => {
