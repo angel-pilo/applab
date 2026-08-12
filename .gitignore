@@ -173,6 +173,36 @@ cython_debug/
 .runtime/
 ENLACE-PUBLICO-ACTUAL.url
 
+# Scripts locales para iniciar, detener o publicar AppLab.
+# Permanecen en cada computadora y no forman parte de la aplicación desplegable.
+/Iniciar-AppLab-Privado.cmd
+/Iniciar-AppLab-Privado.ps1
+/Detener-AppLab-Privado.cmd
+/Detener-AppLab-Privado.ps1
+/Publicar-AppLab-Temporal.cmd
+/Publicar-AppLab-Temporal.ps1
+/Volver-AppLab-Privado.cmd
+/Volver-AppLab-Privado.ps1
+/1-Iniciar-AppLab-Publico.cmd
+/2-Cerrar-AppLab-Publico.cmd
+/Iniciar-AppLab-Publico.ps1
+/Corregir-DNS-AppLab.ps1
+/Restaurar-DNS-Automatico.ps1
+
+# Documentos y paquetes locales de trabajo.
+/Plan_maestro_admin_AppLab.docx
+/landing/
+/landing-site.tar.gz
+
+# Archivos temporales habituales del sistema y los editores.
+/.vscode/
+/.idea/
+*.tmp
+*.bak
+*.swp
+Thumbs.db
+Desktop.ini
+
 # Fotos de perfil subidas en tiempo de ejecución
 static/uploads/avatars/*
 !static/uploads/avatars/.gitkeep

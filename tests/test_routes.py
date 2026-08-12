@@ -94,6 +94,77 @@ class ReceiptPdfTests(unittest.TestCase):
         self.assertGreater(len(pdf), 1000)
 
 
+class DeliveredResultsServiceTests(unittest.TestCase):
+    def test_utc_timestamp_is_converted_to_mexico_local_date(self):
+        converted = services.convertir_fecha_hora_local(
+            "2026-08-12T00:44:08.974232+00:00"
+        )
+
+        self.assertTrue(converted.startswith("2026-08-11T18:44:08"))
+
+    def test_delivered_history_includes_studies_and_real_balance(self):
+        class FakeQuery:
+            def __init__(self, data):
+                self.data = data
+
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def in_(self, *_args, **_kwargs):
+                return self
+
+            def order(self, *_args, **_kwargs):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=self.data)
+
+        class FakeAdmin:
+            def table(self, name):
+                if name == "ordenes":
+                    return FakeQuery([{
+                        "id": 9,
+                        "total_pruebas": 650,
+                        "total_abonos": 210,
+                        "estado": "credito",
+                        "creado_en": "2026-07-30T19:14:49+00:00",
+                    }])
+                return FakeQuery([{
+                    "orden_id": 9,
+                    "nombre_prueba": "EGO",
+                    "tipo_prueba": "orina",
+                    "cantidad": 1,
+                }])
+
+        history = [{
+            "orden_id": 9,
+            "nombres": "Raul",
+            "apellidos": "Aceves",
+            "entregado": True,
+            "entregado_en": "2026-08-12T00:44:08+00:00",
+        }, {
+            "orden_id": 10,
+            "entregado": False,
+        }]
+
+        with patch.object(services, "obtener_historial_resultados", return_value=history), patch.object(
+            services, "supabase_admin", FakeAdmin()
+        ):
+            full_history = services.obtener_historial_resultados_mostrador()
+
+        self.assertEqual(len(full_history), 2)
+        self.assertEqual(full_history[0]["estado_entrega"], "entregado")
+        self.assertEqual(full_history[1]["estado_entrega"], "pendiente")
+        results = [item for item in full_history if item["entregado"]]
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["estudios"][0]["nombre"], "EGO")
+        self.assertEqual(results[0]["estudios"][0]["tipo"], "orina")
+        self.assertEqual(results[0]["saldo"], 440)
+        self.assertEqual(results[0]["estado_pago"], "pendiente")
+        self.assertTrue(results[0]["fecha_entrega"].startswith("2026-08-11T18:44"))
+
+
 class OrderValidationTests(unittest.TestCase):
     @patch.object(routes, "existe_doctor_activo", return_value=True)
     @patch.object(routes, "existe_hospital_activo", return_value=True)
@@ -388,6 +459,62 @@ class ClinicalTestServiceTests(unittest.TestCase):
         self.assertFalse(services.reactivo_tiene_datos_completos({**complete, "proveedor_id": None}))
         self.assertFalse(services.reactivo_tiene_datos_completos({**complete, "activo": False}))
 
+    def test_order_balance_uses_server_client_to_avoid_rls_false_not_found(self):
+        class FakeQuery:
+            def select(self, *_):
+                return self
+
+            def eq(self, *_):
+                return self
+
+            def limit(self, *_):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=[{
+                    "id": 12, "total_pruebas": 500,
+                    "total_abonos": 100, "estado": "credito",
+                }])
+
+        fake_admin = SimpleNamespace(table=lambda name: FakeQuery())
+        public_client = SimpleNamespace(
+            table=lambda _name: self.fail("El saldo no debe consultarse con la clave pública")
+        )
+        with patch.object(services, "supabase_admin", fake_admin), patch.object(
+            services, "supabase", public_client
+        ):
+            balance = services.obtener_saldo_orden(12)
+
+        self.assertEqual(balance["saldo"], 400)
+
+    def test_result_communication_uses_supported_backlog_action(self):
+        class FakeInsert:
+            payload = None
+
+            def table(self, name):
+                self.table_name = name
+                return self
+
+            def insert(self, payload):
+                self.payload = payload
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=[self.payload])
+
+        fake_storage = FakeInsert()
+        with patch.object(services, "supabase_storage", fake_storage):
+            saved = services.registrar_comunicacion_resultado(
+                12, None, "envio_pdf", "whatsapp", 100
+            )
+
+        self.assertTrue(saved)
+        self.assertEqual(fake_storage.table_name, "bitacora_eventos")
+        self.assertEqual(fake_storage.payload["accion"], "actualizar")
+        self.assertEqual(
+            fake_storage.payload["metadata"]["accion_resultado"], "envio_pdf"
+        )
+
 
 class InventoryServiceTests(unittest.TestCase):
     def test_inventory_entry_uses_atomic_supabase_function(self):
@@ -574,6 +701,69 @@ class AuthorizationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         finalize.assert_not_called()
+
+    @patch.object(routes, "registrar_comunicacion_resultado", return_value=True)
+    @patch.object(routes, "finalizar_entrega_resultado", return_value=True)
+    @patch.object(routes, "obtener_saldo_orden", return_value={
+        "total": 500.0, "pagado": 500.0, "saldo": 0.0, "estado": "pagado"
+    })
+    @patch.object(routes, "obtener_configuracion_sistema", return_value={
+        "empleados_cambian_password": True,
+        "empleados_cambian_foto": True,
+        "mostrador_entrega_saldo_pendiente": False,
+    })
+    def test_finalize_delivery_api_accepts_medium_from_confirmation_dialog(
+        self, _settings, _balance, finalize, _audit
+    ):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session.update({
+                "usuario": "mostrador", "rol": "Mostrador", "user_id": 3
+            })
+
+        response = client.post(
+            "/api/resultados/12/finalizar-entrega",
+            json={"medio_entrega": "whatsapp"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["ok"])
+        finalize.assert_called_once_with(12, 3, "whatsapp")
+
+    @patch.object(
+        routes, "validar_autorizador_admin_detallado",
+        return_value=(None, "Usuario o contraseña incorrectos."),
+    )
+    @patch.object(routes, "obtener_saldo_orden", return_value={
+        "total": 500.0, "pagado": 100.0, "saldo": 400.0, "estado": "credito"
+    })
+    @patch.object(routes, "obtener_configuracion_sistema", return_value={
+        "empleados_cambian_password": True,
+        "empleados_cambian_foto": True,
+        "mostrador_entrega_saldo_pendiente": False,
+    })
+    def test_finalize_delivery_api_explains_invalid_admin_credentials(
+        self, _settings, _balance, _authorization
+    ):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session.update({
+                "usuario": "mostrador", "rol": "Mostrador", "user_id": 3
+            })
+
+        response = client.post(
+            "/api/resultados/12/finalizar-entrega",
+            json={
+                "medio_entrega": "whatsapp",
+                "admin_username": "admin",
+                "admin_password": "incorrecta",
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.get_json()["error"], "Usuario o contraseña incorrectos."
+        )
 
     @patch.object(
         routes,
