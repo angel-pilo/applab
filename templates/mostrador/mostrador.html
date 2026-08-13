@@ -55,12 +55,13 @@
 
   <section aria-labelledby="acciones-mostrador">
     <h2 id="acciones-mostrador" class="mb-4 text-lg font-bold text-gray-900">Accesos rápidos</h2>
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
       {% set actions = [
         ('Generar orden', 'Registra estudios y forma de pago.', 'fa-file-medical', 'app_routes.nueva_orden', 'text-blue-700 bg-blue-50', 'front.orders.create'),
         ('Pacientes', 'Consulta o registra expedientes.', 'fa-user-injured', 'app_routes.manage_patients', 'text-cyan-700 bg-cyan-50', 'front.patients'),
         ('Órdenes recientes', 'Revisa pagos, saldos y notas.', 'fa-history', 'app_routes.recientes', 'text-violet-700 bg-violet-50', 'front.orders.view'),
-        ('Resultados listos', 'Consulta estudios para entrega.', 'fa-file-export', 'app_routes.listos', 'text-emerald-700 bg-emerald-50', 'front.results.deliver')
+        ('Resultados listos', 'Consulta estudios para entrega.', 'fa-file-export', 'app_routes.listos', 'text-emerald-700 bg-emerald-50', 'front.results.deliver'),
+        ('Historial de resultados', 'Consulta entregas, pagos y estudios realizados.', 'fa-archive', 'app_routes.resultados_entregados', 'text-teal-700 bg-teal-50', 'front.results.deliver')
       ] %}
       {% for title, description, icon, endpoint, colors, permission in actions %}
       {% if has_permission(permission) %}
