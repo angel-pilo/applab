@@ -1209,6 +1209,84 @@ body.app-flash-open {
   background: #fbfcfd;
 }
 
+/* El arqueo puede contener varias cuentas: conserva controles visibles y
+   desplaza únicamente el contenido del formulario. */
+#close-modal {
+  overflow: hidden;
+}
+
+#close-modal .app-flash-dialog {
+  display: flex;
+  width: min(38rem, 100%);
+  max-height: calc(100dvh - 2rem);
+  flex-direction: column;
+}
+
+#close-modal .app-flash-header {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  background: #fff;
+}
+
+#close-modal .app-flash-body {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+#close-modal .app-flash-body > :last-child {
+  position: sticky;
+  z-index: 2;
+  bottom: -1.2rem;
+  margin-inline: -1.25rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+}
+
+@media (min-width: 641px) {
+  #close-modal .app-flash-body > .space-y-3 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  #close-modal .app-flash-body > .space-y-3 > * {
+    margin-top: 0 !important;
+  }
+
+  #close-modal .app-flash-body > .space-y-3 > p {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  #close-modal {
+    padding: 0.5rem;
+    align-items: end;
+  }
+
+  #close-modal .app-flash-dialog {
+    width: 100%;
+    max-height: calc(100dvh - 1rem);
+    border-radius: 1rem 1rem 0.75rem 0.75rem;
+  }
+
+  #close-modal .app-flash-body {
+    padding: 1rem;
+  }
+
+  #close-modal .app-flash-body > :last-child {
+    bottom: -1rem;
+    margin-inline: -1rem;
+    padding: 0.85rem 1rem;
+  }
+}
+
 .app-flash-primary {
   min-height: 2.55rem;
   padding: 0.6rem 1rem;

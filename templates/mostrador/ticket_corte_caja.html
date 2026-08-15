@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Corte de caja #{{ corte.id }}</title>
+  <style>
+    :root{font-family:Arial,sans-serif;color:#0b1f33}*{box-sizing:border-box}body{margin:0;background:#eef3f7}.toolbar{position:sticky;top:0;display:flex;justify-content:center;gap:8px;padding:12px;background:#fff;border-bottom:1px solid #dbe3ea}.toolbar a,.toolbar button{border:1px solid #cbd5e1;border-radius:10px;background:#fff;padding:9px 14px;font-weight:700;cursor:pointer}.toolbar .primary{background:#0b1f33;color:#fff}.ticket{width:min(100%,80mm);margin:20px auto;background:#fff;padding:7mm;box-shadow:0 10px 35px #0b1f3320}.center{text-align:center}.muted{color:#64748b}.small{font-size:10px}.rule{border:0;border-top:1px dashed #94a3b8;margin:12px 0}.row{display:flex;justify-content:space-between;gap:12px;margin:5px 0;font-size:11px}.row strong:last-child{text-align:right}.account{margin:10px 0;padding:8px;border:1px solid #dbe3ea;border-radius:8px}.account h3{font-size:12px;margin:0 0 6px}.event{padding:7px 0;border-bottom:1px dotted #cbd5e1}.event:last-child{border:0}.total{font-size:14px}.difference-ok{color:#047857}.difference-alert{color:#b45309}@media print{body{background:#fff}.toolbar{display:none}.ticket{margin:0;width:80mm;box-shadow:none;padding:4mm}@page{size:80mm auto;margin:0}}
+  </style>
+</head>
+<body>
+  <nav class="toolbar"><a href="{{ url_for('app_routes.corte_caja') }}">Volver</a><button class="primary" onclick="window.print()">Imprimir ticket</button></nav>
+  <main class="ticket">
+    <header class="center"><strong>{{ laboratorio_config.nombre_corto|default('AppLab') }}</strong><div class="small muted">Corte de caja #{{ corte.id }}</div></header>
+    <hr class="rule">
+    <div class="row"><span>Apertura</span><strong>{{ corte.fecha_apertura_local[:16]|replace('T',' ') }}</strong></div>
+    <div class="row"><span>Cierre</span><strong>{{ corte.fecha_cierre_local[:16]|replace('T',' ') }}</strong></div>
+    <div class="row"><span>Responsable</span><strong>{{ session.get('nombres','Usuario') }}</strong></div>
+    <hr class="rule">
+    <div class="small muted">CONCILIACIÓN POR CUENTA</div>
+    {% for cuenta in corte.cuentas %}
+    <section class="account">
+      <h3>{{ cuenta.nombre }} · {{ cuenta.tipo|title }}</h3>
+      <div class="row"><span>Saldo inicial</span><strong>${{ '%.2f'|format(cuenta.inicial|float) }}</strong></div>
+      <div class="row"><span>Cobros de órdenes</span><strong>${{ '%.2f'|format(cuenta.abonos|float) }}</strong></div>
+      <div class="row"><span>Depósitos</span><strong>${{ '%.2f'|format(cuenta.depositos|float) }}</strong></div>
+      <div class="row"><span>Retiros y gastos</span><strong>−${{ '%.2f'|format(cuenta.salidas|float) }}</strong></div>
+      <div class="row"><span>Esperado</span><strong>${{ '%.2f'|format(cuenta.esperado|float) }}</strong></div>
+      <div class="row"><span>Conciliado</span><strong>${{ '%.2f'|format((cuenta.contado if cuenta.contado is not none else 0)|float) }}</strong></div>
+      <div class="row"><span>Diferencia</span><strong class="{{ 'difference-ok' if cuenta.diferencia|float == 0 else 'difference-alert' }}">{{ '%+.2f'|format(cuenta.diferencia|float) }}</strong></div>
+    </section>
+    {% endfor %}
+    <div class="row total"><strong>Total registrado</strong><strong>${{ '%.2f'|format(corte.total_esperado_cuentas|float) }}</strong></div>
+    <hr class="rule">
+    <div class="small muted">MOVIMIENTOS DEL TURNO</div>
+    {% for evento in corte.eventos|reverse %}
+    <div class="event"><div class="row"><strong>{{ evento.titulo }}</strong><strong>{{ '+' if evento.naturaleza == 'entrada' else ('−' if evento.naturaleza == 'salida' else '') }}${{ '%.2f'|format(evento.monto|float) }}</strong></div><div class="small muted">{{ evento.detalle }} · {{ evento.cuenta }}{% if evento.referencia %} · {{ evento.referencia }}{% endif %}</div></div>
+    {% else %}<p class="small muted center">Sin movimientos.</p>{% endfor %}
+    {% if corte.notas_cierre %}<hr class="rule"><div class="small"><strong>Observaciones:</strong> {{ corte.notas_cierre }}</div>{% endif %}
+    <hr class="rule"><p class="center small muted">Documento de control interno · {{ laboratorio_config.nombre_corto|default('AppLab') }}</p>
+  </main>
+  {% if auto_print %}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));</script>{% endif %}
+</body>
+</html>

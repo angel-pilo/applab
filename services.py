@@ -1848,16 +1848,21 @@ def registrar_abono(
     return supabase.rpc("registrar_abono_orden", params).execute().data
 
 
-def registrar_efectivo_recibido_abono(abono_id, cantidad_recibida, cambio_entregado):
+def registrar_efectivo_recibido_abono(
+    abono_id, cantidad_recibida, cambio_entregado, cuenta_financiera_id=None
+):
     """Conserva el efectivo entregado y el cambio para auditoría y recibos."""
     if not abono_id:
         return False
+    payload = {
+        "cantidad_recibida": _importe_caja(cantidad_recibida),
+        "cambio_entregado": _importe_caja(cambio_entregado),
+    }
+    if cuenta_financiera_id:
+        payload["cuenta_financiera_id"] = int(cuenta_financiera_id)
     response = (
         supabase_admin.table("orden_abonos")
-        .update({
-            "cantidad_recibida": _importe_caja(cantidad_recibida),
-            "cambio_entregado": _importe_caja(cambio_entregado),
-        })
+        .update(payload)
         .eq("id", int(abono_id))
         .execute()
     )
@@ -1871,12 +1876,71 @@ def _importe_caja(value):
         return 0.0
 
 
+def listar_cuentas_financieras(incluir_inactivas=False):
+    """Catálogo de cajas, bancos, terminales y billeteras del laboratorio."""
+    try:
+        query = supabase_admin.table("cuentas_financieras").select("*")
+        if not incluir_inactivas:
+            query = query.eq("activo", True)
+        response = query.order("orden").order("nombre").execute()
+        return response.data or []
+    except Exception:
+        logger.warning("El catálogo de cuentas financieras todavía no está disponible")
+        return []
+
+
+def guardar_cuenta_financiera(nombre, tipo, activo=True, cuenta_id=None):
+    nombre = str(nombre or "").strip()
+    tipo = str(tipo or "").strip().lower()
+    if len(nombre) < 2:
+        raise ValueError("Escribe un nombre de al menos 2 caracteres.")
+    if tipo not in {"efectivo", "banco", "terminal", "billetera", "otro"}:
+        raise ValueError("Selecciona un tipo de cuenta válido.")
+    existentes = listar_cuentas_financieras(incluir_inactivas=True)
+    actual = next(
+        (item for item in existentes if cuenta_id and int(item["id"]) == int(cuenta_id)),
+        None,
+    )
+    if actual and actual.get("tipo") == "efectivo" and (tipo != "efectivo" or not activo):
+        raise ValueError("La cuenta principal de efectivo debe permanecer activa.")
+    if tipo == "efectivo" and (not actual or actual.get("tipo") != "efectivo"):
+        if any(item.get("tipo") == "efectivo" for item in existentes):
+            raise ValueError("Ya existe la cuenta principal de efectivo; renómbrala si lo necesitas.")
+    payload = {
+        "nombre": nombre,
+        "tipo": tipo,
+        "activo": bool(activo),
+        "actualizado_en": datetime.now(timezone.utc).isoformat(),
+    }
+    if cuenta_id:
+        response = (
+            supabase_admin.table("cuentas_financieras").update(payload)
+            .eq("id", int(cuenta_id)).execute()
+        )
+    else:
+        response = supabase_admin.table("cuentas_financieras").insert(payload).execute()
+    return response.data or []
+
+
+def _json_caja(value):
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            import json
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, dict) else {}
+        except (TypeError, ValueError):
+            return {}
+    return {}
+
+
 def _detalle_corte_caja(corte):
     """Calcula efectivo esperado y arma una cronología auditable del corte."""
     corte_id = int(corte["id"])
     pagos = (
         supabase_admin.table("orden_abonos")
-        .select("id,orden_id,cantidad,metodo_pago,metodo_pago_otro,nota,fecha_abono")
+        .select("id,orden_id,cantidad,metodo_pago,metodo_pago_otro,nota,fecha_abono,cuenta_financiera_id")
         .eq("corte_caja_id", corte_id)
         .order("fecha_abono", desc=False)
         .execute()
@@ -1885,7 +1949,7 @@ def _detalle_corte_caja(corte):
     )
     movimientos = (
         supabase_admin.table("movimientos_caja")
-        .select("id,tipo,monto,concepto,referencia,creado_en")
+        .select("id,tipo,monto,concepto,referencia,creado_en,cuenta_financiera_id")
         .eq("corte_id", corte_id)
         .order("creado_en", desc=False)
         .execute()
@@ -1893,6 +1957,22 @@ def _detalle_corte_caja(corte):
         or []
     )
 
+    cuentas_catalogo = listar_cuentas_financieras(incluir_inactivas=True)
+    cuentas_por_id = {int(item["id"]): item for item in cuentas_catalogo}
+    cuentas_por_tipo = {}
+    for item in cuentas_catalogo:
+        cuentas_por_tipo.setdefault(str(item.get("tipo") or "otro"), item)
+    resumen_cuentas = {}
+    for item in cuentas_catalogo:
+        cuenta_id = int(item["id"])
+        resumen_cuentas[cuenta_id] = {
+            "id": cuenta_id,
+            "nombre": item.get("nombre") or "Cuenta",
+            "tipo": item.get("tipo") or "otro",
+            "activo": bool(item.get("activo")),
+            "inicial": _importe_caja(corte.get("monto_inicial")) if item.get("tipo") == "efectivo" else 0.0,
+            "abonos": 0.0, "depositos": 0.0, "salidas": 0.0,
+        }
     metodos = {"efectivo": 0.0, "tarjeta": 0.0, "transferencia": 0.0, "otro": 0.0}
     eventos = []
     for pago in pagos:
@@ -1900,11 +1980,20 @@ def _detalle_corte_caja(corte):
         metodo_key = metodo if metodo in metodos else "otro"
         monto = _importe_caja(pago.get("cantidad"))
         metodos[metodo_key] += monto
+        cuenta_id = pago.get("cuenta_financiera_id")
+        if not cuenta_id:
+            fallback_type = {"efectivo": "efectivo", "tarjeta": "terminal", "transferencia": "banco"}.get(metodo_key, "otro")
+            cuenta_id = (cuentas_por_tipo.get(fallback_type) or {}).get("id")
+        cuenta_id = int(cuenta_id) if cuenta_id else None
+        cuenta = resumen_cuentas.get(cuenta_id)
+        if cuenta:
+            cuenta["abonos"] += monto
         eventos.append({
             "tipo": "abono",
             "naturaleza": "entrada" if metodo_key == "efectivo" else "informativo",
             "titulo": f"Abono en {metodo_key}",
             "detalle": f"Orden #{int(pago.get('orden_id') or 0):04d}",
+            "cuenta": cuenta.get("nombre") if cuenta else "Sin cuenta asignada",
             "monto": monto,
             "fecha_raw": pago.get("fecha_abono") or "",
             "fecha": convertir_fecha_hora_local(pago.get("fecha_abono")),
@@ -1915,18 +2004,25 @@ def _detalle_corte_caja(corte):
     for movimiento in movimientos:
         tipo = str(movimiento.get("tipo") or "").lower()
         monto = _importe_caja(movimiento.get("monto"))
+        cuenta_id = int(movimiento["cuenta_financiera_id"]) if movimiento.get("cuenta_financiera_id") else None
+        cuenta = resumen_cuentas.get(cuenta_id)
         if tipo == "deposito":
             depositos += monto
             naturaleza = "entrada"
+            if cuenta:
+                cuenta["depositos"] += monto
         else:
             salidas += monto
             naturaleza = "salida"
+            if cuenta:
+                cuenta["salidas"] += monto
         eventos.append({
             "tipo": tipo,
             "naturaleza": naturaleza,
             "titulo": {"deposito": "Depósito", "retiro": "Retiro", "gasto": "Gasto"}.get(tipo, "Movimiento"),
             "detalle": movimiento.get("concepto") or "Movimiento de caja",
             "referencia": movimiento.get("referencia"),
+            "cuenta": cuenta.get("nombre") if cuenta else "Sin cuenta asignada",
             "monto": monto,
             "fecha_raw": movimiento.get("creado_en") or "",
             "fecha": convertir_fecha_hora_local(movimiento.get("creado_en")),
@@ -1935,6 +2031,28 @@ def _detalle_corte_caja(corte):
     eventos.sort(key=lambda item: item.get("fecha_raw") or "", reverse=True)
     monto_inicial = _importe_caja(corte.get("monto_inicial"))
     efectivo_esperado = round(monto_inicial + metodos["efectivo"] + depositos - salidas, 2)
+    conteos_guardados = _json_caja(corte.get("conteo_cierre_cuentas"))
+    diferencias_guardadas = _json_caja(corte.get("diferencias_cuentas"))
+    cuentas = []
+    for cuenta in resumen_cuentas.values():
+        cuenta["inicial"] = round(cuenta["inicial"], 2)
+        cuenta["abonos"] = round(cuenta["abonos"], 2)
+        cuenta["depositos"] = round(cuenta["depositos"], 2)
+        cuenta["salidas"] = round(cuenta["salidas"], 2)
+        cuenta["esperado"] = round(
+            cuenta["inicial"] + cuenta["abonos"] + cuenta["depositos"] - cuenta["salidas"], 2
+        )
+        key = str(cuenta["id"])
+        cuenta["contado"] = _importe_caja(conteos_guardados.get(key)) if key in conteos_guardados else None
+        cuenta["diferencia"] = (
+            _importe_caja(diferencias_guardadas.get(key))
+            if key in diferencias_guardadas
+            else (round(cuenta["contado"] - cuenta["esperado"], 2) if cuenta["contado"] is not None else None)
+        )
+        if cuenta["activo"] or cuenta["abonos"] or cuenta["depositos"] or cuenta["salidas"]:
+            cuentas.append(cuenta)
+    cuentas.sort(key=lambda item: (item["tipo"] != "efectivo", item["nombre"].lower()))
+    efectivo = next((item for item in cuentas if item["tipo"] == "efectivo"), None)
     result = dict(corte)
     result.update({
         "fecha_apertura_local": convertir_fecha_hora_local(corte.get("fecha_apertura")),
@@ -1948,7 +2066,16 @@ def _detalle_corte_caja(corte):
         "total_cobrado": round(sum(metodos.values()), 2),
         "cantidad_abonos": len(pagos),
         "eventos": eventos,
+        "cuentas": cuentas,
+        "total_esperado_cuentas": round(sum(item["esperado"] for item in cuentas), 2),
     })
+    if efectivo:
+        result.update({
+            "efectivo_abonos": efectivo["abonos"],
+            "depositos": efectivo["depositos"],
+            "salidas": efectivo["salidas"],
+            "efectivo_esperado": efectivo["esperado"],
+        })
     return result
 
 
@@ -1979,9 +2106,7 @@ def obtener_corte_caja(usuario_id, historial_limite=12):
         )
         historial_normalizado = []
         for item in historial:
-            normalized = dict(item)
-            normalized["fecha_apertura_local"] = convertir_fecha_hora_local(item.get("fecha_apertura"))
-            normalized["fecha_cierre_local"] = convertir_fecha_hora_local(item.get("fecha_cierre"))
+            normalized = _detalle_corte_caja(item)
             for field in ("monto_inicial", "monto_esperado_cierre", "monto_contado_cierre", "diferencia_cierre"):
                 normalized[field] = _importe_caja(item.get(field))
             historial_normalizado.append(normalized)
@@ -2105,7 +2230,10 @@ def abrir_corte_caja(usuario_id, empleado_id, monto_inicial, notas=None):
     return supabase_admin.table("cortes_caja").insert(payload).execute().data
 
 
-def registrar_movimiento_caja(usuario_id, empleado_id, tipo, monto, concepto, referencia=None):
+def registrar_movimiento_caja(
+    usuario_id, empleado_id, tipo, monto, concepto, referencia=None,
+    cuenta_financiera_id=None,
+):
     abiertos = (
         supabase_admin.table("cortes_caja")
         .select("id")
@@ -2118,6 +2246,10 @@ def registrar_movimiento_caja(usuario_id, empleado_id, tipo, monto, concepto, re
     )
     if not abiertos:
         raise ValueError("Primero debes abrir una caja.")
+    cuentas = listar_cuentas_financieras()
+    cuenta_ids = {int(item["id"]) for item in cuentas}
+    if not cuenta_financiera_id or int(cuenta_financiera_id) not in cuenta_ids:
+        raise ValueError("Selecciona una cuenta activa para el movimiento.")
     payload = {
         "corte_id": int(abiertos[0]["id"]),
         "usuario_id": int(usuario_id),
@@ -2126,17 +2258,67 @@ def registrar_movimiento_caja(usuario_id, empleado_id, tipo, monto, concepto, re
         "monto": _importe_caja(monto),
         "concepto": (concepto or "").strip(),
         "referencia": (referencia or "").strip() or None,
+        "cuenta_financiera_id": int(cuenta_financiera_id),
     }
     return supabase_admin.table("movimientos_caja").insert(payload).execute().data
 
 
-def cerrar_corte_caja(corte_id, usuario_id, monto_contado, notas=None):
-    return supabase_admin.rpc("cerrar_corte_caja_app", {
-        "p_corte_id": int(corte_id),
-        "p_usuario_id": int(usuario_id),
-        "p_monto_contado": _importe_caja(monto_contado),
-        "p_notas": (notas or "").strip() or None,
-    }).execute().data
+def cerrar_corte_caja(corte_id, usuario_id, monto_contado, notas=None, conteos=None):
+    detalle_previo = obtener_corte_caja_por_id(corte_id, usuario_id)
+    if not detalle_previo or detalle_previo.get("estado") != "abierta":
+        raise ValueError("No se encontró una caja abierta para este usuario.")
+    conteos = {str(key): _importe_caja(value) for key, value in (conteos or {}).items()}
+    diferencias = {
+        str(cuenta["id"]): round(
+            conteos.get(str(cuenta["id"]), 0.0) - cuenta["esperado"], 2
+        )
+        for cuenta in detalle_previo.get("cuentas", [])
+    }
+    resumen = {
+        str(cuenta["id"]): {
+            "nombre": cuenta["nombre"], "tipo": cuenta["tipo"],
+            "inicial": cuenta["inicial"], "abonos": cuenta["abonos"],
+            "depositos": cuenta["depositos"], "salidas": cuenta["salidas"],
+            "esperado": cuenta["esperado"],
+        }
+        for cuenta in detalle_previo.get("cuentas", [])
+    }
+    efectivo = next(
+        (cuenta for cuenta in detalle_previo.get("cuentas", []) if cuenta.get("tipo") == "efectivo"),
+        None,
+    )
+    efectivo_esperado = _importe_caja(
+        efectivo.get("esperado") if efectivo else detalle_previo.get("efectivo_esperado")
+    )
+    efectivo_contado = _importe_caja(monto_contado)
+    payload = {
+        "estado": "cerrada",
+        "monto_esperado_cierre": efectivo_esperado,
+        "monto_contado_cierre": efectivo_contado,
+        "diferencia_cierre": round(efectivo_contado - efectivo_esperado, 2),
+        "notas_cierre": (notas or "").strip() or None,
+        "fecha_cierre": datetime.now(timezone.utc).isoformat(),
+        "actualizado_en": datetime.now(timezone.utc).isoformat(),
+        "resumen_cuentas": resumen,
+        "conteo_cierre_cuentas": conteos,
+        "diferencias_cuentas": diferencias,
+    }
+    response = (
+        supabase_admin.table("cortes_caja").update(payload)
+        .eq("id", int(corte_id)).eq("usuario_id", int(usuario_id))
+        .eq("estado", "abierta").execute()
+    )
+    if not response.data:
+        raise ValueError("La caja ya fue cerrada o no pertenece a este usuario.")
+    return response.data
+
+
+def obtener_corte_caja_por_id(corte_id, usuario_id=None):
+    query = supabase_admin.table("cortes_caja").select("*").eq("id", int(corte_id))
+    if usuario_id is not None:
+        query = query.eq("usuario_id", int(usuario_id))
+    rows = query.limit(1).execute().data or []
+    return _detalle_corte_caja(rows[0]) if rows else None
 
 def listar_ordenes_resumen(limit: int = 50):
 

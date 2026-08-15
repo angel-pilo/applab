@@ -1453,7 +1453,8 @@ def corte_caja():
     caja = obtener_estado_turno_caja(usuario_id)
     return_to = safe_local_return_url(request.args.get("next"))
     return render_template(
-        "mostrador/corte_caja.html", caja=caja, return_to=return_to
+        "mostrador/corte_caja.html", caja=caja, return_to=return_to,
+        cuentas_financieras=listar_cuentas_financieras(),
     )
 
 
@@ -1537,6 +1538,7 @@ def registrar_movimiento_caja_route():
             monto,
             concepto,
             request.form.get("referencia"),
+            request.form.get("cuenta_financiera_id", type=int),
         )
         flash(f"{tipo.title()} registrado correctamente.", "success")
     except ValueError as exc:
@@ -1552,24 +1554,60 @@ def registrar_movimiento_caja_route():
 def cerrar_corte_caja_route():
     try:
         corte_id = int(request.form.get("corte_id") or 0)
-        monto_contado = float(request.form.get("monto_contado") or 0)
-        if corte_id <= 0 or monto_contado < 0:
+        if corte_id <= 0:
             raise ValueError
     except (TypeError, ValueError):
         flash("Ingresa un efectivo contado válido.", "error")
         return redirect(url_for("app_routes.corte_caja"))
     try:
+        detalle = obtener_corte_caja_por_id(corte_id, session.get("user_id"))
+        conteos = {}
+        for cuenta in (detalle or {}).get("cuentas", []):
+            field = f"cuenta_contada_{cuenta['id']}"
+            raw = request.form.get(field)
+            if raw in (None, ""):
+                raise ValueError(f"Captura el importe conciliado de {cuenta['nombre']}.")
+            value = float(raw)
+            if value < 0:
+                raise ValueError(f"El importe de {cuenta['nombre']} no puede ser negativo.")
+            conteos[str(cuenta["id"])] = value
+        efectivo = next(
+            (cuenta for cuenta in (detalle or {}).get("cuentas", []) if cuenta.get("tipo") == "efectivo"),
+            None,
+        )
+        if efectivo:
+            monto_contado = conteos[str(efectivo["id"])]
         cerrar_corte_caja(
             corte_id,
             session.get("user_id"),
             monto_contado,
             request.form.get("notas"),
+            conteos,
         )
         flash("Corte cerrado y conciliado correctamente.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("app_routes.corte_caja"))
     except Exception:
         logger.exception("No se pudo cerrar la caja")
         flash("No se pudo cerrar la caja. Verifica el estado e intenta nuevamente.", "error")
-    return redirect(url_for("app_routes.corte_caja"))
+        return redirect(url_for("app_routes.corte_caja"))
+    return redirect(url_for("app_routes.ticket_corte_caja", corte_id=corte_id, print=1))
+
+
+@app_routes.get("/mostrador/corte-caja/<int:corte_id>/ticket")
+@require_role(["Admin", "Mostrador"])
+def ticket_corte_caja(corte_id):
+    usuario_id = None if session.get("rol") == "Admin" else session.get("user_id")
+    corte = obtener_corte_caja_por_id(corte_id, usuario_id)
+    if not corte or corte.get("estado") != "cerrada":
+        flash("No se encontró un corte cerrado para imprimir.", "error")
+        return redirect(url_for("app_routes.corte_caja"))
+    return render_template(
+        "mostrador/ticket_corte_caja.html",
+        corte=corte,
+        auto_print=request.args.get("print") == "1",
+    )
 
 @app_routes.route("/enfermero")
 @require_role("Enfermero")
@@ -2069,7 +2107,29 @@ def configuracion_sistema():
         "admin/configuracion_sistema.html",
         system_settings=obtener_configuracion_sistema(),
         label_settings=label_settings,
+        cuentas_financieras=listar_cuentas_financieras(incluir_inactivas=True),
     )
+
+
+@app_routes.post("/configuracion/sistema/cuentas-financieras")
+@require_role("Admin")
+def guardar_cuenta_financiera_route():
+    cuenta_id = request.form.get("cuenta_id", type=int)
+    activo = request.form.get("activo") == "on"
+    try:
+        guardar_cuenta_financiera(
+            request.form.get("nombre"), request.form.get("tipo"), activo, cuenta_id
+        )
+        flash(
+            "Cuenta financiera actualizada." if cuenta_id else "Cuenta financiera agregada.",
+            "success",
+        )
+    except ValueError as exc:
+        flash(str(exc), "error")
+    except Exception:
+        logger.exception("No se pudo guardar la cuenta financiera")
+        flash("No se pudo guardar la cuenta. Verifica la migración de corte de caja.", "error")
+    return redirect(url_for("app_routes.configuracion_sistema"))
 
 
 @app_routes.route("/faltantes")
@@ -3940,6 +4000,7 @@ def reporte():
             folio_sugerido=folio_sugerido,
             embedded_form=request.args.get("embedded") == "1",
             estado_caja=obtener_estado_turno_caja(session.get("user_id")),
+            cuentas_financieras=listar_cuentas_financieras(),
         )
 
     # ---------------------------------
@@ -4018,6 +4079,7 @@ def reporte():
         total_restante=total_restante,
         folio_sugerido=folio_sugerido,
         estado_caja=obtener_estado_turno_caja(session.get("user_id")),
+        cuentas_financieras=listar_cuentas_financieras(),
     )
 
 
@@ -4129,12 +4191,23 @@ def abonar_orden(orden_id: int):
     nota = request.form.get("nota")
     metodo_pago = (request.form.get("metodo_pago") or "").strip().lower()
     metodo_pago_otro = (request.form.get("metodo_pago_otro") or "").strip()
+    cuenta_financiera_id = request.form.get("cuenta_financiera_id", type=int)
 
     if metodo_pago not in {"efectivo", "tarjeta", "transferencia", "otro"}:
         flash("Selecciona un método de pago válido.", "error")
         return redirect(reporte_orden_url)
     if metodo_pago == "otro" and not metodo_pago_otro:
         flash("Especifica el método de pago utilizado.", "error")
+        return redirect(reporte_orden_url)
+    cuentas_activas = listar_cuentas_financieras()
+    cuentas_por_id = {int(item["id"]): item for item in cuentas_activas}
+    if metodo_pago == "efectivo":
+        cuenta_efectivo = next(
+            (item for item in cuentas_activas if item.get("tipo") == "efectivo"), None
+        )
+        cuenta_financiera_id = int(cuenta_efectivo["id"]) if cuenta_efectivo else None
+    elif not cuenta_financiera_id or cuenta_financiera_id not in cuentas_por_id:
+        flash("Selecciona la cuenta, banco o terminal donde se recibió el abono.", "error")
         return redirect(reporte_orden_url)
 
     try:
@@ -4196,7 +4269,8 @@ def abonar_orden(orden_id: int):
         if abono_id:
             try:
                 registrar_efectivo_recibido_abono(
-                    abono_id, cantidad_recibida, cambio_entregado
+                    abono_id, cantidad_recibida, cambio_entregado,
+                    cuenta_financiera_id,
                 )
             except Exception:
                 logger.warning(

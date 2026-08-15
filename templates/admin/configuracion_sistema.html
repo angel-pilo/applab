@@ -87,6 +87,25 @@
     </details>
 
     <details class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {{ accordion_heading('fa-university', 'Cuentas, bancos y terminales', 'Define dónde se reciben cobros y concilia cada saldo al cerrar caja.', 'is-cyan') }}
+      <div class="space-y-5 border-t border-slate-100 p-5 sm:p-6">
+        <div class="rounded-xl border border-cyan-100 bg-cyan-50 p-4 text-xs leading-5 text-cyan-900"><i class="fas fa-info-circle mr-1"></i>Las cuentas electrónicas comienzan cada turno en $0.00. Los cobros, depósitos y retiros construyen el saldo esperado del día.</div>
+        <div class="grid gap-3 lg:grid-cols-2">
+          {% for cuenta in cuentas_financieras %}
+          <form method="POST" action="{{ url_for('app_routes.guardar_cuenta_financiera_route') }}" class="rounded-xl border border-slate-200 bg-slate-50 p-4" data-validate-form>
+            <input type="hidden" name="cuenta_id" value="{{ cuenta.id }}">
+            <div class="grid gap-3 sm:grid-cols-[1fr_10rem_auto] sm:items-end"><div class="admin-field"><label for="account-name-{{ cuenta.id }}">Nombre</label><input id="account-name-{{ cuenta.id }}" name="nombre" minlength="2" maxlength="80" value="{{ cuenta.nombre }}" required></div><div class="admin-field"><label for="account-type-{{ cuenta.id }}">Tipo</label><select id="account-type-{{ cuenta.id }}" name="tipo">{% for value, label in [('efectivo','Efectivo'),('banco','Banco'),('terminal','Terminal'),('billetera','Billetera digital'),('otro','Otro')] %}<option value="{{ value }}" {% if cuenta.tipo == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><label class="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-600"><input type="checkbox" name="activo" {% if cuenta.activo %}checked{% endif %}>Activa</label></div>
+            <div class="mt-3 flex justify-end"><button class="btn-cancelar" type="submit"><i class="fas fa-save"></i>Actualizar</button></div>
+          </form>
+          {% endfor %}
+        </div>
+        <form method="POST" action="{{ url_for('app_routes.guardar_cuenta_financiera_route') }}" class="rounded-xl border border-dashed border-slate-300 bg-white p-4" data-validate-form>
+          <input type="hidden" name="activo" value="on"><p class="mb-3 text-xs font-bold uppercase tracking-wider text-cyan-700">Agregar cuenta</p><div class="grid gap-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end"><div class="admin-field"><label for="new-account-name">Nombre <span>*</span></label><input id="new-account-name" name="nombre" minlength="2" maxlength="80" placeholder="Ej. BBVA o Mercado Pago" required></div><div class="admin-field"><label for="new-account-type">Tipo <span>*</span></label><select id="new-account-type" name="tipo" required><option value="banco">Banco</option><option value="terminal">Terminal</option><option value="billetera">Billetera digital</option><option value="otro">Otro</option></select></div><button class="btn-guardar mb-0.5" type="submit"><i class="fas fa-plus"></i>Agregar</button></div>
+        </form>
+      </div>
+    </details>
+
+    <details class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {{ accordion_heading('fa-receipt', 'Tickets y PDF de órdenes y abonos', 'Elige formato, información visible y mensaje al pie.') }}
       <form id="receipt-settings-form" method="POST" action="{{ url_for('app_routes.guardar_configuracion_recibos_route') }}" class="space-y-5 border-t border-slate-100 p-5 sm:p-6">
         <div class="admin-field max-w-xs"><label for="ticket-width">Ancho de impresora térmica</label><select id="ticket-width" name="ticket_ancho_mm"><option value="80" {% if receipt.ticket_ancho_mm == '80' %}selected{% endif %}>80 mm (recomendado)</option><option value="58" {% if receipt.ticket_ancho_mm == '58' %}selected{% endif %}>58 mm (compacto)</option></select></div>

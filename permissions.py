@@ -156,6 +156,8 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.abrir_corte_caja_route": "front.cash.manage",
     "app_routes.registrar_movimiento_caja_route": "front.cash.manage",
     "app_routes.cerrar_corte_caja_route": "front.cash.manage",
+    "app_routes.ticket_corte_caja": "front.cash.manage",
+    "app_routes.guardar_cuenta_financiera_route": "admin.system_settings",
 
     # Enfermería
     "app_routes.manage_muestra": "nursing.samples",
