@@ -32,6 +32,7 @@ PERMISSION_GROUPS = [
             ("front.orders.view", "Consultar órdenes recientes"),
             ("front.results.deliver", "Consultar y entregar resultados"),
             ("front.patients", "Registrar y editar pacientes"),
+            ("front.cash.manage", "Abrir, operar y cerrar caja"),
         ],
     },
     {
@@ -151,6 +152,10 @@ ENDPOINT_PERMISSIONS = {
     "app_routes.registrar_comunicacion_resultado_route": "front.results.deliver",
     "app_routes.finalizar_entrega_resultado_api": "front.results.deliver",
     "app_routes.mostrar_resultados": "front.results.deliver",
+    "app_routes.corte_caja": "front.cash.manage",
+    "app_routes.abrir_corte_caja_route": "front.cash.manage",
+    "app_routes.registrar_movimiento_caja_route": "front.cash.manage",
+    "app_routes.cerrar_corte_caja_route": "front.cash.manage",
 
     # Enfermería
     "app_routes.manage_muestra": "nursing.samples",

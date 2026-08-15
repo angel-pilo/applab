@@ -38,6 +38,11 @@ DEFAULT_SYSTEM_SETTINGS = {
     "empleados_cambian_password": True,
     "empleados_cambian_foto": True,
     "mostrador_entrega_saldo_pendiente": False,
+    "caja_requerida_para_operar": False,
+    "caja_recordatorio_cierre": True,
+    "caja_horario_apertura": "08:00",
+    "caja_horario_cierre": "18:00",
+    "caja_recordatorio_minutos": 30,
 }
 
 DEFAULT_LAB_SETTINGS = {
@@ -86,7 +91,7 @@ def obtener_configuracion_sistema():
         if response.data:
             row = response.data[0]
             settings.update({
-                key: row.get(key, default)
+                key: row.get(key) if row.get(key) is not None else default
                 for key, default in DEFAULT_SYSTEM_SETTINGS.items()
             })
             settings["actualizado_en"] = row.get("actualizado_en")
@@ -123,10 +128,18 @@ def obtener_configuracion_sistema():
 
 
 def guardar_configuracion_sistema(settings, usuario_id):
-    payload = {
-        key: bool(settings.get(key))
-        for key in DEFAULT_SYSTEM_SETTINGS
-    }
+    payload = {}
+    for key, default in DEFAULT_SYSTEM_SETTINGS.items():
+        value = settings.get(key, default)
+        if isinstance(default, bool):
+            payload[key] = bool(value)
+        elif isinstance(default, int):
+            try:
+                payload[key] = int(value)
+            except (TypeError, ValueError):
+                payload[key] = default
+        else:
+            payload[key] = str(value or default).strip()
     payload.update({
         "id": 1,
         "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
@@ -555,7 +568,7 @@ def obtener_notificaciones_inventario(usuario_id, rol=None):
 
 def marcar_notificaciones_leidas(usuario_id, keys):
     """Persiste las lecturas del usuario únicamente para la fecha actual."""
-    today = datetime.now().date().isoformat()
+    today = datetime.now(APP_LOCAL_TIMEZONE).date().isoformat()
     clean_keys = sorted({str(key) for key in keys if str(key).strip()})
     if not clean_keys:
         return True
@@ -1757,12 +1770,26 @@ def obtener_abonos_orden(orden_id: int):
             "obtener_abonos_orden_app", {"p_orden_id": int(orden_id)}
         ).execute()
         if isinstance(rpc_response.data, list):
-            return rpc_response.data
+            payments = rpc_response.data
+            try:
+                cash_response = (
+                    supabase_admin.table("orden_abonos")
+                    .select("id,cantidad_recibida,cambio_entregado,corte_caja_id")
+                    .eq("orden_id", int(orden_id)).execute()
+                )
+                cash_by_id = {
+                    str(item.get("id")): item for item in (cash_response.data or [])
+                }
+                for payment in payments:
+                    payment.update(cash_by_id.get(str(payment.get("id")), {}))
+            except Exception:
+                logger.debug("Los detalles de efectivo de abonos aún no están disponibles")
+            return payments
     except Exception:
         pass
     try:
         resp = (
-            supabase.table("orden_abonos")
+            supabase_admin.table("orden_abonos")
             .select("*")
             .eq("orden_id", orden_id)
             .order("fecha_abono", desc=False)
@@ -1819,6 +1846,297 @@ def registrar_abono(
         "p_metodo_pago_otro": (metodo_pago_otro or "").strip() or None,
     }
     return supabase.rpc("registrar_abono_orden", params).execute().data
+
+
+def registrar_efectivo_recibido_abono(abono_id, cantidad_recibida, cambio_entregado):
+    """Conserva el efectivo entregado y el cambio para auditoría y recibos."""
+    if not abono_id:
+        return False
+    response = (
+        supabase_admin.table("orden_abonos")
+        .update({
+            "cantidad_recibida": _importe_caja(cantidad_recibida),
+            "cambio_entregado": _importe_caja(cambio_entregado),
+        })
+        .eq("id", int(abono_id))
+        .execute()
+    )
+    return bool(response.data)
+
+
+def _importe_caja(value):
+    try:
+        return round(float(value or 0), 2)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _detalle_corte_caja(corte):
+    """Calcula efectivo esperado y arma una cronología auditable del corte."""
+    corte_id = int(corte["id"])
+    pagos = (
+        supabase_admin.table("orden_abonos")
+        .select("id,orden_id,cantidad,metodo_pago,metodo_pago_otro,nota,fecha_abono")
+        .eq("corte_caja_id", corte_id)
+        .order("fecha_abono", desc=False)
+        .execute()
+        .data
+        or []
+    )
+    movimientos = (
+        supabase_admin.table("movimientos_caja")
+        .select("id,tipo,monto,concepto,referencia,creado_en")
+        .eq("corte_id", corte_id)
+        .order("creado_en", desc=False)
+        .execute()
+        .data
+        or []
+    )
+
+    metodos = {"efectivo": 0.0, "tarjeta": 0.0, "transferencia": 0.0, "otro": 0.0}
+    eventos = []
+    for pago in pagos:
+        metodo = str(pago.get("metodo_pago") or "efectivo").strip().lower()
+        metodo_key = metodo if metodo in metodos else "otro"
+        monto = _importe_caja(pago.get("cantidad"))
+        metodos[metodo_key] += monto
+        eventos.append({
+            "tipo": "abono",
+            "naturaleza": "entrada" if metodo_key == "efectivo" else "informativo",
+            "titulo": f"Abono en {metodo_key}",
+            "detalle": f"Orden #{int(pago.get('orden_id') or 0):04d}",
+            "monto": monto,
+            "fecha_raw": pago.get("fecha_abono") or "",
+            "fecha": convertir_fecha_hora_local(pago.get("fecha_abono")),
+        })
+
+    depositos = 0.0
+    salidas = 0.0
+    for movimiento in movimientos:
+        tipo = str(movimiento.get("tipo") or "").lower()
+        monto = _importe_caja(movimiento.get("monto"))
+        if tipo == "deposito":
+            depositos += monto
+            naturaleza = "entrada"
+        else:
+            salidas += monto
+            naturaleza = "salida"
+        eventos.append({
+            "tipo": tipo,
+            "naturaleza": naturaleza,
+            "titulo": {"deposito": "Depósito", "retiro": "Retiro", "gasto": "Gasto"}.get(tipo, "Movimiento"),
+            "detalle": movimiento.get("concepto") or "Movimiento de caja",
+            "referencia": movimiento.get("referencia"),
+            "monto": monto,
+            "fecha_raw": movimiento.get("creado_en") or "",
+            "fecha": convertir_fecha_hora_local(movimiento.get("creado_en")),
+        })
+
+    eventos.sort(key=lambda item: item.get("fecha_raw") or "", reverse=True)
+    monto_inicial = _importe_caja(corte.get("monto_inicial"))
+    efectivo_esperado = round(monto_inicial + metodos["efectivo"] + depositos - salidas, 2)
+    result = dict(corte)
+    result.update({
+        "fecha_apertura_local": convertir_fecha_hora_local(corte.get("fecha_apertura")),
+        "fecha_cierre_local": convertir_fecha_hora_local(corte.get("fecha_cierre")),
+        "monto_inicial": monto_inicial,
+        "efectivo_abonos": round(metodos["efectivo"], 2),
+        "depositos": round(depositos, 2),
+        "salidas": round(salidas, 2),
+        "efectivo_esperado": efectivo_esperado,
+        "metodos_pago": {key: round(value, 2) for key, value in metodos.items()},
+        "total_cobrado": round(sum(metodos.values()), 2),
+        "cantidad_abonos": len(pagos),
+        "eventos": eventos,
+    })
+    return result
+
+
+def obtener_corte_caja(usuario_id, historial_limite=12):
+    """Devuelve la caja abierta del usuario y sus cierres recientes."""
+    try:
+        abiertos = (
+            supabase_admin.table("cortes_caja")
+            .select("*")
+            .eq("usuario_id", int(usuario_id))
+            .eq("estado", "abierta")
+            .order("fecha_apertura", desc=True)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        historial = (
+            supabase_admin.table("cortes_caja")
+            .select("*")
+            .eq("usuario_id", int(usuario_id))
+            .eq("estado", "cerrada")
+            .order("fecha_cierre", desc=True)
+            .limit(max(1, min(int(historial_limite), 50)))
+            .execute()
+            .data
+            or []
+        )
+        historial_normalizado = []
+        for item in historial:
+            normalized = dict(item)
+            normalized["fecha_apertura_local"] = convertir_fecha_hora_local(item.get("fecha_apertura"))
+            normalized["fecha_cierre_local"] = convertir_fecha_hora_local(item.get("fecha_cierre"))
+            for field in ("monto_inicial", "monto_esperado_cierre", "monto_contado_cierre", "diferencia_cierre"):
+                normalized[field] = _importe_caja(item.get(field))
+            historial_normalizado.append(normalized)
+        corte_abierto = _detalle_corte_caja(abiertos[0]) if abiertos else None
+        if corte_abierto:
+            apertura = datetime.fromisoformat(corte_abierto["fecha_apertura_local"])
+            corte_abierto["es_arrastre"] = apertura.date() < datetime.now(APP_LOCAL_TIMEZONE).date()
+            corte_abierto["fecha_operativa"] = apertura.date().isoformat()
+        return {
+            "disponible": True,
+            "corte": corte_abierto,
+            "historial": historial_normalizado,
+        }
+    except Exception as exc:
+        logger.warning("El módulo de corte de caja todavía no está disponible", exc_info=True)
+        return {"disponible": False, "corte": None, "historial": [], "error": str(exc)}
+
+
+def _hora_configurada(value, fallback):
+    raw = str(value or fallback).strip()
+    for format_string in ("%H:%M", "%H:%M:%S"):
+        try:
+            return datetime.strptime(raw, format_string).time()
+        except (TypeError, ValueError):
+            continue
+    return datetime.strptime(fallback, "%H:%M").time()
+
+
+def obtener_estado_turno_caja(usuario_id):
+    """Estado operativo de caja considerando políticas, horario y arrastres."""
+    settings = obtener_configuracion_sistema()
+    caja = obtener_corte_caja(usuario_id)
+    now = datetime.now(APP_LOCAL_TIMEZONE)
+    opening_time = _hora_configurada(settings.get("caja_horario_apertura"), "08:00")
+    closing_time = _hora_configurada(settings.get("caja_horario_cierre"), "18:00")
+    try:
+        reminder_minutes = max(0, min(int(settings.get("caja_recordatorio_minutos", 30)), 240))
+    except (TypeError, ValueError):
+        reminder_minutes = 30
+    closing_at = datetime.combine(now.date(), closing_time, tzinfo=APP_LOCAL_TIMEZONE)
+    reminder_at = closing_at - timedelta(minutes=reminder_minutes)
+    corte = caja.get("corte")
+    stale = bool(corte and corte.get("es_arrastre"))
+    required = bool(settings.get("caja_requerida_para_operar"))
+    blocked = bool(caja.get("disponible") and (stale or (required and not corte)))
+    return {
+        "disponible": caja.get("disponible", False),
+        "corte": corte,
+        "historial": caja.get("historial", []),
+        "requerida": required,
+        "bloqueado": blocked,
+        "arrastre": stale,
+        "horario_apertura": opening_time.strftime("%H:%M"),
+        "horario_cierre": closing_time.strftime("%H:%M"),
+        "recordatorio_minutos": reminder_minutes,
+        "recordar_cierre": bool(
+            corte
+            and not stale
+            and settings.get("caja_recordatorio_cierre")
+            and now >= reminder_at
+        ),
+        "horario_iniciado": now.time() >= opening_time,
+    }
+
+
+def obtener_notificaciones_caja(usuario_id):
+    """Genera avisos diarios de apertura, cierre y cortes arrastrados."""
+    if not usuario_id:
+        return []
+    estado = obtener_estado_turno_caja(usuario_id)
+    if not estado.get("disponible"):
+        return []
+    today = datetime.now(APP_LOCAL_TIMEZONE).date().isoformat()
+    corte = estado.get("corte")
+    notifications = []
+    if estado.get("arrastre"):
+        notifications.append({
+            "key": f"caja:{corte['id']}:arrastre:{today}",
+            "title": "Corte pendiente del día anterior",
+            "detail": "Debes contar y cerrar esa caja antes de continuar con el turno de hoy.",
+            "type": "cash_register_overdue",
+            "url": "/mostrador/corte-caja",
+        })
+    elif estado.get("requerida") and not corte and estado.get("horario_iniciado"):
+        notifications.append({
+            "key": f"caja:apertura:{today}",
+            "title": "Abre la caja para iniciar el turno",
+            "detail": f"Registra el fondo inicial antes de operar. Horario: {estado['horario_apertura']}.",
+            "type": "cash_register_open",
+            "url": "/mostrador/corte-caja",
+        })
+    elif estado.get("recordar_cierre"):
+        notifications.append({
+            "key": f"caja:{corte['id']}:cierre:{today}",
+            "title": "Recuerda cerrar tu caja",
+            "detail": f"El horario de atención termina a las {estado['horario_cierre']}.",
+            "type": "cash_register_close",
+            "url": "/mostrador/corte-caja",
+        })
+    try:
+        response = (
+            supabase.table("notificaciones_leidas").select("clave")
+            .eq("usuario_id", int(usuario_id)).eq("fecha", today).execute()
+        )
+        read_keys = {item["clave"] for item in (response.data or [])}
+    except Exception:
+        logger.exception("No se pudo consultar la lectura de avisos de caja")
+        read_keys = set()
+    for notification in notifications:
+        notification["read"] = notification["key"] in read_keys
+    return notifications
+
+
+def abrir_corte_caja(usuario_id, empleado_id, monto_inicial, notas=None):
+    payload = {
+        "usuario_id": int(usuario_id),
+        "empleado_id": int(empleado_id) if empleado_id else None,
+        "monto_inicial": _importe_caja(monto_inicial),
+        "notas_apertura": (notas or "").strip() or None,
+    }
+    return supabase_admin.table("cortes_caja").insert(payload).execute().data
+
+
+def registrar_movimiento_caja(usuario_id, empleado_id, tipo, monto, concepto, referencia=None):
+    abiertos = (
+        supabase_admin.table("cortes_caja")
+        .select("id")
+        .eq("usuario_id", int(usuario_id))
+        .eq("estado", "abierta")
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if not abiertos:
+        raise ValueError("Primero debes abrir una caja.")
+    payload = {
+        "corte_id": int(abiertos[0]["id"]),
+        "usuario_id": int(usuario_id),
+        "empleado_id": int(empleado_id) if empleado_id else None,
+        "tipo": tipo,
+        "monto": _importe_caja(monto),
+        "concepto": (concepto or "").strip(),
+        "referencia": (referencia or "").strip() or None,
+    }
+    return supabase_admin.table("movimientos_caja").insert(payload).execute().data
+
+
+def cerrar_corte_caja(corte_id, usuario_id, monto_contado, notas=None):
+    return supabase_admin.rpc("cerrar_corte_caja_app", {
+        "p_corte_id": int(corte_id),
+        "p_usuario_id": int(usuario_id),
+        "p_monto_contado": _importe_caja(monto_contado),
+        "p_notas": (notas or "").strip() or None,
+    }).execute().data
 
 def listar_ordenes_resumen(limit: int = 50):
 
@@ -2229,7 +2547,7 @@ def obtener_notificaciones_resultados(usuario_id):
     """Avisos de resultados listos, con lectura diaria individual."""
     if not usuario_id:
         return []
-    today = datetime.now().date()
+    today = datetime.now(APP_LOCAL_TIMEZONE).date()
     results = obtener_resultados_listos()
     notifications = [
         {

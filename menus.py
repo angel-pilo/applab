@@ -18,13 +18,7 @@ ROLE_MENU = {
         {"text": "Historial de resultados", "icon": "fa-archive", "url": "app_routes.resultados_entregados"},
         {"text": "Pacientes",        "icon": "fa-id-card",      "url": "app_routes.manage_patients"},
         {"text": "Órdenes recientes","icon": "fa-stream",       "url": "app_routes.recientes"},
-        {
-            "text": "Corte de caja",
-            "icon": "fa-cash-register",
-            "url": "app_routes.proximamente",
-            "params": {"feature": "Corte de caja"},
-            "badge": "Próximamente",
-        },
+        {"text": "Corte de caja", "icon": "fa-cash-register", "url": "app_routes.corte_caja"},
         {"text": "Mi cuenta",        "icon": "fa-user-cog",     "url": "app_routes.configuracion"},
     ],
 

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Corte de caja | AppLab{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+  <header class="flex flex-col gap-5 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <div class="flex min-w-0 items-start gap-4">
+      <a href="{{ url_for('app_routes.mostrador_dashboard') }}" class="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-cyan-200 hover:text-cyan-700" aria-label="Volver al dashboard de Mostrador">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
+      <div>
+        <p class="text-xs font-bold uppercase tracking-[0.12em] text-cyan-700">Mostrador · Control financiero</p>
+        <h1 class="mt-1 text-3xl font-bold tracking-tight text-slate-950">Corte de caja</h1>
+        <p class="mt-2 text-sm text-slate-500">Controla el efectivo del turno, documenta movimientos y concilia el cierre.</p>
+      </div>
+    </div>
+    {% if caja.disponible and caja.corte %}
+      <div class="flex flex-wrap gap-2">
+        {% if not caja.arrastre %}
+        <button type="button" data-open-movement="deposito" class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100"><i class="fas fa-plus" aria-hidden="true"></i>Depósito</button>
+        <button type="button" data-open-movement="retiro" class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-800 hover:bg-amber-100"><i class="fas fa-minus" aria-hidden="true"></i>Retiro</button>
+        {% endif %}
+        <button type="button" data-open-close class="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"><i class="fas fa-lock" aria-hidden="true"></i>Cerrar caja</button>
+      </div>
+    {% endif %}
+  </header>
+
+  {% if not caja.disponible %}
+    <section class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900 shadow-sm">
+      <div class="flex items-start gap-3"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber-700"><i class="fas fa-database"></i></span><div><h2 class="font-bold">Falta habilitar el almacenamiento de caja</h2><p class="mt-1 text-sm leading-6">Ejecuta la migración <strong>20260815_cash_register.sql</strong> en Supabase y vuelve a cargar esta página.</p></div></div>
+    </section>
+  {% elif caja.corte %}
+    {% set corte = caja.corte %}
+    {% if caja.arrastre %}
+    <section class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-950 shadow-sm">
+      <div class="flex items-start gap-3"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-red-700 ring-1 ring-red-100"><i class="fas fa-exclamation-triangle"></i></span><div><p class="text-[10px] font-bold uppercase tracking-wider text-red-700">Acción obligatoria</p><h2 class="mt-1 font-bold">Este corte quedó abierto desde el {{ corte.fecha_operativa }}</h2><p class="mt-1 text-sm leading-6 text-red-800">No puedes registrar más operaciones en este turno. Cuenta el efectivo y realiza el cierre para poder abrir la caja de hoy.</p></div></div>
+    </section>
+    {% endif %}
+    <section class="rounded-2xl border border-cyan-200 bg-cyan-50/60 p-4 shadow-sm sm:p-5">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-3"><span class="grid h-11 w-11 place-items-center rounded-xl bg-white text-cyan-700 ring-1 ring-cyan-100"><i class="fas fa-cash-register"></i></span><div><p class="text-[10px] font-bold uppercase tracking-wider text-cyan-700">Turno en operación</p><h2 class="font-bold text-slate-950">Caja #{{ corte.id }} abierta</h2><p class="mt-0.5 text-xs text-slate-500">{{ corte.fecha_apertura_local[:16]|replace('T', ' · ') }} · {{ session.get('nombres', 'Usuario') }}</p></div></div>
+        <span class="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-800"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>Abierta</span>
+      </div>
+    </section>
+
+    <section aria-labelledby="cash-summary-title">
+      <div class="mb-3"><h2 id="cash-summary-title" class="text-lg font-bold text-slate-900">Efectivo de la caja</h2><p class="text-sm text-slate-500">Solo los cobros en efectivo afectan el saldo esperado.</p></div>
+      <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {% for label, value, icon, style in [
+          ('Fondo inicial', corte.monto_inicial, 'fa-wallet', 'bg-sky-50 text-sky-700'),
+          ('Abonos en efectivo', corte.efectivo_abonos, 'fa-hand-holding-usd', 'bg-emerald-50 text-emerald-700'),
+          ('Depósitos', corte.depositos, 'fa-arrow-down', 'bg-cyan-50 text-cyan-700'),
+          ('Retiros y gastos', corte.salidas, 'fa-arrow-up', 'bg-amber-50 text-amber-700')
+        ] %}
+          <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><span class="grid h-10 w-10 place-items-center rounded-xl {{ style }}"><i class="fas {{ icon }}"></i></span><p class="mt-4 text-xs font-semibold text-slate-500 sm:text-sm">{{ label }}</p><strong class="mt-1 block text-2xl font-bold text-slate-950">${{ '%.2f'|format(value|float) }}</strong></article>
+        {% endfor %}
+      </div>
+      <article class="mt-3 flex flex-col gap-3 rounded-2xl bg-slate-900 p-5 text-white shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div><p class="text-xs font-bold uppercase tracking-wider text-cyan-300">Saldo esperado en efectivo</p><p class="mt-1 text-sm text-slate-300">Fondo + efectivo + depósitos − salidas</p></div>
+        <strong class="text-3xl font-bold tracking-tight">${{ '%.2f'|format(corte.efectivo_esperado|float) }}</strong>
+      </article>
+    </section>
+
+    <section class="grid gap-4 lg:grid-cols-[1fr_18rem]">
+      <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <header class="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 class="font-bold text-slate-900">Movimientos del turno</h2><p class="text-sm text-slate-500">Abonos y ajustes registrados desde la apertura.</p></div><span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{{ corte.eventos|length }}</span></header>
+        {% if corte.eventos %}
+          <div class="divide-y divide-slate-100">
+            {% for evento in corte.eventos %}
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl {% if evento.naturaleza == 'entrada' %}bg-emerald-50 text-emerald-700{% elif evento.naturaleza == 'salida' %}bg-red-50 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}"><i class="fas {% if evento.naturaleza == 'entrada' %}fa-arrow-down{% elif evento.naturaleza == 'salida' %}fa-arrow-up{% else %}fa-credit-card{% endif %}"></i></span>
+                <div class="min-w-0 flex-1"><strong class="block text-sm text-slate-900">{{ evento.titulo }}</strong><p class="mt-0.5 truncate text-xs text-slate-500">{{ evento.detalle }}{% if evento.referencia %} · {{ evento.referencia }}{% endif %}</p><p class="mt-1 text-[10px] text-slate-400">{{ evento.fecha[:16]|replace('T', ' · ') }}</p></div>
+                <strong class="shrink-0 text-sm {% if evento.naturaleza == 'entrada' %}text-emerald-700{% elif evento.naturaleza == 'salida' %}text-red-700{% else %}text-slate-700{% endif %}">{% if evento.naturaleza == 'entrada' %}+{% elif evento.naturaleza == 'salida' %}−{% endif %}${{ '%.2f'|format(evento.monto|float) }}</strong>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="px-5 py-12 text-center text-sm text-slate-500"><i class="fas fa-receipt mb-3 block text-2xl text-slate-300"></i>Aún no hay movimientos en este turno.</div>
+        {% endif %}
+      </article>
+
+      <aside class="space-y-4">
+        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 class="font-bold text-slate-900">Cobros por método</h2><p class="mt-1 text-xs text-slate-500">Tarjeta y transferencia se muestran para conciliación, pero no incrementan el efectivo.</p><dl class="mt-4 space-y-3 text-sm">
+          {% for key, label, icon in [('efectivo','Efectivo','fa-money-bill-wave'),('tarjeta','Tarjeta','fa-credit-card'),('transferencia','Transferencia','fa-university'),('otro','Otro','fa-ellipsis-h')] %}
+            <div class="flex items-center justify-between gap-3"><dt class="flex items-center gap-2 text-slate-500"><i class="fas {{ icon }} w-4 text-center"></i>{{ label }}</dt><dd class="font-bold text-slate-900">${{ '%.2f'|format(corte.metodos_pago[key]|float) }}</dd></div>
+          {% endfor %}
+        </dl><div class="mt-4 border-t border-slate-200 pt-4"><div class="flex items-center justify-between"><span class="text-sm font-semibold text-slate-600">Total cobrado</span><strong class="text-lg text-slate-950">${{ '%.2f'|format(corte.total_cobrado|float) }}</strong></div><p class="mt-1 text-[11px] text-slate-400">{{ corte.cantidad_abonos }} abono{{ '' if corte.cantidad_abonos == 1 else 's' }}</p></div></article>
+        {% if not caja.arrastre %}<button type="button" data-open-movement="gasto" class="flex w-full items-center justify-between rounded-2xl border border-red-100 bg-red-50 p-4 text-left text-red-800 shadow-sm hover:bg-red-100"><span><strong class="block text-sm">Registrar gasto</strong><small class="mt-1 block text-xs text-red-600">Salida operativa con concepto.</small></span><i class="fas fa-file-invoice-dollar"></i></button>{% endif %}
+      </aside>
+    </section>
+  {% else %}
+    <section class="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center shadow-sm">
+      <span class="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-cyan-50 text-2xl text-cyan-700"><i class="fas fa-cash-register"></i></span><p class="mt-5 text-xs font-bold uppercase tracking-wider text-cyan-700">Caja cerrada</p><h2 class="mt-1 text-xl font-bold text-slate-950">Inicia el turno antes de recibir efectivo</h2><p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Registra el fondo disponible al comenzar. Los abonos posteriores se vincularán automáticamente con este corte.</p><p class="mt-2 text-xs font-semibold text-slate-400">Horario configurado: {{ caja.horario_apertura }} a {{ caja.horario_cierre }}</p><button type="button" data-open-register class="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-slate-800"><i class="fas fa-unlock"></i>Abrir caja</button>
+    </section>
+  {% endif %}
+
+  {% if caja.disponible and caja.historial %}
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <header class="border-b border-slate-200 px-5 py-4"><h2 class="font-bold text-slate-900">Cierres recientes</h2><p class="text-sm text-slate-500">Historial de conciliaciones de tu usuario.</p></header>
+      <div class="overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3">Corte</th><th class="px-5 py-3">Apertura</th><th class="px-5 py-3">Cierre</th><th class="px-5 py-3 text-right">Esperado</th><th class="px-5 py-3 text-right">Contado</th><th class="px-5 py-3 text-right">Diferencia</th></tr></thead><tbody class="divide-y divide-slate-100">
+        {% for item in caja.historial %}<tr><td class="px-5 py-4 font-bold text-slate-900">#{{ item.id }}</td><td class="whitespace-nowrap px-5 py-4 text-slate-500">{{ item.fecha_apertura_local[:16]|replace('T', ' · ') }}</td><td class="whitespace-nowrap px-5 py-4 text-slate-500">{{ item.fecha_cierre_local[:16]|replace('T', ' · ') }}</td><td class="px-5 py-4 text-right">${{ '%.2f'|format(item.monto_esperado_cierre|float) }}</td><td class="px-5 py-4 text-right">${{ '%.2f'|format(item.monto_contado_cierre|float) }}</td><td class="px-5 py-4 text-right font-bold {% if item.diferencia_cierre|float == 0 %}text-emerald-700{% else %}text-amber-700{% endif %}">${{ '%+.2f'|format(item.diferencia_cierre|float) }}</td></tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+  {% endif %}
+</div>
+
+{% if caja.disponible %}
+<div id="register-modal" class="app-flash-modal hidden" role="dialog" aria-modal="true" aria-labelledby="register-title"><button type="button" class="app-flash-backdrop" data-close-modal></button><div class="app-flash-dialog max-w-lg"><header class="app-flash-header"><span class="app-flash-icon is-info"><i class="fas fa-unlock"></i></span><div><p>Inicio de turno</p><h2 id="register-title">Abrir caja</h2></div><button type="button" class="app-flash-close" data-close-modal><i class="fas fa-times"></i></button></header><form method="POST" action="{{ url_for('app_routes.abrir_corte_caja_route') }}" class="app-flash-body space-y-4" data-validate-form><input type="hidden" name="return_to" value="{{ return_to or '' }}"><div class="admin-field"><label for="opening-amount">Fondo inicial <span>*</span></label><div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">$</span><input id="opening-amount" name="monto_inicial" type="number" min="0" step="0.01" value="0.00" class="pl-8" required></div><small>Efectivo disponible antes del primer cobro.</small></div><div class="admin-field"><label for="opening-notes">Nota de apertura <small>(opcional)</small></label><textarea id="opening-notes" name="notas" rows="2" maxlength="300" placeholder="Ej. Fondo entregado por administración..."></textarea></div>{% if return_to %}<div class="rounded-xl border border-cyan-100 bg-cyan-50 p-3 text-xs text-cyan-900"><i class="fas fa-undo-alt mr-1"></i>Al abrir la caja regresarás a la orden que estabas atendiendo.</div>{% endif %}<div class="flex justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" class="btn-cancelar" data-close-modal>Cancelar</button><button type="submit" class="btn-guardar"><i class="fas fa-unlock mr-2"></i>Abrir caja</button></div></form></div></div>
+
+{% if caja.corte %}
+<div id="movement-modal" class="app-flash-modal hidden" role="dialog" aria-modal="true" aria-labelledby="movement-title"><button type="button" class="app-flash-backdrop" data-close-modal></button><div class="app-flash-dialog max-w-lg"><header class="app-flash-header"><span id="movement-icon" class="app-flash-icon is-info"><i class="fas fa-exchange-alt"></i></span><div><p>Movimiento manual</p><h2 id="movement-title">Registrar movimiento</h2></div><button type="button" class="app-flash-close" data-close-modal><i class="fas fa-times"></i></button></header><form method="POST" action="{{ url_for('app_routes.registrar_movimiento_caja_route') }}" class="app-flash-body space-y-4" data-validate-form><input type="hidden" id="movement-type" name="tipo"><div class="admin-field"><label for="movement-amount">Importe <span>*</span></label><input id="movement-amount" name="monto" type="number" min="0.01" step="0.01" required></div><div class="admin-field"><label for="movement-concept">Concepto <span>*</span></label><input id="movement-concept" name="concepto" type="text" minlength="3" maxlength="160" placeholder="Describe el motivo del movimiento" required></div><div class="admin-field"><label for="movement-reference">Referencia <small>(opcional)</small></label><input id="movement-reference" name="referencia" type="text" maxlength="100" placeholder="Folio, autorización o responsable"></div><div class="flex justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" class="btn-cancelar" data-close-modal>Cancelar</button><button id="movement-submit" type="submit" class="btn-guardar">Guardar movimiento</button></div></form></div></div>
+
+<div id="close-modal" class="app-flash-modal hidden" role="dialog" aria-modal="true" aria-labelledby="close-title"><button type="button" class="app-flash-backdrop" data-close-modal></button><div class="app-flash-dialog max-w-lg"><header class="app-flash-header"><span class="app-flash-icon is-info"><i class="fas fa-lock"></i></span><div><p>Arqueo del turno</p><h2 id="close-title">Cerrar caja</h2></div><button type="button" class="app-flash-close" data-close-modal><i class="fas fa-times"></i></button></header><form method="POST" action="{{ url_for('app_routes.cerrar_corte_caja_route') }}" class="app-flash-body space-y-4" data-validate-form><input type="hidden" name="corte_id" value="{{ caja.corte.id }}"><div class="rounded-xl bg-slate-50 p-4"><div class="flex justify-between text-sm"><span class="text-slate-500">Efectivo esperado</span><strong>${{ '%.2f'|format(caja.corte.efectivo_esperado|float) }}</strong></div><div class="mt-2 flex justify-between text-sm"><span class="text-slate-500">Diferencia</span><strong id="cash-difference">$0.00</strong></div></div><div class="admin-field"><label for="counted-amount">Efectivo contado <span>*</span></label><input id="counted-amount" name="monto_contado" type="number" min="0" step="0.01" required data-expected="{{ caja.corte.efectivo_esperado }}"><small>Cuenta físicamente billetes y monedas antes de confirmar.</small></div><div class="admin-field"><label for="closing-notes">Observaciones <small>(opcional)</small></label><textarea id="closing-notes" name="notas" rows="2" maxlength="300" placeholder="Explica cualquier diferencia encontrada..."></textarea></div><div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800"><i class="fas fa-exclamation-triangle mr-1"></i>Después de cerrar no podrás agregar movimientos a este corte.</div><div class="flex justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" class="btn-cancelar" data-close-modal>Cancelar</button><button type="submit" class="btn-guardar"><i class="fas fa-lock mr-2"></i>Confirmar cierre</button></div></form></div></div>
+{% endif %}
+{% endif %}
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const modalIds = ["register-modal", "movement-modal", "close-modal"];
+  const closeAll = () => modalIds.forEach(id => document.getElementById(id)?.classList.add("hidden"));
+  const openModal = id => { closeAll(); document.getElementById(id)?.classList.remove("hidden"); };
+  document.querySelector("[data-open-register]")?.addEventListener("click", () => openModal("register-modal"));
+  if ({{ (return_to or '')|tojson }} && document.getElementById("register-modal")) openModal("register-modal");
+  document.querySelector("[data-open-close]")?.addEventListener("click", () => openModal("close-modal"));
+  document.querySelectorAll("[data-open-movement]").forEach(button => button.addEventListener("click", () => {
+    const type = button.dataset.openMovement;
+    const titles = { deposito: "Registrar depósito", retiro: "Registrar retiro", gasto: "Registrar gasto" };
+    document.getElementById("movement-type").value = type;
+    document.getElementById("movement-title").textContent = titles[type];
+    document.getElementById("movement-submit").textContent = titles[type];
+    openModal("movement-modal");
+  }));
+  document.querySelectorAll("[data-close-modal]").forEach(button => button.addEventListener("click", closeAll));
+  document.addEventListener("keydown", event => { if (event.key === "Escape") closeAll(); });
+  const counted = document.getElementById("counted-amount");
+  counted?.addEventListener("input", () => {
+    const difference = (Number(counted.value || 0) - Number(counted.dataset.expected || 0));
+    const target = document.getElementById("cash-difference");
+    target.textContent = `${difference >= 0 ? "+" : "−"}$${Math.abs(difference).toFixed(2)}`;
+    target.className = difference === 0 ? "text-emerald-700" : "text-amber-700";
+  });
+});
+</script>
+{% endblock %}

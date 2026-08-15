@@ -640,6 +640,7 @@ def admin_search_access(area, destination):
             "resultados_listos": "app_routes.listos",
             "historial_resultados": "app_routes.resultados_entregados",
             "ordenes_recientes": "app_routes.recientes",
+            "corte_caja": "app_routes.corte_caja",
         },
         "enfermero": {
             "dashboard": "app_routes.enfermero_dashboard",
@@ -699,6 +700,10 @@ def notifications_today():
             notifications.extend(
                 obtener_notificaciones_resultados(session.get("user_id"))
             )
+        if "front.cash.manage" in permisos:
+            notifications.extend(
+                obtener_notificaciones_caja(session.get("user_id"))
+            )
         if permisos.intersection({
             "admin.inventory", "lab.inventory.entry", "lab.results.capture"
         }):
@@ -709,6 +714,7 @@ def notifications_today():
             )
     elif rol == "Mostrador":
         notifications = obtener_notificaciones_resultados(session.get("user_id"))
+        notifications.extend(obtener_notificaciones_caja(session.get("user_id")))
     else:
         notifications = obtener_notificaciones_inventario(session.get("user_id"), rol)
     return jsonify({
@@ -725,7 +731,7 @@ def notifications_today():
             if rol == "Personalizado"
             else "Alertas diarias de inventario"
             if rol in {"Admin", "Quimico"}
-            else "Resultados listos para entregar"
+            else "Resultados y avisos del turno"
             if rol == "Mostrador"
             else "Avisos relacionados con tus funciones"
         ),
@@ -734,7 +740,7 @@ def notifications_today():
             if rol == "Personalizado"
             else "No tienes alertas de inventario para hoy."
             if rol in {"Admin", "Quimico"}
-            else "No hay resultados nuevos para entregar."
+            else "No hay resultados ni avisos nuevos para hoy."
             if rol == "Mostrador"
             else "No tienes notificaciones para hoy."
         ),
@@ -752,6 +758,10 @@ def notifications_read():
         rol == "Mostrador" or "front.results.deliver" in permisos
     ):
         current.extend(obtener_notificaciones_resultados(session.get("user_id")))
+    if rol in {"Mostrador", "Personalizado"} and (
+        rol == "Mostrador" or "front.cash.manage" in permisos
+    ):
+        current.extend(obtener_notificaciones_caja(session.get("user_id")))
     if rol != "Mostrador" and (
         rol != "Personalizado"
         or permisos.intersection({
@@ -1352,7 +1362,214 @@ def mostrador_dashboard():
     return render_template(
         "mostrador/mostrador.html",
         resumen=obtener_resumen_mostrador(),
+        estado_caja=obtener_estado_turno_caja(session.get("user_id")),
     )
+
+
+CASH_REGISTER_OPERATION_ENDPOINTS = {
+    "app_routes.nueva_orden",
+    "app_routes.manage_orden",
+    "app_routes.api_validar_orden",
+    "app_routes.manage_orden_pruebas",
+    "app_routes.guardar_estudios_orden",
+    "app_routes.reporte",
+    "app_routes.imprimir_orden",
+    "app_routes.abonar_orden",
+    "app_routes.entregar_resultado",
+    "app_routes.finalizar_entrega_resultado_api",
+    "app_routes.registrar_comunicacion_resultado_route",
+    "app_routes.add_patient",
+    "app_routes.edit_patient",
+    "app_routes.add_hospital",
+    "app_routes.add_doctor",
+}
+CASH_ALWAYS_REQUIRED_ENDPOINTS = {"app_routes.abonar_orden"}
+
+
+@app_routes.before_request
+def enforce_cash_register_shift():
+    """Impide operar Mostrador sin turno de caja cuando la política lo exige."""
+    if request.endpoint not in CASH_REGISTER_OPERATION_ENDPOINTS:
+        return None
+    if not session.get("user_id"):
+        return None
+    role = current_workspace_role()
+    permissions = set(session.get("permisos", []))
+    works_at_front = role == "Mostrador" or (
+        role == "Personalizado" and "front.cash.manage" in permissions
+    )
+    if not works_at_front:
+        return None
+    state = obtener_estado_turno_caja(session.get("user_id"))
+    always_required = request.endpoint in CASH_ALWAYS_REQUIRED_ENDPOINTS
+    blocked = bool(
+        (always_required and not state.get("disponible"))
+        or (
+            state.get("disponible")
+            and (
+                state.get("arrastre")
+                or (
+                    not state.get("corte")
+                    and (state.get("requerida") or always_required)
+                )
+            )
+        )
+    )
+    if not blocked:
+        return None
+    if not state.get("disponible"):
+        message = "La caja no está disponible. Aplica la migración antes de registrar abonos."
+    elif state.get("arrastre"):
+        message = (
+            "Tienes un corte abierto de un día anterior. "
+            "Cuenta el efectivo y ciérralo antes de continuar."
+        )
+    else:
+        message = "Debes contar el fondo y abrir tu caja antes de iniciar operaciones."
+    order_id = (request.view_args or {}).get("orden_id")
+    return_to = (
+        url_for("app_routes.reporte", orden_id=order_id)
+        if order_id else request.referrer or url_for("app_routes.mostrador_dashboard")
+    )
+    cash_url = url_for("app_routes.corte_caja", next=return_to)
+    if request.is_json or request.path.startswith("/api/"):
+        return jsonify({
+            "ok": False,
+            "message": message,
+            "cash_register_required": True,
+            "redirect": cash_url,
+        }), 409
+    flash(message, "warning")
+    return redirect(cash_url)
+
+
+@app_routes.get("/mostrador/corte-caja")
+@require_role("Mostrador")
+def corte_caja():
+    usuario_id = session.get("user_id")
+    if not usuario_id:
+        flash("No se pudo identificar al usuario de caja. Inicia sesión nuevamente.", "error")
+        return redirect(url_for("app_routes.logout"))
+    caja = obtener_estado_turno_caja(usuario_id)
+    return_to = safe_local_return_url(request.args.get("next"))
+    return render_template(
+        "mostrador/corte_caja.html", caja=caja, return_to=return_to
+    )
+
+
+def safe_local_return_url(value):
+    """Acepta únicamente destinos internos para volver después de abrir caja."""
+    if not value:
+        return None
+    parsed = urlparse(str(value))
+    if parsed.netloc and parsed.netloc != request.host:
+        return None
+    path = parsed.path or "/"
+    if not path.startswith("/") or path.startswith("//"):
+        return None
+    return path + (f"?{parsed.query}" if parsed.query else "")
+
+
+@app_routes.post("/mostrador/corte-caja/abrir")
+@require_role("Mostrador")
+def abrir_corte_caja_route():
+    usuario_id = session.get("user_id")
+    return_to = safe_local_return_url(request.form.get("return_to"))
+    cash_url = url_for("app_routes.corte_caja", next=return_to) if return_to else url_for("app_routes.corte_caja")
+    if not usuario_id:
+        flash("No se pudo identificar al usuario de caja.", "error")
+        return redirect(cash_url)
+    try:
+        monto = float(request.form.get("monto_inicial") or 0)
+        if monto < 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        flash("El fondo inicial debe ser una cantidad válida igual o mayor a cero.", "error")
+        return redirect(cash_url)
+    if obtener_corte_caja(usuario_id).get("corte"):
+        flash("Ya tienes una caja abierta. Ciérrala antes de iniciar otra.", "error")
+        return redirect(cash_url)
+    try:
+        abrir_corte_caja(
+            usuario_id,
+            session.get("empleado_id"),
+            monto,
+            request.form.get("notas"),
+        )
+        flash("Caja abierta correctamente.", "success")
+        return redirect(return_to or url_for("app_routes.corte_caja"))
+    except Exception as exc:
+        logger.exception("No se pudo abrir la caja")
+        flash("No se pudo abrir la caja. Verifica que la migración de corte de caja esté aplicada.", "error")
+    return redirect(cash_url)
+
+
+@app_routes.post("/mostrador/corte-caja/movimiento")
+@require_role("Mostrador")
+def registrar_movimiento_caja_route():
+    estado_caja = obtener_estado_turno_caja(session.get("user_id"))
+    if estado_caja.get("arrastre"):
+        flash(
+            "Este corte pertenece a un día anterior. Debes cerrarlo antes de registrar movimientos.",
+            "error",
+        )
+        return redirect(url_for("app_routes.corte_caja"))
+    tipo = (request.form.get("tipo") or "").strip().lower()
+    concepto = (request.form.get("concepto") or "").strip()
+    if tipo not in {"deposito", "retiro", "gasto"}:
+        flash("Selecciona un tipo de movimiento válido.", "error")
+        return redirect(url_for("app_routes.corte_caja"))
+    try:
+        monto = float(request.form.get("monto") or 0)
+        if monto <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        flash("El importe debe ser mayor a cero.", "error")
+        return redirect(url_for("app_routes.corte_caja"))
+    if len(concepto) < 3:
+        flash("Escribe un concepto de al menos 3 caracteres.", "error")
+        return redirect(url_for("app_routes.corte_caja"))
+    try:
+        registrar_movimiento_caja(
+            session.get("user_id"),
+            session.get("empleado_id"),
+            tipo,
+            monto,
+            concepto,
+            request.form.get("referencia"),
+        )
+        flash(f"{tipo.title()} registrado correctamente.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    except Exception:
+        logger.exception("No se pudo registrar el movimiento de caja")
+        flash("No se pudo registrar el movimiento de caja.", "error")
+    return redirect(url_for("app_routes.corte_caja"))
+
+
+@app_routes.post("/mostrador/corte-caja/cerrar")
+@require_role("Mostrador")
+def cerrar_corte_caja_route():
+    try:
+        corte_id = int(request.form.get("corte_id") or 0)
+        monto_contado = float(request.form.get("monto_contado") or 0)
+        if corte_id <= 0 or monto_contado < 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        flash("Ingresa un efectivo contado válido.", "error")
+        return redirect(url_for("app_routes.corte_caja"))
+    try:
+        cerrar_corte_caja(
+            corte_id,
+            session.get("user_id"),
+            monto_contado,
+            request.form.get("notas"),
+        )
+        flash("Corte cerrado y conciliado correctamente.", "success")
+    except Exception:
+        logger.exception("No se pudo cerrar la caja")
+        flash("No se pudo cerrar la caja. Verifica el estado e intenta nuevamente.", "error")
+    return redirect(url_for("app_routes.corte_caja"))
 
 @app_routes.route("/enfermero")
 @require_role("Enfermero")
@@ -1696,14 +1913,42 @@ def cambiar_password_personal():
 @app_routes.route("/configuracion/sistema", methods=["POST"])
 @require_role("Admin")
 def guardar_politicas_sistema():
+    opening_time = (request.form.get("caja_horario_apertura") or "08:00").strip()
+    closing_time = (request.form.get("caja_horario_cierre") or "18:00").strip()
+    try:
+        datetime.strptime(opening_time, "%H:%M")
+        datetime.strptime(closing_time, "%H:%M")
+        reminder_minutes = int(request.form.get("caja_recordatorio_minutos") or 30)
+        if reminder_minutes not in {10, 15, 30, 45, 60}:
+            raise ValueError
+    except (TypeError, ValueError):
+        flash("Revisa el horario y el tiempo del recordatorio de caja.", "error")
+        return redirect(url_for("app_routes.configuracion_sistema"))
     settings = {
         "empleados_cambian_password": request.form.get("empleados_cambian_password") == "on",
         "empleados_cambian_foto": request.form.get("empleados_cambian_foto") == "on",
         "mostrador_entrega_saldo_pendiente": request.form.get(
             "mostrador_entrega_saldo_pendiente"
         ) == "on",
+        "caja_requerida_para_operar": request.form.get(
+            "caja_requerida_para_operar"
+        ) == "on",
+        "caja_recordatorio_cierre": request.form.get(
+            "caja_recordatorio_cierre"
+        ) == "on",
+        "caja_horario_apertura": opening_time,
+        "caja_horario_cierre": closing_time,
+        "caja_recordatorio_minutos": reminder_minutes,
     }
-    guardar_configuracion_sistema(settings, session.get("user_id"))
+    try:
+        guardar_configuracion_sistema(settings, session.get("user_id"))
+    except Exception:
+        logger.exception("No se pudieron guardar las políticas del sistema")
+        flash(
+            "No se pudo guardar. Aplica la migración de corte de caja en Supabase.",
+            "error",
+        )
+        return redirect(url_for("app_routes.configuracion_sistema"))
     registrar_cambio_politicas(settings, override_requester())
     flash("Políticas del sistema actualizadas.", "success")
     return redirect(url_for("app_routes.configuracion_sistema"))
@@ -3490,6 +3735,12 @@ def generar_pdf_recibo(context):
             f"<b>Método:</b> {escape(str(payment.get('metodo_descripcion') or 'No especificado').title())}",
             styles["BodyText"],
         ))
+        if payment.get("metodo_pago") == "efectivo" and payment.get("cantidad_recibida") is not None:
+            story.append(Paragraph(
+                f"<b>Efectivo entregado:</b> ${float(payment.get('cantidad_recibida') or 0):.2f} &nbsp;&nbsp; "
+                f"<b>Cambio:</b> ${float(payment.get('cambio_entregado') or 0):.2f}",
+                styles["ReceiptSmall"],
+            ))
         story.append(Spacer(1, 3 * mm))
 
     if config.get("mostrar_historial_pagos") and context["abonos"]:
@@ -3688,6 +3939,7 @@ def reporte():
             total_restante=total_restante,
             folio_sugerido=folio_sugerido,
             embedded_form=request.args.get("embedded") == "1",
+            estado_caja=obtener_estado_turno_caja(session.get("user_id")),
         )
 
     # ---------------------------------
@@ -3765,6 +4017,7 @@ def reporte():
         total_abonos=total_abonos,
         total_restante=total_restante,
         folio_sugerido=folio_sugerido,
+        estado_caja=obtener_estado_turno_caja(session.get("user_id")),
     )
 
 
@@ -3872,6 +4125,7 @@ def abonar_orden(orden_id: int):
         return redirect(reporte_orden_url)
 
     cantidad_str = request.form.get("cantidad")
+    cantidad_recibida_str = request.form.get("cantidad_recibida")
     nota = request.form.get("nota")
     metodo_pago = (request.form.get("metodo_pago") or "").strip().lower()
     metodo_pago_otro = (request.form.get("metodo_pago_otro") or "").strip()
@@ -3893,6 +4147,29 @@ def abonar_orden(orden_id: int):
         flash("La cantidad debe ser mayor a cero.", "error")
         return redirect(reporte_orden_url)
 
+    saldo_actual = max(
+        float(orden_db.get("total_pruebas") or 0)
+        - float(orden_db.get("total_abonos") or 0),
+        0.0,
+    )
+    if cantidad > saldo_actual + 0.001:
+        flash(f"El abono no puede superar el saldo de ${saldo_actual:.2f}.", "error")
+        return redirect(reporte_orden_url)
+
+    if metodo_pago == "efectivo":
+        try:
+            cantidad_recibida = float(cantidad_recibida_str)
+        except (TypeError, ValueError):
+            flash("Ingresa la cantidad de efectivo recibida.", "error")
+            return redirect(reporte_orden_url)
+        if cantidad_recibida + 0.001 < cantidad:
+            flash("El efectivo recibido debe cubrir el importe del abono.", "error")
+            return redirect(reporte_orden_url)
+        cambio_entregado = round(cantidad_recibida - cantidad, 2)
+    else:
+        cantidad_recibida = cantidad
+        cambio_entregado = 0.0
+
     empleado_id = session.get("empleado_id")
 
     try:
@@ -3904,7 +4181,6 @@ def abonar_orden(orden_id: int):
             metodo_pago,
             metodo_pago_otro,
         )
-        flash("Abono registrado correctamente.", "success")
         abono_id = None
         if isinstance(result, dict):
             abono_id = result.get("id") or result.get("abono_id")
@@ -3917,6 +4193,21 @@ def abonar_orden(orden_id: int):
             valid_payments = [payment for payment in current_payments if payment.get("id") is not None]
             if valid_payments:
                 abono_id = max(valid_payments, key=lambda payment: int(payment["id"]))["id"]
+        if abono_id:
+            try:
+                registrar_efectivo_recibido_abono(
+                    abono_id, cantidad_recibida, cambio_entregado
+                )
+            except Exception:
+                logger.warning(
+                    "No se pudo guardar el efectivo recibido del abono %s",
+                    abono_id,
+                    exc_info=True,
+                )
+        success_message = "Abono registrado correctamente."
+        if metodo_pago == "efectivo" and cambio_entregado > 0:
+            success_message += f" Cambio entregado: ${cambio_entregado:.2f}."
+        flash(success_message, "success")
     except Exception as e:
         print("Error al registrar abono:", e)
         flash("Ocurrió un error al registrar el abono.", "error")

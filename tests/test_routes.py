@@ -165,6 +165,52 @@ class DeliveredResultsServiceTests(unittest.TestCase):
         self.assertTrue(results[0]["fecha_entrega"].startswith("2026-08-11T18:44"))
 
 
+class CashRegisterServiceTests(unittest.TestCase):
+    def test_cash_expected_excludes_card_and_transfer_payments(self):
+        class FakeQuery:
+            def __init__(self, data):
+                self.data = data
+
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args, **_kwargs):
+                return self
+
+            def order(self, *_args, **_kwargs):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=self.data)
+
+        class FakeAdmin:
+            def table(self, name):
+                if name == "orden_abonos":
+                    return FakeQuery([
+                        {"id": 1, "orden_id": 8, "cantidad": 100, "metodo_pago": "efectivo", "fecha_abono": "2026-08-15T10:00:00+00:00"},
+                        {"id": 2, "orden_id": 9, "cantidad": 50, "metodo_pago": "tarjeta", "fecha_abono": "2026-08-15T10:05:00+00:00"},
+                        {"id": 3, "orden_id": 10, "cantidad": 75, "metodo_pago": "transferencia", "fecha_abono": "2026-08-15T10:10:00+00:00"},
+                    ])
+                return FakeQuery([
+                    {"id": 1, "tipo": "deposito", "monto": 20, "concepto": "Cambio adicional", "creado_en": "2026-08-15T10:15:00+00:00"},
+                    {"id": 2, "tipo": "retiro", "monto": 10, "concepto": "Retiro parcial", "creado_en": "2026-08-15T10:20:00+00:00"},
+                    {"id": 3, "tipo": "gasto", "monto": 5, "concepto": "Mensajería", "creado_en": "2026-08-15T10:25:00+00:00"},
+                ])
+
+        with patch.object(services, "supabase_admin", FakeAdmin()):
+            detail = services._detalle_corte_caja({
+                "id": 4,
+                "monto_inicial": 200,
+                "fecha_apertura": "2026-08-15T09:00:00+00:00",
+            })
+
+        self.assertEqual(detail["efectivo_abonos"], 100)
+        self.assertEqual(detail["total_cobrado"], 225)
+        self.assertEqual(detail["efectivo_esperado"], 305)
+        self.assertEqual(detail["salidas"], 15)
+        self.assertEqual(len(detail["eventos"]), 6)
+
+
 class OrderValidationTests(unittest.TestCase):
     @patch.object(routes, "existe_doctor_activo", return_value=True)
     @patch.object(routes, "existe_hospital_activo", return_value=True)
@@ -729,6 +775,22 @@ class AuthorizationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.get_json()["ok"])
         finalize.assert_called_once_with(12, 3, "whatsapp")
+
+    @patch.object(routes, "obtener_corte_caja", return_value={"disponible": True, "corte": None, "historial": []})
+    def test_custom_profile_can_open_cash_register_with_permission(self, _):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session.update({
+                "usuario": "cajero-mixto",
+                "user_id": 7,
+                "rol": "Personalizado",
+                "permisos": ["front.cash.manage"],
+            })
+
+        response = client.get("/mostrador/corte-caja")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Corte de caja", response.data)
 
     @patch.object(
         routes, "validar_autorizador_admin_detallado",
