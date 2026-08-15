@@ -27,6 +27,23 @@
     </div>
   </header>
 
+  {% if estado_caja.disponible and estado_caja.arrastre %}
+  <section class="flex flex-col gap-4 rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex items-start gap-3"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-red-700 ring-1 ring-red-100"><i class="fas fa-exclamation-triangle"></i></span><div><h2 class="font-bold text-red-950">Corte pendiente del día anterior</h2><p class="mt-1 text-sm text-red-800">Antes de continuar, cuenta el efectivo y cierra la caja abierta el {{ estado_caja.corte.fecha_operativa }}.</p></div></div>
+    <a href="{{ url_for('app_routes.corte_caja') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-red-800 px-4 py-2 text-sm font-bold text-white"><i class="fas fa-lock"></i>Cerrar corte</a>
+  </section>
+  {% elif estado_caja.disponible and estado_caja.requerida and not estado_caja.corte %}
+  <section class="flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex items-start gap-3"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-amber-700 ring-1 ring-amber-100"><i class="fas fa-cash-register"></i></span><div><h2 class="font-bold text-amber-950">Abre tu caja para iniciar</h2><p class="mt-1 text-sm text-amber-800">Cuenta y registra el fondo inicial antes de crear órdenes o recibir pagos.</p></div></div>
+    <a href="{{ url_for('app_routes.corte_caja') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white"><i class="fas fa-unlock"></i>Abrir caja</a>
+  </section>
+  {% elif estado_caja.disponible and estado_caja.recordar_cierre %}
+  <section class="flex flex-col gap-4 rounded-2xl border border-cyan-200 bg-cyan-50 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex items-start gap-3"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-cyan-700 ring-1 ring-cyan-100"><i class="fas fa-clock"></i></span><div><h2 class="font-bold text-cyan-950">El cierre del turno se aproxima</h2><p class="mt-1 text-sm text-cyan-800">El horario termina a las {{ estado_caja.horario_cierre }}. Recuerda contar y conciliar tu caja.</p></div></div>
+    <a href="{{ url_for('app_routes.corte_caja') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-white px-4 py-2 text-sm font-bold text-cyan-900"><i class="fas fa-arrow-right"></i>Ir a caja</a>
+  </section>
+  {% endif %}
+
   <section aria-labelledby="resumen-mostrador">
     <div class="mb-4">
       <h2 id="resumen-mostrador" class="text-lg font-bold text-gray-900">Resumen operativo</h2>
@@ -55,13 +72,14 @@
 
   <section aria-labelledby="acciones-mostrador">
     <h2 id="acciones-mostrador" class="mb-4 text-lg font-bold text-gray-900">Accesos rápidos</h2>
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {% set actions = [
         ('Generar orden', 'Registra estudios y forma de pago.', 'fa-file-medical', 'app_routes.nueva_orden', 'text-blue-700 bg-blue-50', 'front.orders.create'),
         ('Pacientes', 'Consulta o registra expedientes.', 'fa-user-injured', 'app_routes.manage_patients', 'text-cyan-700 bg-cyan-50', 'front.patients'),
         ('Órdenes recientes', 'Revisa pagos, saldos y notas.', 'fa-history', 'app_routes.recientes', 'text-violet-700 bg-violet-50', 'front.orders.view'),
         ('Resultados listos', 'Consulta estudios para entrega.', 'fa-file-export', 'app_routes.listos', 'text-emerald-700 bg-emerald-50', 'front.results.deliver'),
-        ('Historial de resultados', 'Consulta entregas, pagos y estudios realizados.', 'fa-archive', 'app_routes.resultados_entregados', 'text-teal-700 bg-teal-50', 'front.results.deliver')
+        ('Historial de resultados', 'Consulta entregas, pagos y estudios realizados.', 'fa-archive', 'app_routes.resultados_entregados', 'text-teal-700 bg-teal-50', 'front.results.deliver'),
+        ('Corte de caja', 'Abre, concilia y cierra el efectivo.', 'fa-cash-register', 'app_routes.corte_caja', 'text-amber-700 bg-amber-50', 'front.cash.manage')
       ] %}
       {% for title, description, icon, endpoint, colors, permission in actions %}
       {% if has_permission(permission) %}

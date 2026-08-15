@@ -43,6 +43,7 @@ insert into public.permisos (codigo, modulo, nombre) values
     ('front.orders.view', 'mostrador', 'Consultar órdenes recientes'),
     ('front.results.deliver', 'mostrador', 'Consultar y entregar resultados'),
     ('front.patients', 'mostrador', 'Registrar y editar pacientes'),
+    ('front.cash.manage', 'mostrador', 'Abrir, operar y cerrar caja'),
     ('nursing.dashboard', 'enfermeria', 'Ver panel de enfermería'),
     ('nursing.samples', 'enfermeria', 'Gestionar faltantes y toma de muestras'),
     ('nursing.labels', 'enfermeria', 'Generar, imprimir y escanear etiquetas'),

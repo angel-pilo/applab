@@ -33,7 +33,7 @@
             <div class="min-w-0">
               <h3 class="truncate font-bold text-gray-900">{{ resultado.nombres }} {{ resultado.apellidos }}</h3>
               <p class="mt-1 text-xs text-gray-500">
-                Listo {{ (resultado.actualizado_en or '')[:16]|replace('T', ' ') }}
+                Listo {{ (resultado.actualizado_en_local or resultado.actualizado_en or '')[:16]|replace('T', ' ') }}
                 {% if resultado.cuarto %} · Ubicación {{ resultado.cuarto }}{% endif %}
               </p>
               {% if resultado.saldo > 0 %}
@@ -68,20 +68,11 @@
             <form method="POST" action="{{ url_for('app_routes.entregar_resultado', orden_id=resultado.orden_id) }}"
                   class="delivery-form flex items-center gap-2"
                   data-order="{{ resultado.orden_id }}"
+                  data-patient="{{ (resultado.nombres ~ ' ' ~ resultado.apellidos)|trim|e }}"
+                  data-phone="{{ resultado.telefono or '' }}"
                   data-balance="{{ '%.2f'|format(resultado.saldo) }}"
                   data-requires-override="{{ 'true' if resultado.saldo > 0 and not system_settings.mostrador_entrega_saldo_pendiente else 'false' }}">
-              <input type="hidden" name="admin_username">
-              <input type="hidden" name="admin_password">
-              <label class="sr-only" for="medio-{{ resultado.orden_id }}">Medio de entrega</label>
-              <select id="medio-{{ resultado.orden_id }}" name="medio_entrega" required
-                      class="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-cyan-500">
-                <option value="">Medio de entrega</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="impreso">Impreso</option>
-                <option value="correo">Correo</option>
-                <option value="directo">Entrega directa</option>
-                <option value="otro">Otro</option>
-              </select>
+              <input type="hidden" name="medio_entrega">
               <button type="submit" class="btn-guardar h-10 whitespace-nowrap">
                 <i class="fas fa-check mr-2"></i>Finalizar
               </button>
@@ -132,9 +123,22 @@
     <header class="flex items-start justify-between border-b border-slate-200 p-5"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-700">Comunicaci&oacute;n con paciente</p><h2 class="mt-1 text-xl font-bold text-slate-900">Avisar o enviar resultados</h2></div><button type="button" data-close-result-communication class="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-500"><i class="fas fa-times"></i></button></header>
     <div class="space-y-3 p-5">
       <p id="communication-patient" class="text-sm text-slate-600"></p>
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Contacto seleccionado</p>
+        <div class="mt-2 flex items-center justify-between gap-3">
+          <div class="min-w-0"><strong id="communication-patient-name" class="block truncate text-sm text-slate-900"></strong><span id="communication-patient-phone" class="mt-0.5 block text-sm text-slate-600"></span></div>
+          <button id="copy-patient-phone" type="button" class="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-all duration-200"><i class="fas fa-copy mr-1.5"></i>Copiar tel&eacute;fono</button>
+        </div>
+      </div>
       <div id="communication-balance-warning" class="hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"><strong>Saldo pendiente.</strong> El env&iacute;o quedar&aacute; registrado en el backlog con el usuario que lo realiz&oacute;.</div>
       <button id="send-ready-notice" type="button" class="flex w-full items-start gap-3 rounded-xl border border-emerald-200 p-4 text-left hover:bg-emerald-50"><span class="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><i class="fab fa-whatsapp"></i></span><span><strong class="block text-sm text-slate-900">Solo avisar</strong><small class="mt-1 block text-slate-500">Abre WhatsApp con un mensaje indicando que los resultados est&aacute;n listos.</small></span></button>
       <button id="send-result-pdf" type="button" class="flex w-full items-start gap-3 rounded-xl border border-cyan-200 p-4 text-left hover:bg-cyan-50"><span class="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><i class="fas fa-file-pdf"></i></span><span><strong class="block text-sm text-slate-900">Enviar resultado en PDF</strong><small class="mt-1 block text-slate-500">Genera el reporte firmado para compartirlo por WhatsApp.</small></span></button>
+      <button id="share-prepared-result" type="button" class="hidden w-full items-center justify-center gap-2 rounded-xl bg-[#0b1f33] px-4 py-3 text-sm font-semibold text-white"><i class="fas fa-share-alt"></i>Compartir PDF ahora</button>
+      <div id="share-result-confirmation" class="hidden rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <p class="text-sm font-semibold text-emerald-950">&iquest;El resultado se envi&oacute; correctamente al paciente?</p>
+        <p class="mt-1 text-xs text-emerald-800">Solo se registrar&aacute; como enviado en el backlog cuando lo confirmes.</p>
+        <div class="mt-3 flex flex-wrap justify-end gap-2"><button id="retry-result-share" type="button" class="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">No, intentar de nuevo</button><button id="confirm-result-sent" type="button" class="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white">S&iacute;, marcar como enviado</button></div>
+      </div>
       <p id="communication-status" class="min-h-4 text-xs text-slate-500" aria-live="polite"></p>
     </div>
   </section>
@@ -143,7 +147,20 @@
 <div id="finalize-delivery-modal" class="fixed inset-0 z-[12020] hidden items-center justify-center bg-slate-950/60 p-4" role="dialog" aria-modal="true">
   <section class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
     <header class="flex items-start gap-3 border-b border-slate-200 p-5"><span class="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><i class="fas fa-check-double"></i></span><div><p class="text-xs font-bold uppercase tracking-wider text-cyan-700">Confirmar operaci&oacute;n</p><h2 class="mt-1 text-xl font-bold text-slate-900">Finalizar orden</h2></div></header>
-    <div class="space-y-4 p-5"><p id="finalize-delivery-text" class="text-sm leading-6 text-slate-600"></p><div id="finalize-admin-fields" class="hidden space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4"><p class="text-sm font-semibold text-amber-900">Esta orden requiere autorizaci&oacute;n administrativa por saldo pendiente.</p><input id="finalize-admin-user" class="w-full rounded-xl border border-amber-200 bg-white p-2.5 text-sm" placeholder="Usuario administrador" autocomplete="username"><input id="finalize-admin-password" type="password" class="w-full rounded-xl border border-amber-200 bg-white p-2.5 text-sm" placeholder="Contrase&ntilde;a" autocomplete="current-password"></div><p id="finalize-delivery-error" class="hidden rounded-xl bg-red-50 p-3 text-sm text-red-700"></p></div>
+    <div class="space-y-4 p-5">
+      <p id="finalize-delivery-text" class="text-sm leading-6 text-slate-600"></p>
+      <label for="finalize-delivery-medium" class="block text-sm font-semibold text-slate-700">Medio de entrega *</label>
+      <select id="finalize-delivery-medium" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-cyan-500">
+        <option value="">Selecciona cómo se entregaron los resultados</option>
+        <option value="whatsapp">WhatsApp</option>
+        <option value="impreso">Impreso</option>
+        <option value="correo">Correo electrónico</option>
+        <option value="directo">Entrega directa</option>
+        <option value="otro">Otro medio</option>
+      </select>
+      <div id="finalize-admin-fields" class="hidden space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4"><p class="text-sm font-semibold text-amber-900">Esta orden requiere autorizaci&oacute;n administrativa por saldo pendiente.</p><input id="finalize-admin-user" class="w-full rounded-xl border border-amber-200 bg-white p-2.5 text-sm" placeholder="Usuario administrador" autocomplete="username"><input id="finalize-admin-password" type="password" class="w-full rounded-xl border border-amber-200 bg-white p-2.5 text-sm" placeholder="Contrase&ntilde;a" autocomplete="current-password"></div>
+      <p id="finalize-delivery-error" class="hidden rounded-xl bg-red-50 p-3 text-sm text-red-700"></p>
+    </div>
     <footer class="flex justify-end gap-2 border-t border-slate-200 p-4"><button type="button" data-close-finalize-delivery class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">Cancelar</button><button id="confirm-finalize-delivery" type="button" class="rounded-xl bg-[#0b1f33] px-4 py-2.5 text-sm font-semibold text-white">S&iacute;, finalizar</button></footer>
   </section>
 </div>
@@ -155,16 +172,86 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll('a[href*="/reporte?orden_id="], a[href*="/resultados/"][href$="/imprimir"]').forEach(link => link.addEventListener("click", event => { event.preventDefault(); document.getElementById("results-preview-title").textContent = link.textContent.trim(); const url = new URL(link.href); url.searchParams.set("embedded", "1"); previewFrame.src = url.toString(); previewModal.classList.remove("hidden"); previewModal.classList.add("flex"); document.body.classList.add("overflow-hidden"); }));
   document.querySelectorAll("[data-close-results-preview]").forEach(button => button.addEventListener("click", closePreview));
 
-  const communicationModal = document.getElementById("result-communication-modal"), communicationStatus = document.getElementById("communication-status");
-  let communication = null;
-  const closeCommunication = () => { communicationModal.classList.add("hidden"); communicationModal.classList.remove("flex"); communication = null; communicationStatus.textContent = ""; };
-  document.querySelectorAll('a[href^="https://wa.me/"]').forEach(link => link.addEventListener("click", event => { event.preventDefault(); const article = link.closest("article"), form = article.querySelector(".delivery-form"), url = new URL(link.href); communication = { order: form.dataset.order, balance: Number(form.dataset.balance || 0), phone: url.pathname.replace(/\D/g, ""), noticeUrl: link.href, pdfUrl: `/resultados/${form.dataset.order}/pdf`, logUrl: `/resultados/${form.dataset.order}/comunicacion` }; document.getElementById("communication-patient").textContent = `Orden #${communication.order}. Selecciona si deseas avisar o compartir el reporte.`; document.getElementById("communication-balance-warning").classList.toggle("hidden", communication.balance <= 0.009); communicationModal.classList.remove("hidden"); communicationModal.classList.add("flex"); }));
+  const communicationModal = document.getElementById("result-communication-modal"), communicationStatus = document.getElementById("communication-status"), sharePreparedButton = document.getElementById("share-prepared-result"), sendPdfButton = document.getElementById("send-result-pdf"), shareConfirmation = document.getElementById("share-result-confirmation"), confirmResultSent = document.getElementById("confirm-result-sent"), retryResultShare = document.getElementById("retry-result-share");
+  let communication = null, preparedShareFile = null;
+  const closeCommunication = () => {
+    communicationModal.classList.add("hidden");
+    communicationModal.classList.remove("flex");
+    communication = null;
+    preparedShareFile = null;
+    communicationStatus.textContent = "";
+    communicationStatus.className = "min-h-4 text-xs text-slate-500";
+    sharePreparedButton.classList.add("hidden");
+    sharePreparedButton.classList.remove("flex");
+    shareConfirmation.classList.add("hidden");
+    sendPdfButton.disabled = false;
+    confirmResultSent.disabled = false;
+  };
+  document.querySelectorAll('a[href^="https://wa.me/"]').forEach(link => link.addEventListener("click", event => {
+    event.preventDefault();
+    const article = link.closest("article"), form = article.querySelector(".delivery-form"), url = new URL(link.href);
+    communication = {
+      order: form.dataset.order,
+      patient: form.dataset.patient || "Paciente",
+      balance: Number(form.dataset.balance || 0),
+      phone: url.pathname.replace(/\D/g, "") || (form.dataset.phone || "").replace(/\D/g, ""),
+      noticeUrl: link.href,
+      pdfUrl: `/resultados/${form.dataset.order}/pdf`,
+      logUrl: `/resultados/${form.dataset.order}/comunicacion`
+    };
+    document.getElementById("communication-patient").textContent = `Orden #${communication.order}. Selecciona si deseas avisar o compartir el reporte.`;
+    document.getElementById("communication-patient-name").textContent = communication.patient;
+    document.getElementById("communication-patient-phone").textContent = communication.phone ? `WhatsApp: ${communication.phone}` : "Sin teléfono registrado";
+    document.getElementById("copy-patient-phone").classList.toggle("hidden", !communication.phone);
+    document.getElementById("communication-balance-warning").classList.toggle("hidden", communication.balance <= 0.009);
+    communicationModal.classList.remove("hidden");
+    communicationModal.classList.add("flex");
+  }));
+  let copyFeedbackTimer = null;
+  document.getElementById("copy-patient-phone").addEventListener("click", async event => {
+    if (!communication?.phone) return;
+    const button = event.currentTarget;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(communication.phone);
+      } else {
+        const temporary = document.createElement("textarea");
+        temporary.value = communication.phone;
+        temporary.style.position = "fixed";
+        temporary.style.opacity = "0";
+        document.body.appendChild(temporary);
+        temporary.select();
+        const copied = document.execCommand("copy");
+        temporary.remove();
+        if (!copied) throw new Error("No se pudo copiar el número.");
+      }
+      clearTimeout(copyFeedbackTimer);
+      button.innerHTML = '<i class="fas fa-check-circle mr-1.5"></i>Número copiado';
+      button.classList.remove("border-slate-200", "bg-white", "text-slate-700");
+      button.classList.add("border-emerald-300", "bg-emerald-50", "text-emerald-700", "scale-105");
+      requestAnimationFrame(() => button.classList.remove("scale-105"));
+      copyFeedbackTimer = setTimeout(() => {
+        button.innerHTML = '<i class="fas fa-copy mr-1.5"></i>Copiar teléfono';
+        button.classList.remove("border-emerald-300", "bg-emerald-50", "text-emerald-700");
+        button.classList.add("border-slate-200", "bg-white", "text-slate-700");
+      }, 1800);
+    } catch (_error) {
+      communicationStatus.textContent = `Copia este número: ${communication.phone}`;
+    }
+  });
   document.querySelectorAll("[data-close-result-communication]").forEach(button => button.addEventListener("click", closeCommunication));
   const logCommunication = async action => {
     const response = await fetch(communication.logUrl, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({accion:action, medio:"whatsapp"})});
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || "No se pudo registrar la comunicaci\u00f3n.");
     return data;
+  };
+  const showShareConfirmation = message => {
+    sharePreparedButton.classList.add("hidden");
+    sharePreparedButton.classList.remove("flex");
+    shareConfirmation.classList.remove("hidden");
+    communicationStatus.textContent = message || "Confirma el envío para registrarlo en el backlog.";
+    communicationStatus.className = "min-h-4 text-xs text-slate-500";
   };
   document.getElementById("send-ready-notice").addEventListener("click", async () => {
     if (!communication) return;
@@ -182,14 +269,181 @@ document.addEventListener("DOMContentLoaded", () => {
       communicationStatus.className = "min-h-4 text-xs text-red-600";
     }
   });
-  document.getElementById("send-result-pdf").addEventListener("click", async () => { if (!communication) return; const placeholder = window.open("", "_blank"); communicationStatus.textContent = "Generando PDF firmado..."; try { const response = await fetch(communication.pdfUrl); if (!response.ok) throw new Error("No se pudo generar el PDF."); const blob = await response.blob(), file = new File([blob], `resultados-orden-${String(communication.order).padStart(4,"0")}.pdf`, {type:"application/pdf"}); await logCommunication("envio_pdf"); if (navigator.canShare?.({files:[file]})) { placeholder?.close(); await navigator.share({files:[file], title:"Resultados de laboratorio", text:`Resultados de la orden #${communication.order}`}); } else { const objectUrl = URL.createObjectURL(blob), anchor = document.createElement("a"); anchor.href = objectUrl; anchor.download = file.name; anchor.click(); setTimeout(() => URL.revokeObjectURL(objectUrl), 30000); if (placeholder) placeholder.location.href = `https://wa.me/${communication.phone}?text=${encodeURIComponent("Adjunto sus resultados de laboratorio. El archivo PDF acaba de descargarse para agregarlo a esta conversacion.")}`; } closeCommunication(); } catch (error) { placeholder?.close(); communicationStatus.textContent = error.message; communicationStatus.className = "min-h-4 text-xs text-red-600"; } });
+  sendPdfButton.addEventListener("click", async () => {
+    if (!communication) return;
+    const shareProbe = new File([""], "resultados.pdf", {type:"application/pdf"});
+    const supportsFileShare = Boolean(navigator.canShare?.({files:[shareProbe]}));
+    const placeholder = supportsFileShare ? null : window.open("", "_blank");
+    const originalButtonContent = sendPdfButton.innerHTML;
+    sendPdfButton.disabled = true;
+    sendPdfButton.classList.add("opacity-70");
+    sendPdfButton.innerHTML = '<span class="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><i class="fas fa-circle-notch fa-spin"></i></span><span><strong class="block text-sm text-slate-900">Creando PDF...</strong><small class="mt-1 block text-slate-500">Preparando el reporte firmado.</small></span>';
+    communicationStatus.textContent = "Generando el archivo, espera un momento...";
+    communicationStatus.className = "min-h-4 text-xs text-slate-500";
+    try {
+      const response = await fetch(communication.pdfUrl);
+      if (!response.ok) throw new Error("No se pudo generar el PDF.");
+      const blob = await response.blob();
+      const file = new File([blob], `resultados-orden-${String(communication.order).padStart(4,"0")}.pdf`, {type:"application/pdf"});
+      if (navigator.canShare?.({files:[file]})) {
+        sendPdfButton.innerHTML = originalButtonContent;
+        sendPdfButton.classList.remove("opacity-70");
+        preparedShareFile = file;
+        sharePreparedButton.classList.remove("hidden");
+        sharePreparedButton.classList.add("flex");
+        communicationStatus.textContent = "PDF listo. Pulsa Compartir PDF ahora y selecciona WhatsApp.";
+        return;
+      }
+      sendPdfButton.innerHTML = originalButtonContent;
+      sendPdfButton.classList.remove("opacity-70");
+      const objectUrl = URL.createObjectURL(blob), anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = file.name;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+      if (placeholder) placeholder.location.href = `https://wa.me/${communication.phone}?text=${encodeURIComponent("Adjunto sus resultados de laboratorio. El archivo PDF acaba de descargarse para agregarlo a esta conversación.")}`;
+      showShareConfirmation("Regresa a esta ventana después de adjuntar el PDF en WhatsApp.");
+    } catch (error) {
+      placeholder?.close();
+      sendPdfButton.disabled = false;
+      sendPdfButton.classList.remove("opacity-70");
+      sendPdfButton.innerHTML = originalButtonContent;
+      communicationStatus.textContent = error.message;
+      communicationStatus.className = "min-h-4 text-xs text-red-600";
+    }
+  });
+  sharePreparedButton.addEventListener("click", () => {
+    if (!preparedShareFile || !communication) return;
+    const order = communication.order;
+    let shareRequest;
+    try {
+      shareRequest = navigator.share({
+        files: [preparedShareFile],
+        title: "Resultados de laboratorio",
+        text: `Resultados de la orden #${order}`
+      });
+    } catch (error) {
+      communicationStatus.textContent = error.message || "No se pudo compartir el PDF.";
+      communicationStatus.className = "min-h-4 text-xs text-red-600";
+      return;
+    }
+    communicationStatus.textContent = "Abriendo opciones para compartir...";
+    communicationStatus.className = "min-h-4 text-xs text-slate-500";
+    shareRequest
+      .then(() => showShareConfirmation("La aplicación para compartir se abrió correctamente. Confirma si realizaste el envío."))
+      .catch(error => {
+        if (error?.name === "AbortError") {
+          communicationStatus.textContent = "No se compartió el archivo. Puedes intentarlo nuevamente.";
+          return;
+        }
+        communicationStatus.textContent = error.message || "No se pudo compartir el PDF.";
+        communicationStatus.className = "min-h-4 text-xs text-red-600";
+      });
+  });
+  retryResultShare.addEventListener("click", () => {
+    shareConfirmation.classList.add("hidden");
+    communicationStatus.textContent = "Puedes volver a compartir el archivo.";
+    if (preparedShareFile) {
+      sharePreparedButton.classList.remove("hidden");
+      sharePreparedButton.classList.add("flex");
+    } else {
+      sendPdfButton.disabled = false;
+    }
+  });
+  confirmResultSent.addEventListener("click", async () => {
+    if (!communication) return;
+    confirmResultSent.disabled = true;
+    communicationStatus.textContent = "Guardando confirmación en el backlog...";
+    try {
+      await logCommunication("envio_pdf");
+      const patient = communication.patient;
+      closeCommunication();
+      window.showClinicalDialog?.({type:"success", title:"Resultado enviado", message:`El envío para ${patient} quedó registrado correctamente.`});
+    } catch (error) {
+      confirmResultSent.disabled = false;
+      communicationStatus.textContent = error.message;
+      communicationStatus.className = "min-h-4 text-xs text-red-600";
+    }
+  });
 
-  const finalizeModal = document.getElementById("finalize-delivery-modal"), finalizeError = document.getElementById("finalize-delivery-error"), adminFields = document.getElementById("finalize-admin-fields");
+  const finalizeModal = document.getElementById("finalize-delivery-modal"), finalizeError = document.getElementById("finalize-delivery-error"), adminFields = document.getElementById("finalize-admin-fields"), finalizeMedium = document.getElementById("finalize-delivery-medium"), confirmFinalize = document.getElementById("confirm-finalize-delivery"), finalizeAdminUser = document.getElementById("finalize-admin-user"), finalizeAdminPassword = document.getElementById("finalize-admin-password");
   let finalizeForm = null;
-  const closeFinalize = () => { finalizeModal.classList.add("hidden"); finalizeModal.classList.remove("flex"); finalizeForm = null; finalizeError.classList.add("hidden"); adminFields.classList.add("hidden"); };
-  document.addEventListener("submit", event => { const form = event.target.closest?.(".delivery-form"); if (!form) return; event.preventDefault(); event.stopImmediatePropagation(); const medium = form.querySelector('[name="medio_entrega"]'); if (!medium.value) { medium.reportValidity(); return; } finalizeForm = form; const balance = Number(form.dataset.balance || 0); document.getElementById("finalize-delivery-text").textContent = `\u00bfEst\u00e1s seguro de finalizar la orden #${form.dataset.order}? Se guardar\u00e1 en el historial como entregada por ${medium.options[medium.selectedIndex].text}.`; adminFields.classList.toggle("hidden", form.dataset.requiresOverride !== "true" || balance <= 0.009); finalizeModal.classList.remove("hidden"); finalizeModal.classList.add("flex"); }, true);
+  const closeFinalize = () => {
+    finalizeModal.classList.add("hidden");
+    finalizeModal.classList.remove("flex");
+    finalizeForm = null;
+    finalizeMedium.value = "";
+    finalizeError.textContent = "";
+    finalizeError.classList.add("hidden");
+    adminFields.classList.add("hidden");
+    finalizeAdminUser.value = "";
+    finalizeAdminPassword.value = "";
+    [finalizeAdminUser, finalizeAdminPassword].forEach(field => field.classList.remove("border-red-400", "ring-2", "ring-red-100"));
+    confirmFinalize.disabled = false;
+  };
+  [finalizeAdminUser, finalizeAdminPassword].forEach(field => field.addEventListener("input", () => {
+    field.classList.remove("border-red-400", "ring-2", "ring-red-100");
+    finalizeError.classList.add("hidden");
+  }));
+  document.addEventListener("submit", event => {
+    const form = event.target.closest?.(".delivery-form");
+    if (!form) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    finalizeForm = form;
+    finalizeMedium.value = form.querySelector('[name="medio_entrega"]').value || "";
+    const balance = Number(form.dataset.balance || 0);
+    document.getElementById("finalize-delivery-text").textContent = `\u00bfEst\u00e1s seguro de finalizar la orden #${form.dataset.order}? Selecciona c\u00f3mo se entregaron los resultados.`;
+    adminFields.classList.toggle("hidden", form.dataset.requiresOverride !== "true" || balance <= 0.009);
+    finalizeModal.classList.remove("hidden");
+    finalizeModal.classList.add("flex");
+    finalizeMedium.focus();
+  }, true);
   document.querySelectorAll("[data-close-finalize-delivery]").forEach(button => button.addEventListener("click", closeFinalize));
-  document.getElementById("confirm-finalize-delivery").addEventListener("click", async () => { if (!finalizeForm) return; const payload = {medio_entrega:finalizeForm.querySelector('[name="medio_entrega"]').value, admin_username:document.getElementById("finalize-admin-user").value.trim(), admin_password:document.getElementById("finalize-admin-password").value}; try { const response = await fetch(`/api/resultados/${finalizeForm.dataset.order}/finalizar-entrega`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)}), data = await response.json(); if (!response.ok || !data.ok) { if (data.requires_override) adminFields.classList.remove("hidden"); throw new Error(data.error); } const article = finalizeForm.closest("article"); closeFinalize(); article?.remove(); window.showClinicalDialog?.({type:"success", title:"Orden finalizada", message:data.message}); } catch (error) { finalizeError.textContent = error.message; finalizeError.classList.remove("hidden"); } });
+  confirmFinalize.addEventListener("click", async () => {
+    if (!finalizeForm) return;
+    if (!finalizeMedium.value) {
+      finalizeError.textContent = "Selecciona el medio en que se entregaron los resultados.";
+      finalizeError.classList.remove("hidden");
+      finalizeMedium.focus();
+      return;
+    }
+    if (!adminFields.classList.contains("hidden") && (!finalizeAdminUser.value.trim() || !finalizeAdminPassword.value)) {
+      finalizeError.textContent = "Escribe el usuario y la contraseña del administrador.";
+      finalizeError.classList.remove("hidden");
+      [finalizeAdminUser, finalizeAdminPassword].forEach(field => field.classList.add("border-red-400", "ring-2", "ring-red-100"));
+      (!finalizeAdminUser.value.trim() ? finalizeAdminUser : finalizeAdminPassword).focus();
+      return;
+    }
+    finalizeForm.querySelector('[name="medio_entrega"]').value = finalizeMedium.value;
+    const payload = {
+      medio_entrega: finalizeMedium.value,
+      admin_username: finalizeAdminUser.value.trim(),
+      admin_password: finalizeAdminPassword.value
+    };
+    confirmFinalize.disabled = true;
+    finalizeError.classList.add("hidden");
+    try {
+      const response = await fetch(`/api/resultados/${finalizeForm.dataset.order}/finalizar-entrega`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        if (data.requires_override) {
+          adminFields.classList.remove("hidden");
+          [finalizeAdminUser, finalizeAdminPassword].forEach(field => field.classList.add("border-red-400", "ring-2", "ring-red-100"));
+          finalizeAdminPassword.select();
+        }
+        throw new Error(data.error || "No se pudo finalizar la orden.");
+      }
+      const article = finalizeForm.closest("article");
+      closeFinalize();
+      article?.remove();
+      window.showClinicalDialog?.({type:"success", title:"Orden finalizada", message:data.message});
+    } catch (error) {
+      confirmFinalize.disabled = false;
+      finalizeError.textContent = error.message;
+      finalizeError.classList.remove("hidden");
+    }
+  });
   document.addEventListener("keydown", event => { if (event.key === "Escape") { closePreview(); closeCommunication(); closeFinalize(); } });
 });
 </script>

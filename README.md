@@ -17,3 +17,7 @@ Su objetivo es optimizar el flujo de trabajo de laboratorios, permitiendo la adm
 
 📄 Licencia
 Este proyecto está bajo la licencia MIT.
+
+## Mejoras previstas
+
+- Exportar a Excel el historial de resultados respetando los filtros activos (paciente, estudio, tipo de muestra, entrega, pago y fechas), para análisis y creación de gráficas. Considerado para una segunda actualización.

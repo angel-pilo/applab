@@ -60,10 +60,28 @@
 
     <details class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {{ accordion_heading('fa-sliders-h', 'Políticas de usuarios y operación', 'Permisos generales y autorizaciones administrativas.', 'is-cyan') }}
-      <form method="POST" action="{{ url_for('app_routes.guardar_politicas_sistema') }}" class="space-y-3 border-t border-slate-100 p-5 sm:p-6">
+      <form method="POST" action="{{ url_for('app_routes.guardar_politicas_sistema') }}" class="space-y-5 border-t border-slate-100 p-5 sm:p-6" data-validate-form>
+        <div class="space-y-3">
+          <p class="text-xs font-bold uppercase tracking-wider text-cyan-700">Usuarios y autorizaciones</p>
         {% for name, title, description, icon in [('empleados_cambian_password','Permitir cambio de contraseña','Los empleados podrán actualizar su propia contraseña.','fa-key'),('empleados_cambian_foto','Permitir cambio de foto de perfil','Los empleados podrán cambiar su avatar o fotografía.','fa-camera'),('mostrador_entrega_saldo_pendiente','Permitir entrega con saldo pendiente','Mostrador podrá entregar resultados sin liquidar.','fa-file-invoice-dollar')] %}
         <label class="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-gray-200 bg-slate-50 p-4"><span class="flex gap-3"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-cyan-700"><i class="fas {{ icon }}"></i></span><span><strong class="block text-sm text-gray-900">{{ title }}</strong><small class="mt-1 block text-gray-500">{{ description }}</small></span></span><input type="checkbox" name="{{ name }}" class="mt-2 h-5 w-5" {% if system_settings[name] %}checked{% endif %}></label>
         {% endfor %}
+        </div>
+
+        <section class="space-y-4 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 sm:p-5" aria-labelledby="cash-policy-title">
+          <div class="flex items-start gap-3">
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber-700 ring-1 ring-amber-100"><i class="fas fa-cash-register"></i></span>
+            <div><h3 id="cash-policy-title" class="text-sm font-bold text-slate-950">Turnos y corte de caja</h3><p class="mt-1 text-xs leading-5 text-slate-600">Define si Mostrador debe contar y abrir su caja antes de operar, y cuándo debe recibir el aviso de cierre.</p></div>
+          </div>
+          <label class="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-amber-200 bg-white p-4"><span><strong class="block text-sm text-slate-900">Exigir caja abierta para operar</strong><small class="mt-1 block text-slate-500">Sin un corte abierto, Mostrador no podrá crear órdenes, registrar abonos ni entregar resultados. Un corte de un día anterior siempre deberá cerrarse primero.</small></span><input type="checkbox" name="caja_requerida_para_operar" class="mt-1 h-5 w-5" {% if system_settings.caja_requerida_para_operar %}checked{% endif %}></label>
+          <label class="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-amber-200 bg-white p-4"><span><strong class="block text-sm text-slate-900">Recordar el cierre del turno</strong><small class="mt-1 block text-slate-500">Mostrador recibirá una notificación antes de que termine el horario de atención.</small></span><input type="checkbox" name="caja_recordatorio_cierre" class="mt-1 h-5 w-5" {% if system_settings.caja_recordatorio_cierre %}checked{% endif %}></label>
+          <div class="grid gap-4 sm:grid-cols-3">
+            <div class="admin-field"><label for="cash-opening-time">Inicio de atención</label><input id="cash-opening-time" name="caja_horario_apertura" type="time" value="{{ (system_settings.caja_horario_apertura|string)[:5] }}" required></div>
+            <div class="admin-field"><label for="cash-closing-time">Fin de atención</label><input id="cash-closing-time" name="caja_horario_cierre" type="time" value="{{ (system_settings.caja_horario_cierre|string)[:5] }}" required></div>
+            <div class="admin-field"><label for="cash-reminder-minutes">Avisar antes</label><select id="cash-reminder-minutes" name="caja_recordatorio_minutos">{% for minutes in [10, 15, 30, 45, 60] %}<option value="{{ minutes }}" {% if system_settings.caja_recordatorio_minutos|int == minutes %}selected{% endif %}>{{ minutes }} minutos</option>{% endfor %}</select></div>
+          </div>
+          <p class="rounded-xl border border-amber-200 bg-white px-4 py-3 text-xs leading-5 text-amber-900"><i class="fas fa-info-circle mr-1"></i>Las fechas y horas de apertura y cierre quedan guardadas en cada corte junto con el usuario responsable.</p>
+        </section>
         <div class="flex justify-end border-t border-slate-100 pt-5"><button class="btn-guardar" type="submit"><i class="fas fa-shield-alt"></i>Guardar políticas</button></div>
       </form>
     </details>
