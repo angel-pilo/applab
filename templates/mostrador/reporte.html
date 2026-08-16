@@ -90,6 +90,7 @@
           <span class="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
             {{ (a.metodo_pago_otro if a.metodo_pago == 'otro' else a.metodo_pago)|default('No especificado', true)|title }}
           </span>
+          {% if a.cuenta_financiera_nombre %}<small class="ml-2 font-semibold text-cyan-700">{{ a.cuenta_financiera_nombre }}</small>{% endif %}
           {% if a.metodo_pago == 'efectivo' and a.cantidad_recibida %}<small class="ml-2 text-gray-500">Recibido ${{ '%.2f'|format(a.cantidad_recibida|float) }} · Cambio ${{ '%.2f'|format(a.cambio_entregado|float) }}</small>{% endif %}
           {% if a.nota %}<small class="ml-2 text-gray-500">{{ a.nota }}</small>{% endif %}
         </div>
@@ -144,11 +145,11 @@
         <input type="text" id="metodo-pago-otro" name="metodo_pago_otro" maxlength="80" placeholder="Ej. cheque, vales...">
       </div>
       <div id="payment-account-field" class="admin-field hidden">
-        <label for="payment-account">Cuenta, banco o terminal <span>*</span></label>
+        <label id="payment-account-label" for="payment-account">Cuenta, banco o terminal <span>*</span></label>
         <select id="payment-account" name="cuenta_financiera_id">
           <option value="">Selecciona dónde se recibió</option>
           {% for cuenta in cuentas_financieras if cuenta.tipo != 'efectivo' %}
-          <option value="{{ cuenta.id }}">{{ cuenta.nombre }} · {{ cuenta.tipo|title }}</option>
+          <option value="{{ cuenta.id }}" data-account-type="{{ cuenta.tipo }}">{{ cuenta.nombre }} · {{ cuenta.tipo|title }}</option>
           {% endfor %}
         </select>
         <small>El importe se conciliará en esta cuenta al cerrar el turno.</small>
@@ -208,9 +209,22 @@ function toggleOtherPaymentMethod(){
   if(input){input.required=isOther;if(!isOther)input.value=""}
   const accountField=document.getElementById("payment-account-field");
   const account=document.getElementById("payment-account");
+  const accountLabel=document.getElementById("payment-account-label");
   const needsAccount=method!=="efectivo";
+  const allowedTypes={tarjeta:["terminal"],transferencia:["banco"],otro:["billetera","otro"]};
+  const labels={tarjeta:"Terminal donde se cobró",transferencia:"Banco que recibió la transferencia",otro:"Cuenta o billetera que recibió el pago"};
   accountField?.classList.toggle("hidden",!needsAccount);
-  if(account){account.required=needsAccount;if(!needsAccount)account.value=""}
+  if(accountLabel&&needsAccount)accountLabel.innerHTML=`${labels[method]} <span>*</span>`;
+  if(account){
+    account.required=needsAccount;
+    Array.from(account.options).forEach((option,index)=>{
+      if(index===0)return;
+      const visible=(allowedTypes[method]||[]).includes(option.dataset.accountType);
+      option.hidden=!visible;
+      option.disabled=!visible;
+    });
+    if(!needsAccount||account.selectedOptions[0]?.disabled)account.value="";
+  }
   updatePaymentSummary();
 }
 document.querySelectorAll('input[name="metodo_pago"]').forEach((input)=>input.addEventListener("change",toggleOtherPaymentMethod));

@@ -1603,10 +1603,157 @@ def ticket_corte_caja(corte_id):
     if not corte or corte.get("estado") != "cerrada":
         flash("No se encontró un corte cerrado para imprimir.", "error")
         return redirect(url_for("app_routes.corte_caja"))
+    system_settings = obtener_configuracion_sistema()
+    ticket_settings = system_settings.get(
+        "ticket_corte_configuracion", DEFAULT_CASH_TICKET_SETTINGS
+    )
     return render_template(
         "mostrador/ticket_corte_caja.html",
         corte=corte,
         auto_print=request.args.get("print") == "1",
+        ticket_config=ticket_settings,
+        receipt_config=system_settings.get("recibo_configuracion", DEFAULT_RECEIPT_SETTINGS),
+    )
+
+
+def generar_pdf_corte_caja(corte, ticket_config, receipt_config, laboratory):
+    """Genera una versión PDF térmica del corte respetando su configuración."""
+    buffer = BytesIO()
+    width_mm = 58 if str(receipt_config.get("ticket_ancho_mm")) == "58" else 80
+    estimated_height = 75
+    if ticket_config.get("mostrar_cuentas"):
+        estimated_height += max(len(corte.get("cuentas", [])), 1) * (
+            38 if ticket_config.get("mostrar_desglose_cuentas") else 20
+        )
+    if ticket_config.get("mostrar_movimientos"):
+        estimated_height += max(len(corte.get("eventos", [])), 1) * 12
+    page_height = max(140, estimated_height) * mm
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=(width_mm * mm, page_height),
+        rightMargin=4 * mm,
+        leftMargin=4 * mm,
+        topMargin=5 * mm,
+        bottomMargin=5 * mm,
+        title=f"Corte de caja #{int(corte['id'])}",
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "CashTicketTitle", parent=styles["Heading2"], fontName="Helvetica-Bold",
+        fontSize=10, leading=12, alignment=TA_CENTER, spaceAfter=2 * mm,
+    )
+    small_style = ParagraphStyle(
+        "CashTicketSmall", parent=styles["BodyText"], fontSize=7, leading=9,
+        textColor=colors.HexColor("#526273"),
+    )
+    section_style = ParagraphStyle(
+        "CashTicketSection", parent=small_style, fontName="Helvetica-Bold",
+        textColor=colors.HexColor("#0b1f33"), spaceBefore=2 * mm, spaceAfter=1 * mm,
+    )
+    story = []
+    if ticket_config.get("mostrar_laboratorio"):
+        story.append(Paragraph(escape(laboratory.get("nombre_corto") or "AppLab"), title_style))
+    if ticket_config.get("mostrar_folio"):
+        story.append(Paragraph(f"<b>Corte de caja #{int(corte['id'])}</b>", small_style))
+    info = []
+    if ticket_config.get("mostrar_fechas"):
+        info.extend([
+            ["Apertura", str(corte.get("fecha_apertura_local") or "")[:16].replace("T", " ")],
+            ["Cierre", str(corte.get("fecha_cierre_local") or "")[:16].replace("T", " ")],
+        ])
+    if ticket_config.get("mostrar_responsable"):
+        info.append(["Responsable", session.get("nombres") or session.get("usuario") or "Usuario"])
+    if info:
+        info_table = Table(info, colWidths=[20 * mm, (width_mm - 30) * mm])
+        info_table.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 0), (-1, -1), 7),
+            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ]))
+        story.extend([Spacer(1, 2 * mm), info_table])
+    if ticket_config.get("mostrar_cuentas"):
+        story.append(Paragraph("CONCILIACIÓN POR CUENTA", section_style))
+        for account in corte.get("cuentas", []):
+            rows = [[Paragraph(f"<b>{escape(str(account.get('nombre') or 'Cuenta'))}</b>", small_style), ""]]
+            if ticket_config.get("mostrar_desglose_cuentas"):
+                rows.extend([
+                    ["Saldo inicial", f"${float(account.get('inicial') or 0):.2f}"],
+                    ["Cobros", f"${float(account.get('abonos') or 0):.2f}"],
+                    ["Depósitos", f"${float(account.get('depositos') or 0):.2f}"],
+                    ["Retiros y gastos", f"-${float(account.get('salidas') or 0):.2f}"],
+                ])
+            rows.extend([
+                ["Esperado", f"${float(account.get('esperado') or 0):.2f}"],
+                ["Conciliado", f"${float(account.get('contado') or 0):.2f}"],
+                ["Diferencia", f"{float(account.get('diferencia') or 0):+.2f}"],
+            ])
+            table = Table(rows, colWidths=[(width_mm - 34) * mm, 24 * mm])
+            table.setStyle(TableStyle([
+                ("BOX", (0, 0), (-1, -1), 0.35, colors.HexColor("#ccd7e1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#e2e8f0")),
+                ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), 6.8),
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+            ]))
+            story.extend([table, Spacer(1, 1.5 * mm)])
+    if ticket_config.get("mostrar_total"):
+        story.append(Paragraph(
+            f"<b>Total registrado: ${float(corte.get('total_esperado_cuentas') or 0):.2f}</b>",
+            section_style,
+        ))
+    if ticket_config.get("mostrar_movimientos"):
+        story.append(Paragraph("MOVIMIENTOS DEL TURNO", section_style))
+        for event in reversed(corte.get("eventos", [])):
+            sign = "+" if event.get("naturaleza") == "entrada" else ("-" if event.get("naturaleza") == "salida" else "")
+            reference = (
+                f" · {event.get('referencia')}"
+                if ticket_config.get("mostrar_referencias") and event.get("referencia") else ""
+            )
+            story.append(Paragraph(
+                f"<b>{escape(str(event.get('titulo') or 'Movimiento'))}</b> "
+                f"{sign}${float(event.get('monto') or 0):.2f}<br/>"
+                f"{escape(str(event.get('detalle') or ''))} · {escape(str(event.get('cuenta') or ''))}{escape(reference)}",
+                small_style,
+            ))
+            story.append(Spacer(1, 1.5 * mm))
+    if ticket_config.get("mostrar_observaciones") and corte.get("notas_cierre"):
+        story.append(Paragraph(
+            f"<b>Observaciones:</b> {escape(str(corte['notas_cierre']))}", small_style
+        ))
+    if ticket_config.get("mostrar_pie"):
+        story.extend([Spacer(1, 2 * mm), Paragraph(
+            f"Documento de control interno · {escape(laboratory.get('nombre_corto') or 'AppLab')}",
+            ParagraphStyle("CashTicketFooter", parent=small_style, alignment=TA_CENTER),
+        )])
+    document.build(story)
+    buffer.seek(0)
+    return buffer
+
+
+@app_routes.get("/mostrador/corte-caja/<int:corte_id>/pdf")
+@require_role(["Admin", "Mostrador"])
+def pdf_corte_caja(corte_id):
+    usuario_id = None if session.get("rol") == "Admin" else session.get("user_id")
+    corte = obtener_corte_caja_por_id(corte_id, usuario_id)
+    if not corte or corte.get("estado") != "cerrada":
+        abort(404)
+    system_settings = obtener_configuracion_sistema()
+    pdf = generar_pdf_corte_caja(
+        corte,
+        system_settings.get("ticket_corte_configuracion", DEFAULT_CASH_TICKET_SETTINGS),
+        system_settings.get("recibo_configuracion", DEFAULT_RECEIPT_SETTINGS),
+        system_settings.get("laboratorio_configuracion", DEFAULT_LAB_SETTINGS),
+    )
+    filename = f"corte-caja-{int(corte_id):04d}.pdf"
+    return send_file(
+        pdf,
+        mimetype="application/pdf",
+        as_attachment=request.args.get("download") == "1",
+        download_name=filename,
     )
 
 @app_routes.route("/enfermero")
@@ -2129,6 +2276,26 @@ def guardar_cuenta_financiera_route():
     except Exception:
         logger.exception("No se pudo guardar la cuenta financiera")
         flash("No se pudo guardar la cuenta. Verifica la migración de corte de caja.", "error")
+    return redirect(url_for("app_routes.configuracion_sistema"))
+
+
+@app_routes.post("/configuracion/sistema/ticket-corte-caja")
+@require_role("Admin")
+def guardar_configuracion_ticket_corte_route():
+    settings = {
+        key: request.form.get(key) == "on"
+        for key in DEFAULT_CASH_TICKET_SETTINGS
+    }
+    try:
+        guardar_configuracion_ticket_corte(settings, session.get("user_id"))
+        registrar_cambio_politicas(
+            {"ticket_corte_caja": "Configuración actualizada"},
+            override_requester(),
+        )
+        flash("Configuración del ticket de corte actualizada.", "success")
+    except Exception:
+        logger.exception("No se pudo guardar la configuración del ticket de corte")
+        flash("No se pudo guardar la configuración del ticket de corte.", "error")
     return redirect(url_for("app_routes.configuracion_sistema"))
 
 
@@ -4209,6 +4376,16 @@ def abonar_orden(orden_id: int):
     elif not cuenta_financiera_id or cuenta_financiera_id not in cuentas_por_id:
         flash("Selecciona la cuenta, banco o terminal donde se recibió el abono.", "error")
         return redirect(reporte_orden_url)
+    else:
+        tipos_permitidos = {
+            "tarjeta": {"terminal"},
+            "transferencia": {"banco"},
+            "otro": {"billetera", "otro"},
+        }
+        cuenta_seleccionada = cuentas_por_id[cuenta_financiera_id]
+        if cuenta_seleccionada.get("tipo") not in tipos_permitidos[metodo_pago]:
+            flash("La cuenta seleccionada no corresponde al método de pago.", "error")
+            return redirect(reporte_orden_url)
 
     try:
         cantidad = float(cantidad_str)

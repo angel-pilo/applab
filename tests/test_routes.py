@@ -93,6 +93,37 @@ class ReceiptPdfTests(unittest.TestCase):
         self.assertTrue(pdf.startswith(b"%PDF-"))
         self.assertGreater(len(pdf), 1000)
 
+    def test_cash_register_ticket_pdf_is_generated_as_thermal_pdf(self):
+        app = create_app()
+        corte = {
+            "id": 7,
+            "fecha_apertura_local": "2026-08-16T08:00:00-06:00",
+            "fecha_cierre_local": "2026-08-16T18:00:00-06:00",
+            "total_esperado_cuentas": 1350,
+            "cuentas": [{
+                "nombre": "Terminal BBVA", "tipo": "terminal", "inicial": 0,
+                "abonos": 1250, "depositos": 100, "salidas": 0,
+                "esperado": 1350, "contado": 1350, "diferencia": 0,
+            }],
+            "eventos": [{
+                "titulo": "Abono con tarjeta", "naturaleza": "entrada",
+                "monto": 1250, "detalle": "Orden #12",
+                "cuenta": "Terminal BBVA", "referencia": "AUTH-1",
+            }],
+            "notas_cierre": "Sin diferencias",
+        }
+        with app.test_request_context("/"):
+            session.update({"usuario": "cajero", "nombres": "Caja Uno"})
+            pdf = routes.generar_pdf_corte_caja(
+                corte,
+                dict(services.DEFAULT_CASH_TICKET_SETTINGS),
+                {"ticket_ancho_mm": "80"},
+                {"nombre_corto": "AppLab"},
+            ).getvalue()
+
+        self.assertTrue(pdf.startswith(b"%PDF-"))
+        self.assertGreater(len(pdf), 1000)
+
 
 class DeliveredResultsServiceTests(unittest.TestCase):
     def test_utc_timestamp_is_converted_to_mexico_local_date(self):
@@ -719,6 +750,33 @@ class AuthorizationTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
+
+    @patch.object(routes, "guardar_configuracion_ticket_corte", return_value=True)
+    @patch.object(routes, "registrar_cambio_politicas", return_value=True)
+    def test_admin_can_configure_cash_register_ticket(self, _audit, save_settings):
+        client = self.app.test_client()
+        with client.session_transaction() as flask_session:
+            flask_session.update({
+                "usuario": "admin",
+                "rol": "Admin",
+                "user_id": 1,
+            })
+
+        response = client.post(
+            "/configuracion/sistema/ticket-corte-caja",
+            data={
+                "mostrar_laboratorio": "on",
+                "mostrar_cuentas": "on",
+                "mostrar_total": "on",
+            },
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        settings = save_settings.call_args.args[0]
+        self.assertTrue(settings["mostrar_laboratorio"])
+        self.assertTrue(settings["mostrar_cuentas"])
+        self.assertFalse(settings["mostrar_movimientos"])
 
     @patch.object(routes, "finalizar_entrega_resultado")
     @patch.object(routes, "verificar_autorizador_admin", return_value=None)
