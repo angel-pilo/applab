@@ -63,7 +63,14 @@
         <div class="flex justify-between border-t border-gray-200 pt-3"><dt class="font-bold text-gray-900">Saldo pendiente</dt><dd class="text-lg font-bold {{ 'text-emerald-700' if total_restante <= 0 else 'text-amber-700' }}">${{ "%.2f"|format(total_restante) }}</dd></div>
       </dl>
       {% if total_restante > 0 and orden_id %}
-      <div class="px-4 pb-4"><button type="button" onclick="openPaymentModal()" class="btn-guardar w-full"><i class="fas fa-coins mr-2"></i>Registrar abono</button></div>
+      <div class="px-4 pb-4">
+        {% if estado_caja.disponible and estado_caja.corte and not estado_caja.arrastre %}
+        <button type="button" onclick="openPaymentModal()" class="btn-guardar w-full"><i class="fas fa-coins mr-2"></i>Registrar abono</button>
+        {% else %}
+        <a href="{{ url_for('app_routes.corte_caja', next=url_for('app_routes.reporte', orden_id=orden_id)) }}" class="btn-guardar flex w-full justify-center"><i class="fas fa-cash-register mr-2"></i>Abrir caja para abonar</a>
+        <p class="mt-2 text-center text-xs text-amber-700">Los pagos solo pueden registrarse dentro de un corte abierto.</p>
+        {% endif %}
+      </div>
       {% elif total_restante <= 0 %}
       <div class="mx-4 mb-4 rounded-xl bg-emerald-50 px-3 py-3 text-center text-sm font-semibold text-emerald-700"><i class="fas fa-check-circle mr-1"></i>Cuenta pagada</div>
       {% else %}
@@ -83,6 +90,7 @@
           <span class="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
             {{ (a.metodo_pago_otro if a.metodo_pago == 'otro' else a.metodo_pago)|default('No especificado', true)|title }}
           </span>
+          {% if a.metodo_pago == 'efectivo' and a.cantidad_recibida %}<small class="ml-2 text-gray-500">Recibido ${{ '%.2f'|format(a.cantidad_recibida|float) }} · Cambio ${{ '%.2f'|format(a.cambio_entregado|float) }}</small>{% endif %}
           {% if a.nota %}<small class="ml-2 text-gray-500">{{ a.nota }}</small>{% endif %}
         </div>
         <div class="flex shrink-0 items-center gap-3">
@@ -101,9 +109,18 @@
   <button type="button" onclick="closePaymentModal()" class="absolute inset-0 bg-slate-950/55 backdrop-blur-[1px]" aria-label="Cerrar"></button>
   <div class="absolute left-1/2 top-1/2 w-[calc(100%_-_2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-2xl">
     <header class="flex items-center justify-between border-b border-gray-200 px-5 py-4"><div><p class="text-xs font-semibold uppercase tracking-wide text-cyan-700">Estado de cuenta</p><h2 id="payment-title" class="font-bold text-gray-900">Registrar abono</h2></div><button onclick="closePaymentModal()" class="grid h-9 w-9 place-items-center rounded-lg border border-gray-200 text-gray-500"><i class="fas fa-times"></i></button></header>
-    <form method="POST" action="{{ url_for('app_routes.abonar_orden', orden_id=orden_id) }}" class="space-y-4 p-5">
+    <form method="POST" action="{{ url_for('app_routes.abonar_orden', orden_id=orden_id) }}" class="max-h-[calc(100dvh-7rem)] space-y-4 overflow-y-auto p-5" data-validate-form>
       <div class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Saldo máximo: <strong>${{ "%.2f"|format(total_restante) }}</strong></div>
-      <div class="admin-field"><label for="cantidad-abono">Cantidad recibida <span>*</span></label><input type="number" id="cantidad-abono" name="cantidad" min="0.01" max="{{ total_restante }}" step="0.01" required autofocus></div>
+      <section id="cash-received-section" class="space-y-2 rounded-xl border border-cyan-100 bg-cyan-50/50 p-3">
+        <div class="admin-field"><label for="cantidad-recibida">Cantidad recibida <span>*</span></label><input type="number" id="cantidad-recibida" name="cantidad_recibida" min="0.01" step="0.01" inputmode="decimal" placeholder="Efectivo que entrega el paciente" required autofocus></div>
+        <div id="cash-quick-options" class="flex flex-wrap gap-2" aria-label="Cantidades recibidas frecuentes"></div>
+      </section>
+      <div class="admin-field">
+        <div class="flex items-center justify-between gap-3"><label for="cantidad-abono">¿Cuánto va a abonar? <span>*</span></label><span id="payment-percentage" class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">0% del total</span></div>
+        <input type="number" id="cantidad-abono" name="cantidad" min="0.01" max="{{ total_restante }}" step="0.01" inputmode="decimal" required>
+        <div class="mt-2 grid grid-cols-4 gap-2">{% for percentage in [25, 50, 75, 100] %}<button type="button" class="payment-percent rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold text-slate-600 hover:border-cyan-300 hover:text-cyan-800" data-percent="{{ percentage }}">{{ 'Liquidar' if percentage == 100 else percentage ~ '%' }}</button>{% endfor %}</div>
+      </div>
+      <div id="payment-change" class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3"><span class="text-sm font-semibold text-emerald-800">Cambio a entregar</span><strong id="payment-change-value" class="text-lg text-emerald-800">$0.00</strong></div>
       <fieldset>
         <legend class="mb-2 text-sm font-semibold text-gray-700">Método de pago <span class="text-red-500">*</span></legend>
         <div class="grid grid-cols-2 gap-2">
@@ -126,22 +143,85 @@
         <label for="metodo-pago-otro">Especifica el método <span>*</span></label>
         <input type="text" id="metodo-pago-otro" name="metodo_pago_otro" maxlength="80" placeholder="Ej. cheque, vales...">
       </div>
+      <div id="payment-account-field" class="admin-field hidden">
+        <label for="payment-account">Cuenta, banco o terminal <span>*</span></label>
+        <select id="payment-account" name="cuenta_financiera_id">
+          <option value="">Selecciona dónde se recibió</option>
+          {% for cuenta in cuentas_financieras if cuenta.tipo != 'efectivo' %}
+          <option value="{{ cuenta.id }}">{{ cuenta.nombre }} · {{ cuenta.tipo|title }}</option>
+          {% endfor %}
+        </select>
+        <small>El importe se conciliará en esta cuenta al cerrar el turno.</small>
+      </div>
       <div class="admin-field"><label for="nota-abono">Nota <small class="font-normal text-gray-400">(opcional)</small></label><textarea id="nota-abono" name="nota" rows="2" placeholder="Referencia, últimos dígitos u observaciones..."></textarea></div>
       <div class="flex justify-end gap-3 border-t border-gray-100 pt-4"><button type="button" onclick="closePaymentModal()" class="btn-cancelar">Cancelar</button><button type="submit" class="btn-guardar">Guardar abono</button></div>
     </form>
   </div>
 </div>
 <script>
-function openPaymentModal(){document.getElementById("payment-modal")?.classList.remove("hidden");document.body.classList.add("overflow-hidden")}
+const paymentBalance={{ total_restante|float|tojson }};
+const paymentOrderTotal={{ total_pruebas|float|tojson }};
+const paymentAmount=document.getElementById("cantidad-abono");
+const receivedAmount=document.getElementById("cantidad-recibida");
+const receivedSection=document.getElementById("cash-received-section");
+const changeBox=document.getElementById("payment-change");
+const changeValue=document.getElementById("payment-change-value");
+const percentageValue=document.getElementById("payment-percentage");
+const quickCash=document.getElementById("cash-quick-options");
+const money=value=>Math.round((Number(value)||0)*100)/100;
+function selectedPaymentMethod(){return document.querySelector('input[name="metodo_pago"]:checked')?.value||"efectivo"}
+function rebuildCashOptions(){
+  if(!quickCash)return;
+  const amount=money(paymentAmount?.value);
+  const rounded50=Math.ceil(amount/50)*50;
+  const rounded100=Math.ceil(amount/100)*100;
+  const options=[amount,rounded50,rounded100,200,500,1000].filter((value,index,list)=>value>=amount&&value>0&&list.indexOf(value)===index).slice(0,5);
+  quickCash.innerHTML=options.map((value,index)=>`<button type="button" class="rounded-lg border border-cyan-200 bg-white px-3 py-1.5 text-xs font-bold text-cyan-800 hover:bg-cyan-100" data-cash="${value.toFixed(2)}">${index===0?"Exacto · ":""}$${value.toFixed(2)}</button>`).join("");
+  quickCash.querySelectorAll("[data-cash]").forEach(button=>button.addEventListener("click",()=>{receivedAmount.value=button.dataset.cash;updatePaymentSummary()}));
+}
+function updatePaymentSummary(){
+  const amount=money(paymentAmount?.value);
+  const received=money(receivedAmount?.value);
+  const isCash=selectedPaymentMethod()==="efectivo";
+  const percentage=paymentOrderTotal>0?Math.min((amount/paymentOrderTotal)*100,100):0;
+  percentageValue.textContent=`${percentage.toLocaleString("es-MX",{maximumFractionDigits:1})}% del total`;
+  receivedSection.classList.toggle("hidden",!isCash);
+  changeBox.classList.toggle("hidden",!isCash);
+  receivedAmount.required=isCash;
+  receivedAmount.setCustomValidity(isCash&&received<amount?"La cantidad recibida debe cubrir el importe del abono.":"");
+  changeValue.textContent=`$${Math.max(received-amount,0).toFixed(2)}`;
+  rebuildCashOptions();
+}
+function openPaymentModal(){
+  document.getElementById("payment-modal")?.classList.remove("hidden");document.body.classList.add("overflow-hidden");
+  if(!paymentAmount.value)paymentAmount.value=paymentBalance.toFixed(2);
+  if(!receivedAmount.value)receivedAmount.value=paymentAmount.value;
+  updatePaymentSummary();
+}
 function closePaymentModal(){document.getElementById("payment-modal")?.classList.add("hidden");document.body.classList.remove("overflow-hidden")}
 function toggleOtherPaymentMethod(){
-  const isOther=document.querySelector('input[name="metodo_pago"]:checked')?.value==="otro";
+  const method=document.querySelector('input[name="metodo_pago"]:checked')?.value||"efectivo";
+  const isOther=method==="otro";
   const field=document.getElementById("otro-metodo-field");
   const input=document.getElementById("metodo-pago-otro");
   field?.classList.toggle("hidden",!isOther);
   if(input){input.required=isOther;if(!isOther)input.value=""}
+  const accountField=document.getElementById("payment-account-field");
+  const account=document.getElementById("payment-account");
+  const needsAccount=method!=="efectivo";
+  accountField?.classList.toggle("hidden",!needsAccount);
+  if(account){account.required=needsAccount;if(!needsAccount)account.value=""}
+  updatePaymentSummary();
 }
 document.querySelectorAll('input[name="metodo_pago"]').forEach((input)=>input.addEventListener("change",toggleOtherPaymentMethod));
+document.querySelectorAll(".payment-percent").forEach(button=>button.addEventListener("click",()=>{
+  const percentage=Number(button.dataset.percent||100);
+  paymentAmount.value=money(paymentBalance*(percentage/100)).toFixed(2);
+  if(selectedPaymentMethod()==="efectivo")receivedAmount.value=paymentAmount.value;
+  updatePaymentSummary();
+}));
+paymentAmount?.addEventListener("input",updatePaymentSummary);
+receivedAmount?.addEventListener("input",updatePaymentSummary);
 toggleOtherPaymentMethod();
 </script>
 {% endif %}
@@ -167,12 +247,23 @@ toggleOtherPaymentMethod();
       <iframe id="receipt-preview-frame" title="Vista previa del comprobante" class="h-full w-full rounded-xl border border-slate-200 bg-white"></iframe>
     </div>
 
+    <div id="receipt-whatsapp-tools" class="hidden border-t border-emerald-100 bg-emerald-50/60 px-4 py-3 sm:px-5">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0"><p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Contacto para WhatsApp</p><strong id="receipt-contact-name" class="mt-0.5 block truncate text-sm text-slate-900"></strong><span id="receipt-contact-phone" class="block text-xs text-slate-600"></span></div>
+        <div class="flex flex-wrap gap-2">
+          <button id="receipt-copy-phone" type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-all duration-200"><i class="fas fa-copy mr-1.5"></i>Copiar teléfono</button>
+          <a id="receipt-open-whatsapp" href="#" target="_blank" rel="noopener" class="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700"><i class="fab fa-whatsapp mr-1.5"></i>Abrir WhatsApp</a>
+          <button id="receipt-share-prepared" type="button" class="hidden rounded-xl bg-[#0b1f33] px-3 py-2 text-xs font-semibold text-white"><i class="fas fa-share-alt mr-1.5"></i>Compartir PDF ahora</button>
+        </div>
+      </div>
+    </div>
+
     <footer class="flex flex-col gap-3 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <p id="receipt-action-status" class="min-h-4 text-xs text-slate-500" aria-live="polite"></p>
       <div class="flex flex-wrap justify-end gap-2">
         <button id="receipt-print-button" type="button" class="btn-guardar"><i class="fas fa-print"></i>Imprimir ticket</button>
         <a id="receipt-download-button" class="btn-cancelar hidden" href="#"><i class="fas fa-download"></i>Descargar PDF</a>
-        <button id="receipt-whatsapp-button" type="button" class="hidden rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700"><i class="fab fa-whatsapp mr-1.5"></i>WhatsApp</button>
+        <button id="receipt-whatsapp-button" type="button" class="hidden rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700"><i class="fab fa-whatsapp mr-1.5"></i>Preparar para WhatsApp</button>
         <button id="receipt-email-button" type="button" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700"><i class="fas fa-envelope mr-1.5"></i>Correo</button>
       </div>
     </footer>
@@ -193,8 +284,16 @@ toggleOtherPaymentMethod();
   const whatsappButton = document.getElementById("receipt-whatsapp-button");
   const emailButton = document.getElementById("receipt-email-button");
   const patientPhone = {{ (paciente.telefono if paciente else '')|tojson }};
+  const patientName = {{ (((paciente.nombres ~ ' ' ~ paciente.apellidos)|trim) if paciente else 'Paciente')|tojson }};
   const patientEmail = {{ (paciente.correo if paciente else '')|tojson }};
+  const whatsappTools = document.getElementById("receipt-whatsapp-tools");
+  const copyPhoneButton = document.getElementById("receipt-copy-phone");
+  const openWhatsappLink = document.getElementById("receipt-open-whatsapp");
+  const sharePreparedButton = document.getElementById("receipt-share-prepared");
+  const normalizedPhone = String(patientPhone || "").replace(/\D/g, "");
   let current = { ticketUrl: "", pdfUrl: "", downloadUrl: "", title: "" };
+  let preparedReceiptFile = null;
+  let copyFeedbackTimer = null;
 
   function setStatus(message, error = false) {
     status.textContent = message || "";
@@ -210,6 +309,7 @@ toggleOtherPaymentMethod();
     downloadButton.classList.toggle("hidden", ticket);
     whatsappButton.classList.toggle("hidden", ticket);
     emailButton.classList.toggle("hidden", ticket);
+    whatsappTools.classList.toggle("hidden", ticket);
     help.textContent = ticket ? "Vista preparada para impresora térmica." : "Descarga o comparte el PDF sin salir de la orden.";
     setStatus("");
   }
@@ -223,6 +323,13 @@ toggleOtherPaymentMethod();
     };
     title.textContent = current.title;
     downloadButton.href = current.downloadUrl;
+    document.getElementById("receipt-contact-name").textContent = patientName;
+    document.getElementById("receipt-contact-phone").textContent = normalizedPhone ? `WhatsApp: ${normalizedPhone}` : "Sin teléfono registrado";
+    copyPhoneButton.classList.toggle("hidden", !normalizedPhone);
+    openWhatsappLink.classList.toggle("hidden", !normalizedPhone);
+    openWhatsappLink.href = normalizedPhone ? `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(`${current.title}. Enseguida adjuntaré su comprobante en PDF.`)}` : "#";
+    preparedReceiptFile = null;
+    sharePreparedButton.classList.add("hidden");
     modal.classList.remove("hidden");
     document.body.classList.add("overflow-hidden");
     selectView("ticket");
@@ -231,6 +338,8 @@ toggleOtherPaymentMethod();
   function closeReceipt() {
     modal.classList.add("hidden");
     frame.src = "about:blank";
+    preparedReceiptFile = null;
+    sharePreparedButton.classList.add("hidden");
     document.body.classList.remove("overflow-hidden");
     const url = new URL(window.location.href);
     if (url.searchParams.has("abono_guardado")) {
@@ -262,24 +371,76 @@ toggleOtherPaymentMethod();
 
   async function shareWhatsapp() {
     whatsappButton.disabled = true;
-    setStatus("Preparando el PDF para WhatsApp...");
+    const shareProbe = new File([""], "recibo.pdf", {type:"application/pdf"});
+    const supportsFileShare = Boolean(navigator.canShare?.({files:[shareProbe]}));
+    const placeholder = supportsFileShare || !normalizedPhone ? null : window.open("", "_blank");
+    const originalContent = whatsappButton.innerHTML;
+    whatsappButton.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1.5"></i>Creando PDF...';
+    setStatus("Preparando el comprobante para WhatsApp...");
     try {
       const { blob, name } = await preparePdf();
       const file = new File([blob], name, { type: "application/pdf" });
-      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
-        await navigator.share({ title: current.title, text: current.title, files: [file] });
-        setStatus("PDF compartido correctamente.");
-      } else {
-        downloadBlob(blob, name);
-        const phone = String(patientPhone || "").replace(/\D/g, "");
-        const message = `${current.title}. Adjunta el archivo PDF que acaba de descargarse.`;
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener");
-        setStatus("PDF descargado. Adjúntalo en la conversación de WhatsApp.");
+      if (navigator.canShare?.({files:[file]})) {
+        preparedReceiptFile = file;
+        sharePreparedButton.classList.remove("hidden");
+        setStatus("PDF listo. Copia el teléfono si lo necesitas y pulsa Compartir PDF ahora.");
+        placeholder?.close();
+        return;
       }
+      downloadBlob(blob, name);
+      if (placeholder) placeholder.location.href = openWhatsappLink.href;
+      setStatus(normalizedPhone ? "PDF descargado. Abre la conversación y adjúntalo al paciente." : "PDF descargado. Selecciona manualmente el contacto de WhatsApp.");
     } catch (error) {
+      placeholder?.close();
       if (error.name !== "AbortError") setStatus(error.message || "No se pudo preparar el envío.", true);
-    } finally { whatsappButton.disabled = false; }
+    } finally { whatsappButton.disabled = false; whatsappButton.innerHTML = originalContent; }
   }
+
+  copyPhoneButton.addEventListener("click", async () => {
+    if (!normalizedPhone) return;
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(normalizedPhone);
+      else {
+        const temporary = document.createElement("textarea");
+        temporary.value = normalizedPhone;
+        temporary.style.position = "fixed";
+        temporary.style.opacity = "0";
+        document.body.appendChild(temporary);
+        temporary.select();
+        const copied = document.execCommand("copy");
+        temporary.remove();
+        if (!copied) throw new Error();
+      }
+      clearTimeout(copyFeedbackTimer);
+      copyPhoneButton.innerHTML = '<i class="fas fa-check-circle mr-1.5"></i>Número copiado';
+      copyPhoneButton.classList.remove("border-slate-200", "bg-white", "text-slate-700");
+      copyPhoneButton.classList.add("border-emerald-300", "bg-emerald-100", "text-emerald-800");
+      copyFeedbackTimer = setTimeout(() => {
+        copyPhoneButton.innerHTML = '<i class="fas fa-copy mr-1.5"></i>Copiar teléfono';
+        copyPhoneButton.classList.remove("border-emerald-300", "bg-emerald-100", "text-emerald-800");
+        copyPhoneButton.classList.add("border-slate-200", "bg-white", "text-slate-700");
+      }, 1800);
+    } catch (_error) {
+      setStatus(`Copia este número: ${normalizedPhone}`, true);
+    }
+  });
+
+  sharePreparedButton.addEventListener("click", () => {
+    if (!preparedReceiptFile) return;
+    let shareRequest;
+    try {
+      shareRequest = navigator.share({files:[preparedReceiptFile], title:current.title, text:current.title});
+    } catch (error) {
+      setStatus(error.message || "No se pudo abrir el menú para compartir.", true);
+      return;
+    }
+    setStatus("Abriendo opciones para compartir...");
+    shareRequest
+      .then(() => setStatus("El comprobante se compartió correctamente."))
+      .catch(error => {
+        if (error?.name !== "AbortError") setStatus(error.message || "No se pudo compartir el PDF.", true);
+      });
+  });
 
   async function shareEmail() {
     emailButton.disabled = true;
