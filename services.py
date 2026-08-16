@@ -78,6 +78,20 @@ DEFAULT_RECEIPT_SETTINGS = {
     "mostrar_saldo": True,
 }
 
+DEFAULT_CASH_TICKET_SETTINGS = {
+    "mostrar_laboratorio": True,
+    "mostrar_folio": True,
+    "mostrar_fechas": True,
+    "mostrar_responsable": True,
+    "mostrar_cuentas": True,
+    "mostrar_desglose_cuentas": True,
+    "mostrar_total": True,
+    "mostrar_movimientos": True,
+    "mostrar_referencias": True,
+    "mostrar_observaciones": True,
+    "mostrar_pie": True,
+}
+
 
 def obtener_configuracion_sistema():
     """Carga las políticas globales conservando valores seguros de respaldo."""
@@ -99,6 +113,10 @@ def obtener_configuracion_sistema():
             settings["recibo_configuracion"] = {
                 **DEFAULT_RECEIPT_SETTINGS,
                 **receipt_settings,
+            }
+            settings["ticket_corte_configuracion"] = {
+                **DEFAULT_CASH_TICKET_SETTINGS,
+                **(receipt_settings.get("ticket_corte_caja") or {}),
             }
             # Compatibilidad con la configuración anterior, donde la identidad
             # estaba guardada dentro del recibo.
@@ -123,6 +141,7 @@ def obtener_configuracion_sistema():
     except Exception:
         logger.warning("La configuración global todavía no está disponible", exc_info=True)
     settings.setdefault("recibo_configuracion", dict(DEFAULT_RECEIPT_SETTINGS))
+    settings.setdefault("ticket_corte_configuracion", dict(DEFAULT_CASH_TICKET_SETTINGS))
     settings.setdefault("laboratorio_configuracion", dict(DEFAULT_LAB_SETTINGS))
     return settings
 
@@ -162,9 +181,35 @@ def guardar_configuracion_recibos(settings, usuario_id):
     current_receipt = obtener_configuracion_sistema().get("recibo_configuracion", {})
     if current_receipt.get("identidad_laboratorio"):
         normalized["identidad_laboratorio"] = current_receipt["identidad_laboratorio"]
+    if current_receipt.get("ticket_corte_caja"):
+        normalized["ticket_corte_caja"] = current_receipt["ticket_corte_caja"]
     payload = {
         "id": 1,
         "recibo_configuracion": normalized,
+        "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
+        "actualizado_en": datetime.now(timezone.utc).isoformat(),
+    }
+    response = supabase_admin.table("configuracion_sistema").upsert(
+        payload, on_conflict="id"
+    ).execute()
+    return bool(response.data)
+
+
+def guardar_configuracion_ticket_corte(settings, usuario_id):
+    """Guarda qué información se imprime en el ticket de corte de caja."""
+    normalized = {
+        key: bool(settings.get(key, default))
+        for key, default in DEFAULT_CASH_TICKET_SETTINGS.items()
+    }
+    current_receipt = dict(
+        obtener_configuracion_sistema().get(
+            "recibo_configuracion", DEFAULT_RECEIPT_SETTINGS
+        )
+    )
+    current_receipt["ticket_corte_caja"] = normalized
+    payload = {
+        "id": 1,
+        "recibo_configuracion": current_receipt,
         "actualizado_por_usuario_id": int(usuario_id) if usuario_id else None,
         "actualizado_en": datetime.now(timezone.utc).isoformat(),
     }
@@ -1765,6 +1810,17 @@ def obtener_orden_por_id(orden_id: int):
 
 
 def obtener_abonos_orden(orden_id: int):
+    def agregar_nombre_cuenta(payments):
+        cuentas = {
+            str(item.get("id")): item.get("nombre")
+            for item in listar_cuentas_financieras(incluir_inactivas=True)
+        }
+        for payment in payments:
+            payment["cuenta_financiera_nombre"] = cuentas.get(
+                str(payment.get("cuenta_financiera_id")), ""
+            )
+        return payments
+
     try:
         rpc_response = supabase.rpc(
             "obtener_abonos_orden_app", {"p_orden_id": int(orden_id)}
@@ -1774,7 +1830,7 @@ def obtener_abonos_orden(orden_id: int):
             try:
                 cash_response = (
                     supabase_admin.table("orden_abonos")
-                    .select("id,cantidad_recibida,cambio_entregado,corte_caja_id")
+                    .select("id,cantidad_recibida,cambio_entregado,corte_caja_id,cuenta_financiera_id")
                     .eq("orden_id", int(orden_id)).execute()
                 )
                 cash_by_id = {
@@ -1784,7 +1840,7 @@ def obtener_abonos_orden(orden_id: int):
                     payment.update(cash_by_id.get(str(payment.get("id")), {}))
             except Exception:
                 logger.debug("Los detalles de efectivo de abonos aún no están disponibles")
-            return payments
+            return agregar_nombre_cuenta(payments)
     except Exception:
         pass
     try:
@@ -1795,7 +1851,7 @@ def obtener_abonos_orden(orden_id: int):
             .order("fecha_abono", desc=False)
             .execute()
         )
-        return resp.data or []
+        return agregar_nombre_cuenta(resp.data or [])
     except Exception as e:
         print(f"Error al obtener abonos de orden {orden_id}:", e)
         return []

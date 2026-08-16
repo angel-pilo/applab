@@ -5,40 +5,96 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Corte de caja #{{ corte.id }}</title>
   <style>
-    :root{font-family:Arial,sans-serif;color:#0b1f33}*{box-sizing:border-box}body{margin:0;background:#eef3f7}.toolbar{position:sticky;top:0;display:flex;justify-content:center;gap:8px;padding:12px;background:#fff;border-bottom:1px solid #dbe3ea}.toolbar a,.toolbar button{border:1px solid #cbd5e1;border-radius:10px;background:#fff;padding:9px 14px;font-weight:700;cursor:pointer}.toolbar .primary{background:#0b1f33;color:#fff}.ticket{width:min(100%,80mm);margin:20px auto;background:#fff;padding:7mm;box-shadow:0 10px 35px #0b1f3320}.center{text-align:center}.muted{color:#64748b}.small{font-size:10px}.rule{border:0;border-top:1px dashed #94a3b8;margin:12px 0}.row{display:flex;justify-content:space-between;gap:12px;margin:5px 0;font-size:11px}.row strong:last-child{text-align:right}.account{margin:10px 0;padding:8px;border:1px solid #dbe3ea;border-radius:8px}.account h3{font-size:12px;margin:0 0 6px}.event{padding:7px 0;border-bottom:1px dotted #cbd5e1}.event:last-child{border:0}.total{font-size:14px}.difference-ok{color:#047857}.difference-alert{color:#b45309}@media print{body{background:#fff}.toolbar{display:none}.ticket{margin:0;width:80mm;box-shadow:none;padding:4mm}@page{size:80mm auto;margin:0}}
+    :root{--ticket-width:{{ receipt_config.ticket_ancho_mm|default('80') }}mm;font-family:Arial,sans-serif;color:#0b1f33}*{box-sizing:border-box}body{margin:0;background:#eef3f7}.toolbar{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:12px;background:#fff;border-bottom:1px solid #dbe3ea}.toolbar a,.toolbar button{border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#0b1f33;padding:9px 14px;font:700 13px Arial,sans-serif;text-decoration:none;cursor:pointer}.toolbar .primary{background:#0b1f33;color:#fff}.toolbar .whatsapp{border-color:#a7f3d0;background:#ecfdf5;color:#047857}.toolbar button:disabled{cursor:wait;opacity:.65}.share-status{width:100%;min-height:16px;text-align:center;font:12px Arial,sans-serif;color:#526273}.ticket{width:min(100%,var(--ticket-width));margin:20px auto;background:#fff;padding:7mm;box-shadow:0 10px 35px #0b1f3320}.center{text-align:center}.muted{color:#64748b}.small{font-size:10px}.rule{border:0;border-top:1px dashed #94a3b8;margin:12px 0}.row{display:flex;justify-content:space-between;gap:12px;margin:5px 0;font-size:11px}.row strong:last-child{text-align:right}.account{margin:10px 0;padding:8px;border:1px solid #dbe3ea;border-radius:8px}.account h3{font-size:12px;margin:0 0 6px}.event{padding:7px 0;border-bottom:1px dotted #cbd5e1}.event:last-child{border:0}.total{font-size:14px}.difference-ok{color:#047857}.difference-alert{color:#b45309}@media print{body{background:#fff}.toolbar{display:none}.ticket{margin:0;width:100%;box-shadow:none;padding:4mm 3mm}@page{size:{{ receipt_config.ticket_ancho_mm|default('80') }}mm auto;margin:0}}
   </style>
 </head>
 <body>
-  <nav class="toolbar"><a href="{{ url_for('app_routes.corte_caja') }}">Volver</a><button class="primary" onclick="window.print()">Imprimir ticket</button></nav>
+  <nav class="toolbar">
+    <a href="{{ url_for('app_routes.corte_caja') }}">Volver</a>
+    <button class="primary" onclick="window.print()">Imprimir ticket</button>
+    <a href="{{ url_for('app_routes.pdf_corte_caja', corte_id=corte.id, download=1) }}">Descargar PDF</a>
+    <button id="share-cash-ticket" type="button" class="whatsapp">Compartir por WhatsApp</button>
+    <span id="share-status" class="share-status" aria-live="polite"></span>
+  </nav>
   <main class="ticket">
-    <header class="center"><strong>{{ laboratorio_config.nombre_corto|default('AppLab') }}</strong><div class="small muted">Corte de caja #{{ corte.id }}</div></header>
+    {% if ticket_config.mostrar_laboratorio or ticket_config.mostrar_folio %}<header class="center">{% if ticket_config.mostrar_laboratorio %}<strong>{{ laboratorio_config.nombre_corto|default('AppLab') }}</strong>{% endif %}{% if ticket_config.mostrar_folio %}<div class="small muted">Corte de caja #{{ corte.id }}</div>{% endif %}</header>{% endif %}
+    {% if ticket_config.mostrar_fechas or ticket_config.mostrar_responsable %}
     <hr class="rule">
-    <div class="row"><span>Apertura</span><strong>{{ corte.fecha_apertura_local[:16]|replace('T',' ') }}</strong></div>
-    <div class="row"><span>Cierre</span><strong>{{ corte.fecha_cierre_local[:16]|replace('T',' ') }}</strong></div>
-    <div class="row"><span>Responsable</span><strong>{{ session.get('nombres','Usuario') }}</strong></div>
+    {% if ticket_config.mostrar_fechas %}<div class="row"><span>Apertura</span><strong>{{ corte.fecha_apertura_local[:16]|replace('T',' ') }}</strong></div><div class="row"><span>Cierre</span><strong>{{ corte.fecha_cierre_local[:16]|replace('T',' ') }}</strong></div>{% endif %}
+    {% if ticket_config.mostrar_responsable %}<div class="row"><span>Responsable</span><strong>{{ session.get('nombres','Usuario') }}</strong></div>{% endif %}
+    {% endif %}
+    {% if ticket_config.mostrar_cuentas %}
     <hr class="rule">
     <div class="small muted">CONCILIACIÓN POR CUENTA</div>
     {% for cuenta in corte.cuentas %}
     <section class="account">
       <h3>{{ cuenta.nombre }} · {{ cuenta.tipo|title }}</h3>
+      {% if ticket_config.mostrar_desglose_cuentas %}
       <div class="row"><span>Saldo inicial</span><strong>${{ '%.2f'|format(cuenta.inicial|float) }}</strong></div>
       <div class="row"><span>Cobros de órdenes</span><strong>${{ '%.2f'|format(cuenta.abonos|float) }}</strong></div>
       <div class="row"><span>Depósitos</span><strong>${{ '%.2f'|format(cuenta.depositos|float) }}</strong></div>
       <div class="row"><span>Retiros y gastos</span><strong>−${{ '%.2f'|format(cuenta.salidas|float) }}</strong></div>
+      {% endif %}
       <div class="row"><span>Esperado</span><strong>${{ '%.2f'|format(cuenta.esperado|float) }}</strong></div>
       <div class="row"><span>Conciliado</span><strong>${{ '%.2f'|format((cuenta.contado if cuenta.contado is not none else 0)|float) }}</strong></div>
       <div class="row"><span>Diferencia</span><strong class="{{ 'difference-ok' if cuenta.diferencia|float == 0 else 'difference-alert' }}">{{ '%+.2f'|format(cuenta.diferencia|float) }}</strong></div>
     </section>
     {% endfor %}
-    <div class="row total"><strong>Total registrado</strong><strong>${{ '%.2f'|format(corte.total_esperado_cuentas|float) }}</strong></div>
+    {% endif %}
+    {% if ticket_config.mostrar_total %}<div class="row total"><strong>Total registrado</strong><strong>${{ '%.2f'|format(corte.total_esperado_cuentas|float) }}</strong></div>{% endif %}
+    {% if ticket_config.mostrar_movimientos %}
     <hr class="rule">
     <div class="small muted">MOVIMIENTOS DEL TURNO</div>
     {% for evento in corte.eventos|reverse %}
-    <div class="event"><div class="row"><strong>{{ evento.titulo }}</strong><strong>{{ '+' if evento.naturaleza == 'entrada' else ('−' if evento.naturaleza == 'salida' else '') }}${{ '%.2f'|format(evento.monto|float) }}</strong></div><div class="small muted">{{ evento.detalle }} · {{ evento.cuenta }}{% if evento.referencia %} · {{ evento.referencia }}{% endif %}</div></div>
+    <div class="event"><div class="row"><strong>{{ evento.titulo }}</strong><strong>{{ '+' if evento.naturaleza == 'entrada' else ('−' if evento.naturaleza == 'salida' else '') }}${{ '%.2f'|format(evento.monto|float) }}</strong></div><div class="small muted">{{ evento.detalle }} · {{ evento.cuenta }}{% if ticket_config.mostrar_referencias and evento.referencia %} · {{ evento.referencia }}{% endif %}</div></div>
     {% else %}<p class="small muted center">Sin movimientos.</p>{% endfor %}
-    {% if corte.notas_cierre %}<hr class="rule"><div class="small"><strong>Observaciones:</strong> {{ corte.notas_cierre }}</div>{% endif %}
-    <hr class="rule"><p class="center small muted">Documento de control interno · {{ laboratorio_config.nombre_corto|default('AppLab') }}</p>
+    {% endif %}
+    {% if ticket_config.mostrar_observaciones and corte.notas_cierre %}<hr class="rule"><div class="small"><strong>Observaciones:</strong> {{ corte.notas_cierre }}</div>{% endif %}
+    {% if ticket_config.mostrar_pie %}<hr class="rule"><p class="center small muted">Documento de control interno · {{ laboratorio_config.nombre_corto|default('AppLab') }}</p>{% endif %}
   </main>
   {% if auto_print %}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));</script>{% endif %}
+  <script>
+  (() => {
+    const button = document.getElementById("share-cash-ticket");
+    const status = document.getElementById("share-status");
+    const pdfUrl = {{ url_for('app_routes.pdf_corte_caja', corte_id=corte.id)|tojson }};
+    const filename = {{ ('corte-caja-%04d.pdf'|format(corte.id|int))|tojson }};
+    const title = {{ ('Corte de caja #%04d'|format(corte.id|int))|tojson }};
+    function download(blob) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+    }
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      status.textContent = "Preparando PDF...";
+      const placeholder = navigator.share ? null : window.open("", "_blank");
+      try {
+        const response = await fetch(pdfUrl, {credentials:"same-origin"});
+        if (!response.ok) throw new Error("No se pudo generar el PDF.");
+        const blob = await response.blob();
+        const file = new File([blob], filename, {type:"application/pdf"});
+        if (navigator.canShare?.({files:[file]})) {
+          placeholder?.close();
+          await navigator.share({files:[file], title, text:title});
+          status.textContent = "PDF compartido.";
+        } else {
+          download(blob);
+          const message = encodeURIComponent(`${title}. El archivo PDF se descargó para adjuntarlo a esta conversación.`);
+          if (placeholder) placeholder.location.href = `https://wa.me/?text=${message}`;
+          else window.open(`https://wa.me/?text=${message}`, "_blank", "noopener");
+          status.textContent = "PDF descargado. Adjunta el archivo en WhatsApp.";
+        }
+      } catch (error) {
+        placeholder?.close();
+        if (error.name !== "AbortError") status.textContent = error.message || "No se pudo compartir el PDF.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+  })();
+  </script>
 </body>
 </html>

@@ -19,6 +19,7 @@
   </header>
 
   {% set receipt = system_settings.recibo_configuracion %}
+  {% set cash_ticket = system_settings.ticket_corte_configuracion %}
   {% set lab = system_settings.laboratorio_configuracion %}
   <div class="mt-6 space-y-4">
     <section class="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4 text-sm text-cyan-900"><div class="flex items-start gap-3"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-cyan-700"><i class="fas fa-shield-alt"></i></span><div><strong class="block">Configuración protegida</strong><p class="mt-1 text-xs leading-relaxed">Los cambios se aplican a todos los usuarios y quedan registrados en la bitácora.</p></div></div></section>
@@ -55,6 +56,31 @@
           <div class="brand-image-control rounded-xl border border-slate-200 bg-slate-50 p-4" data-current-url="{{ lab.favicon_url }}" data-default-url="{{ url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}"><div class="flex items-center gap-3"><img id="favicon-preview" src="{{ lab.favicon_url or url_for('static', filename='icons/applab-favicon.svg', v='clinical') }}" class="h-12 w-12 rounded-xl border border-slate-200 bg-white object-contain p-1" alt="Vista previa del icono"><div><strong class="block text-sm">Icono de pestaña</strong><small id="favicon-preview-status" class="text-slate-500">{{ 'Imagen personalizada' if lab.favicon_url else 'Icono predeterminado de AppLab' }}</small></div></div><div class="mt-3 rounded-lg border border-cyan-100 bg-cyan-50 p-2 text-[10px] leading-4 text-cyan-900"><strong>Recomendado:</strong> PNG o WEBP cuadrado, 64 × 64 o 128 × 128 px y máximo 512 KB.</div><input id="favicon-input" class="sr-only" type="file" name="favicon" accept="image/png,image/jpeg,image/webp"><input id="favicon-remove" type="checkbox" name="eliminar_favicon" class="hidden"><div class="mt-3 flex flex-wrap gap-2"><label for="favicon-input" class="btn-cancelar cursor-pointer"><i class="fas fa-upload"></i>Elegir imagen</label><button type="button" class="btn-cancelar" data-use-default="favicon"><i class="fas fa-undo"></i>Usar AppLab</button><button type="button" class="btn-cancelar {{ 'hidden' if not lab.favicon_url }}" data-restore-image="favicon"><i class="fas fa-history"></i>Conservar actual</button></div></div>
         </div>
         <div class="flex justify-end border-t border-slate-100 pt-5"><button class="btn-guardar" type="submit"><i class="fas fa-save"></i>Guardar identidad</button></div>
+      </form>
+    </details>
+
+    <details class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {{ accordion_heading('fa-print', 'Ticket de corte de caja', 'Elige exactamente qué información aparecerá al imprimir el cierre.', 'is-cyan') }}
+      <form method="POST" action="{{ url_for('app_routes.guardar_configuracion_ticket_corte_route') }}" class="space-y-5 border-t border-slate-100 p-5 sm:p-6">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {% for name, title, icon in [
+            ('mostrar_laboratorio','Nombre del laboratorio','fa-flask'),
+            ('mostrar_folio','Folio del corte','fa-hashtag'),
+            ('mostrar_fechas','Apertura y cierre','fa-calendar-alt'),
+            ('mostrar_responsable','Responsable','fa-user-check'),
+            ('mostrar_cuentas','Conciliación por cuenta','fa-university'),
+            ('mostrar_desglose_cuentas','Desglose de cada cuenta','fa-list-alt'),
+            ('mostrar_total','Total registrado','fa-calculator'),
+            ('mostrar_movimientos','Movimientos del turno','fa-exchange-alt'),
+            ('mostrar_referencias','Referencias de movimientos','fa-tag'),
+            ('mostrar_observaciones','Observaciones de cierre','fa-sticky-note'),
+            ('mostrar_pie','Pie de control interno','fa-file-alt')
+          ] %}
+          <label class="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><span class="flex items-center gap-2 text-xs font-semibold"><i class="fas {{ icon }} text-cyan-700"></i>{{ title }}</span><input type="checkbox" name="{{ name }}" {% if cash_ticket[name] %}checked{% endif %}></label>
+          {% endfor %}
+        </div>
+        <p class="rounded-xl border border-cyan-100 bg-cyan-50 p-4 text-xs leading-5 text-cyan-900"><i class="fas fa-info-circle mr-1"></i>Los nombres de BBVA, Mercado Pago y otras terminales se toman del catálogo de cuentas financieras.</p>
+        <div class="flex justify-end border-t border-slate-100 pt-5"><button class="btn-guardar" type="submit"><i class="fas fa-save"></i>Guardar ticket de corte</button></div>
       </form>
     </details>
 
