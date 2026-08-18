@@ -98,10 +98,32 @@
     <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <header class="border-b border-slate-200 px-5 py-4"><h2 class="font-bold text-slate-900">Cierres recientes</h2><p class="text-sm text-slate-500">Historial de conciliaciones de tu usuario.</p></header>
       <div class="overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3">Corte</th><th class="px-5 py-3">Apertura</th><th class="px-5 py-3">Cierre</th><th class="px-5 py-3 text-right">Total cuentas</th><th class="px-5 py-3 text-right">Diferencia efectivo</th><th class="px-5 py-3 text-right">Ticket</th></tr></thead><tbody class="divide-y divide-slate-100">
-        {% for item in caja.historial %}<tr><td class="px-5 py-4 font-bold text-slate-900">#{{ item.id }}</td><td class="whitespace-nowrap px-5 py-4 text-slate-500">{{ item.fecha_apertura_local[:16]|replace('T', ' · ') }}</td><td class="whitespace-nowrap px-5 py-4 text-slate-500">{{ item.fecha_cierre_local[:16]|replace('T', ' · ') }}</td><td class="px-5 py-4 text-right">${{ '%.2f'|format(item.total_esperado_cuentas|float) }}</td><td class="px-5 py-4 text-right font-bold {% if item.diferencia_cierre|float == 0 %}text-emerald-700{% else %}text-amber-700{% endif %}">${{ '%+.2f'|format(item.diferencia_cierre|float) }}</td><td class="px-5 py-4 text-right"><a class="btn-cancelar inline-flex" href="{{ url_for('app_routes.ticket_corte_caja', corte_id=item.id) }}"><i class="fas fa-print"></i>Ver</a></td></tr>{% endfor %}
+        {% for item in caja.historial %}<tr><td class="px-5 py-4 font-bold text-slate-900">#{{ item.id }}</td><td class="whitespace-nowrap px-5 py-4 text-slate-500">{{ item.fecha_apertura_local[:16]|replace('T', ' · ') }}</td><td class="whitespace-nowrap px-5 py-4 text-slate-500">{{ item.fecha_cierre_local[:16]|replace('T', ' · ') }}</td><td class="px-5 py-4 text-right">${{ '%.2f'|format(item.total_esperado_cuentas|float) }}</td><td class="px-5 py-4 text-right font-bold {% if item.diferencia_cierre|float == 0 %}text-emerald-700{% else %}text-amber-700{% endif %}">${{ '%+.2f'|format(item.diferencia_cierre|float) }}</td><td class="px-5 py-4 text-right"><button type="button" class="btn-cancelar inline-flex" data-cash-receipt data-cut-id="{{ item.id }}" data-ticket-url="{{ url_for('app_routes.ticket_corte_caja', corte_id=item.id, embedded=1) }}" data-pdf-url="{{ url_for('app_routes.pdf_corte_caja', corte_id=item.id) }}" data-download-url="{{ url_for('app_routes.pdf_corte_caja', corte_id=item.id, download=1) }}"><i class="fas fa-print"></i>Ver</button></td></tr>{% endfor %}
       </tbody></table></div>
     </section>
   {% endif %}
+</div>
+
+<div id="cash-receipt-modal" class="fixed inset-0 z-[10000] hidden" role="dialog" aria-modal="true" aria-labelledby="cash-receipt-title">
+  <button type="button" class="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" data-close-cash-receipt aria-label="Cerrar"></button>
+  <section class="absolute left-1/2 top-1/2 flex h-[min(90dvh,52rem)] w-[calc(100%_-_1.25rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+    <header class="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:px-5">
+      <div class="min-w-0"><p class="text-[10px] font-bold uppercase tracking-wider text-cyan-700">Control financiero</p><h2 id="cash-receipt-title" class="truncate text-base font-bold text-slate-900">Comprobante del corte</h2></div>
+      <button type="button" data-close-cash-receipt class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+    </header>
+    <div class="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div class="grid grid-cols-2 gap-2">
+        <button id="cash-ticket-tab" type="button" class="rounded-xl border border-[#0b1f33] bg-[#0b1f33] px-4 py-2 text-xs font-bold text-white"><i class="fas fa-receipt mr-1.5"></i>Ticket térmico</button>
+        <button id="cash-pdf-tab" type="button" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600"><i class="fas fa-file-pdf mr-1.5"></i>Documento PDF</button>
+      </div>
+      <p id="cash-receipt-help" class="text-xs text-slate-500">Vista preparada para impresora térmica.</p>
+    </div>
+    <div class="min-h-0 flex-1 bg-slate-100 p-2 sm:p-3"><iframe id="cash-receipt-frame" title="Vista previa del corte de caja" class="h-full w-full rounded-xl border border-slate-200 bg-white"></iframe></div>
+    <footer class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:px-5">
+      <a id="cash-download-pdf" class="btn-cancelar inline-flex justify-center" href="#" download><i class="fas fa-download"></i>Descargar PDF</a>
+      <button id="cash-print-ticket" type="button" class="btn-guardar justify-center"><i class="fas fa-print"></i>Imprimir ticket</button>
+    </footer>
+  </section>
 </div>
 
 {% if caja.disponible %}
@@ -150,6 +172,54 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalIds = ["register-modal", "movement-modal", "close-modal"];
   const closeAll = () => modalIds.forEach(id => document.getElementById(id)?.classList.add("hidden"));
   const openModal = id => { closeAll(); document.getElementById(id)?.classList.remove("hidden"); };
+  const receiptModal = document.getElementById("cash-receipt-modal");
+  const receiptFrame = document.getElementById("cash-receipt-frame");
+  const ticketTab = document.getElementById("cash-ticket-tab");
+  const pdfTab = document.getElementById("cash-pdf-tab");
+  const receiptHelp = document.getElementById("cash-receipt-help");
+  const downloadPdf = document.getElementById("cash-download-pdf");
+  const printTicket = document.getElementById("cash-print-ticket");
+  let activeReceipt = null;
+
+  const setReceiptTab = mode => {
+    if (!activeReceipt) return;
+    const isTicket = mode === "ticket";
+    receiptFrame.src = isTicket ? activeReceipt.ticketUrl : activeReceipt.pdfUrl;
+    ticketTab.className = isTicket ? "rounded-xl border border-[#0b1f33] bg-[#0b1f33] px-4 py-2 text-xs font-bold text-white" : "rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600";
+    pdfTab.className = !isTicket ? "rounded-xl border border-[#0b1f33] bg-[#0b1f33] px-4 py-2 text-xs font-bold text-white" : "rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600";
+    receiptHelp.textContent = isTicket ? "Vista preparada para impresora térmica." : "Documento PDF listo para descargar o imprimir.";
+    printTicket.innerHTML = isTicket ? '<i class="fas fa-print"></i>Imprimir ticket' : '<i class="fas fa-print"></i>Imprimir PDF';
+  };
+  const openCashReceipt = data => {
+    activeReceipt = data;
+    document.getElementById("cash-receipt-title").textContent = `Comprobante del corte #${String(data.id).padStart(4, "0")}`;
+    downloadPdf.href = data.downloadUrl;
+    receiptModal.classList.remove("hidden");
+    document.body.classList.add("overflow-hidden");
+    setReceiptTab("ticket");
+  };
+  const closeCashReceipt = () => {
+    receiptModal.classList.add("hidden");
+    receiptFrame.src = "about:blank";
+    document.body.classList.remove("overflow-hidden");
+    activeReceipt = null;
+  };
+  document.querySelectorAll("[data-cash-receipt]").forEach(button => button.addEventListener("click", () => openCashReceipt({id: button.dataset.cutId, ticketUrl: button.dataset.ticketUrl, pdfUrl: button.dataset.pdfUrl, downloadUrl: button.dataset.downloadUrl})));
+  document.querySelectorAll("[data-close-cash-receipt]").forEach(button => button.addEventListener("click", closeCashReceipt));
+  ticketTab?.addEventListener("click", () => setReceiptTab("ticket"));
+  pdfTab?.addEventListener("click", () => setReceiptTab("pdf"));
+  printTicket?.addEventListener("click", () => { receiptFrame.contentWindow?.focus(); receiptFrame.contentWindow?.print(); });
+  {% if cierre_id %}
+  openCashReceipt({
+    id: {{ cierre_id|tojson }},
+    ticketUrl: {{ url_for('app_routes.ticket_corte_caja', corte_id=cierre_id, embedded=1)|tojson }},
+    pdfUrl: {{ url_for('app_routes.pdf_corte_caja', corte_id=cierre_id)|tojson }},
+    downloadUrl: {{ url_for('app_routes.pdf_corte_caja', corte_id=cierre_id, download=1)|tojson }}
+  });
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete("cierre");
+  window.history.replaceState({}, "", cleanUrl);
+  {% endif %}
   document.querySelector("[data-open-register]")?.addEventListener("click", () => openModal("register-modal"));
   if ({{ (return_to or '')|tojson }} && document.getElementById("register-modal")) openModal("register-modal");
   document.querySelector("[data-open-close]")?.addEventListener("click", () => openModal("close-modal"));
@@ -162,7 +232,7 @@ document.addEventListener("DOMContentLoaded", () => {
     openModal("movement-modal");
   }));
   document.querySelectorAll("[data-close-modal]").forEach(button => button.addEventListener("click", closeAll));
-  document.addEventListener("keydown", event => { if (event.key === "Escape") closeAll(); });
+  document.addEventListener("keydown", event => { if (event.key === "Escape") { closeAll(); closeCashReceipt(); } });
   document.querySelectorAll("[data-account-counted]").forEach(input => {
     const updateDifference = () => {
       const target = input.parentElement.querySelector(".account-difference");

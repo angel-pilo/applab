@@ -1455,6 +1455,7 @@ def corte_caja():
     return render_template(
         "mostrador/corte_caja.html", caja=caja, return_to=return_to,
         cuentas_financieras=listar_cuentas_financieras(),
+        cierre_id=request.args.get("cierre", type=int),
     )
 
 
@@ -1592,7 +1593,7 @@ def cerrar_corte_caja_route():
         logger.exception("No se pudo cerrar la caja")
         flash("No se pudo cerrar la caja. Verifica el estado e intenta nuevamente.", "error")
         return redirect(url_for("app_routes.corte_caja"))
-    return redirect(url_for("app_routes.ticket_corte_caja", corte_id=corte_id, print=1))
+    return redirect(url_for("app_routes.corte_caja", cierre=corte_id))
 
 
 @app_routes.get("/mostrador/corte-caja/<int:corte_id>/ticket")
@@ -1611,6 +1612,7 @@ def ticket_corte_caja(corte_id):
         "mostrador/ticket_corte_caja.html",
         corte=corte,
         auto_print=request.args.get("print") == "1",
+        embedded=request.args.get("embedded") == "1",
         ticket_config=ticket_settings,
         receipt_config=system_settings.get("recibo_configuracion", DEFAULT_RECEIPT_SETTINGS),
     )
