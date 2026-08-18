@@ -9,13 +9,13 @@
   </style>
 </head>
 <body>
-  <nav class="toolbar">
+  {% if not embedded %}<nav class="toolbar">
     <a href="{{ url_for('app_routes.corte_caja') }}">Volver</a>
     <button class="primary" onclick="window.print()">Imprimir ticket</button>
     <a href="{{ url_for('app_routes.pdf_corte_caja', corte_id=corte.id, download=1) }}">Descargar PDF</a>
     <button id="share-cash-ticket" type="button" class="whatsapp">Compartir por WhatsApp</button>
     <span id="share-status" class="share-status" aria-live="polite"></span>
-  </nav>
+  </nav>{% endif %}
   <main class="ticket">
     {% if ticket_config.mostrar_laboratorio or ticket_config.mostrar_folio %}<header class="center">{% if ticket_config.mostrar_laboratorio %}<strong>{{ laboratorio_config.nombre_corto|default('AppLab') }}</strong>{% endif %}{% if ticket_config.mostrar_folio %}<div class="small muted">Corte de caja #{{ corte.id }}</div>{% endif %}</header>{% endif %}
     {% if ticket_config.mostrar_fechas or ticket_config.mostrar_responsable %}
@@ -52,11 +52,12 @@
     {% if ticket_config.mostrar_observaciones and corte.notas_cierre %}<hr class="rule"><div class="small"><strong>Observaciones:</strong> {{ corte.notas_cierre }}</div>{% endif %}
     {% if ticket_config.mostrar_pie %}<hr class="rule"><p class="center small muted">Documento de control interno · {{ laboratorio_config.nombre_corto|default('AppLab') }}</p>{% endif %}
   </main>
-  {% if auto_print %}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));</script>{% endif %}
+  {% if auto_print and not embedded %}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));</script>{% endif %}
   <script>
   (() => {
     const button = document.getElementById("share-cash-ticket");
     const status = document.getElementById("share-status");
+    if (!button) return;
     const pdfUrl = {{ url_for('app_routes.pdf_corte_caja', corte_id=corte.id)|tojson }};
     const filename = {{ ('corte-caja-%04d.pdf'|format(corte.id|int))|tojson }};
     const title = {{ ('Corte de caja #%04d'|format(corte.id|int))|tojson }};
